@@ -160,16 +160,67 @@ def replace_config(new_config: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(new_config, dict):
         raise TypeError("Config must be a dict")
     path = get_config_path()
-    new_config = _migrate_keys(dict(new_config))
+    current = load_config()
+    # Beskytt mot utilsiktet clearing ved full-oppdatering også
+    new_config = _sanitize_target_patch(dict(new_config), current)
+    new_config = _migrate_keys(new_config)
     new_config.setdefault("_updated_at", int(time.time()))
     _atomic_write_json(path, new_config)
     return new_config
 
+def _sanitize_target_patch(patch: Dict[str, Any], current: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Beskytt mål-feltene mot utilsiktet clearing.
+    Tillat KUN clearing når patch uttrykkelig sier fra:
+      - target_datetime == "__clear__"  ELLER
+      - __clear_target == True
+    I alle andre tilfeller:
+      - dropp target_ms=0, tom target_iso, tom/"__clear__" target_datetime
+    """
+    p = dict(patch or {})
+    explicit_clear = False
+
+    td = p.get("target_datetime", None)
+    if isinstance(td, str) and td.strip() == "__clear__":
+        explicit_clear = True
+    if p.get("__clear_target") is True:
+        explicit_clear = True
+
+    if explicit_clear:
+        p.pop("__clear_target", None)
+        p["target_ms"] = 0
+        p["target_iso"] = ""
+        p["target_datetime"] = ""
+        return p
+
+    # Ikke eksplisitt clear → fjern utilsiktede "tomme" verdier
+    if "target_ms" in p:
+        try:
+            if int(p["target_ms"]) <= 0:
+                p.pop("target_ms", None)
+        except Exception:
+            p.pop("target_ms", None)
+
+    if "target_iso" in p:
+        if not p["target_iso"]:
+            p.pop("target_iso", None)
+
+    if "target_datetime" in p:
+        s = str(p["target_datetime"]).strip() if p["target_datetime"] is not None else ""
+        if s == "" or s == "__clear__":
+            # uten explicit_clear skal ikke tom/clear få effekt
+            p.pop("target_datetime", None)
+
+    return p
+
 def save_config(patch: Dict[str, Any]) -> Dict[str, Any]:
-    """Oppdater konfig: dypflett patch inn i eksisterende (tomme felt/None ignoreres)."""
+    """Oppdater konfig: dypflett patch inn i eksisterende (tomme felt/None ignoreres),
+       og *ikke* fjern mål med mindre det er eksplisitt.
+    """
     path = get_config_path()
     current = load_config()
-    merged = _deep_merge_preserve_empty(current, dict(patch or {}))
+    safe_patch = _sanitize_target_patch(dict(patch or {}), current)
+    merged = _deep_merge_preserve_empty(current, safe_patch)
     merged = _migrate_keys(merged)
     merged["_updated_at"] = int(time.time())
     _atomic_write_json(path, merged)
