@@ -11,7 +11,7 @@ def create_app() -> Flask:
         static_url_path="/static",
     )
     app.register_blueprint(public_bp)
-    app.register_blueprint(admin_bp, url_prefix="/api")
+    app.register_blueprint(admin_bp)  # <— ikke legg til url_prefix her
 
     @app.after_request
     def add_headers(resp):

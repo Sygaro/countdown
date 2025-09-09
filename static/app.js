@@ -1,127 +1,207 @@
-// /home/reidar/countdown/static/app.js
-(() => {
-  const clockEl = document.getElementById('clock');
-  const msg1 = document.getElementById('msg1');
-  const msg2 = document.getElementById('msg2');
+/* /home/reidar/countdown/static/app.js — robust, data-mode CSS, SSE+poll fallback */
+(function(){
+  var clockEl = document.getElementById('clock');
+  var msg1 = document.getElementById('msg1');
+  var msg2 = document.getElementById('msg2');
 
-  let snapshot = null;      // last /state payload
-  let sseConnected = false; // current SSE status
-  let lastUpdate = 0;
-  let msg2Base = '';
-
+  var cfg = null;
+  var snapshot = null;
+  var lastUpdate = 0;
+  var es = null;
+  var pollTimer = null;
+  var refreshTimer = null; // periodic hard refresh guard
 
   function pad(n){ return n < 10 ? '0' + n : '' + n; }
+  function nowPerf(){ return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); }
 
-  function fmtRemaining(ms){
-    const neg = ms < 0;
-    ms = Math.abs(ms);
-    const s = Math.floor(ms / 1000);
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return (neg ? '-' : '') + pad(m) + ':' + pad(sec);
-  }
-
-  function applyMode(state){
-    // state.warn_ms, state.alert_ms, state.remaining_ms, state.blink
-    let mode = 'normal';
-    if (state.state === 'overrun') mode = 'over';
-    else if (state.state === 'running') {
-      if (state.remaining_ms <= state.alert_ms) mode = 'alert';
-      else if (state.remaining_ms <= state.warn_ms) mode = 'warn';
-    }
+  function setMode(mode){
+    // allowed: normal,warn,alert,over,ended
     document.body.setAttribute('data-mode', mode);
-    document.body.setAttribute('data-blink', state.blink ? '1' : '0');
+  }
+  function setBlink(on){
+    document.body.setAttribute('data-blink', on ? '1' : '0');
   }
 
-  async function loadConfigAndState(){
-    try{
-      const r = await fetch('/api/config', {cache:'no-store'});
-      if(!r.ok) throw new Error(await r.text());
-      const data = await r.json();
-      const cfg = data.config || {};
-
-      msg1.textContent = cfg.show_message_primary ? (cfg.message_primary || '') : '';
-      msg2Base = cfg.show_message_secondary ? (cfg.message_secondary || '') : '';
-      msg2.textContent = msg2Base;
-      const r2 = await fetch('/state', {cache:'no-store'});
-      snapshot = await r2.json();
-      lastUpdate = performance.now();
-      const hhmm = snapshot && snapshot.target_ms
-        ? new Date(snapshot.target_ms).toLocaleTimeString('nb-NO', {hour: '2-digit', minute: '2-digit'})
-        : '';
-      msg2.textContent = msg2Base + (hhmm ? ' ' + hhmm : '');
-
-    }catch(e){
-      console.error('Init load failed:', e);
+  function setMessagesFromConfig(){
+    if(!cfg) return;
+    if (cfg.show_message_primary) {
+      msg1.textContent = String(cfg.message_primary || '');
+      msg1.style.display = '';
+    } else {
+      msg1.textContent = '';
+      msg1.style.display = 'none';
     }
+    var base = cfg.show_message_secondary ? String(cfg.message_secondary || '') : '';
+    var hhmm = (snapshot && snapshot.target_ms)
+      ? new Date(snapshot.target_ms).toLocaleTimeString('nb-NO', {hour:'2-digit', minute:'2-digit'})
+      : '';
+    msg2.textContent = cfg.show_message_secondary ? (base + (hhmm ? ' ' + hhmm : '')) : '';
+    msg2.style.display = cfg.show_message_secondary ? '' : 'none';
   }
 
-  // Render loop — updates every 200ms using last snapshot
-  function tick(){
-    try{
-      if (!snapshot) {
-        clockEl.textContent = '00:00';
-        return;
-      }
-      const nowMs = Date.now();
-      const target = snapshot.target_ms || 0;
-      const remaining = target ? (target - nowMs) : 0;
-
-      const state = {
-        ...snapshot,
-        remaining_ms: remaining
-      };
-      clockEl.textContent = fmtRemaining(remaining);
-      applyMode(state);
-    }catch(e){
-      // keep going
-    }
-  }
-
-  // SSE: refresh snapshot when backend pushes updates
-  function startSSE(){
-    try{
-      const es = new EventSource('/sse');
-      es.onopen = () => { sseConnected = true; };
-      es.onerror = () => { sseConnected = false; };
-      es.onmessage = async ev => {
-        try{
-          const evt = JSON.parse(ev.data);
-          if (evt.type === 'config_update') {
-            const r = await fetch('/state', {cache:'no-store'});
-            snapshot = await r.json();
-            lastUpdate = performance.now();
-          const hhmm = snapshot && snapshot.target_ms
-            ? new Date(snapshot.target_ms).toLocaleTimeString('nb-NO', {hour: '2-digit', minute: '2-digit'})
-            : '';
-          msg2.textContent = msg2Base + (hhmm ? ' ' + hhmm : '');
+  function getJSON(url, cb){
+    if (window.fetch) {
+      window.fetch(url, {cache:'no-store'})
+        .then(function(r){ return r.json(); })
+        .then(function(j){ cb(null, j); })
+        .catch(function(e){ cb(e); });
+    } else {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.setRequestHeader('Accept','application/json');
+      xhr.onreadystatechange = function(){
+        if (xhr.readyState === 4){
+          if (xhr.status >= 200 && xhr.status < 300){
+            try { cb(null, JSON.parse(xhr.responseText)); } catch(e){ cb(e); }
+          } else {
+            cb(new Error('HTTP '+xhr.status));
           }
-        }catch(e){ /* ignore */ }
+        }
       };
-    }catch(e){
-      console.warn('SSE unavailable:', e);
-      sseConnected = false;
+      xhr.send();
     }
   }
 
-  // Fallback poller — if SSE drops, poll /state every 3s
-  setInterval(async () => {
-    if (!sseConnected || (performance.now() - lastUpdate) > 10000) {
-      try{
-        const r = await fetch('/state', {cache:'no-store'});
-        if (r.ok) {
-          snapshot = await r.json();
-          lastUpdate = performance.now();
-          const hhmm = snapshot && snapshot.target_ms
-            ? new Date(snapshot.target_ms).toLocaleTimeString('nb-NO', {hour: '2-digit', minute: '2-digit'})
-            : '';
-          msg2.textContent = msg2Base + (hhmm ? ' ' + hhmm : '');
-        }
-      }catch(e){ /* ignore */ }
-    }
-  }, 3000);
+  function loadConfig(cb){
+    getJSON('/api/config', function(err, json){
+      if (!err) {
+        cfg = json.config || json; // support both shapes
+      }
+      if (cb) cb(err);
+    });
+  }
 
-  // Kick off
-  loadConfigAndState().then(startSSE);
-  setInterval(tick, 200);
+  function loadState(cb){
+    getJSON('/state', function(err, j){
+      if (!err) {
+        snapshot = j;
+        lastUpdate = nowPerf();
+      }
+      if (cb) cb(err);
+    });
+  }
+
+  function initLoad(cb){
+    loadConfig(function(){
+      loadState(function(){
+        setMessagesFromConfig();
+        renderOnce();
+        if (cb) cb();
+      });
+    });
+  }
+
+  function computeRemainingNow(){
+    if (!snapshot) return 0;
+    var drift = Math.round(nowPerf() - lastUpdate);
+    var base = (typeof snapshot.remaining_ms === 'number') ? snapshot.remaining_ms : 0;
+    return base - drift;
+  }
+
+  function computeOverrunMs(){
+    // Prefer server-provided
+    if (snapshot && typeof snapshot.overrun_ms === 'number') return snapshot.overrun_ms;
+    // Fallback to cfg
+    if (cfg && typeof cfg.overrun_minutes !== 'undefined') {
+      var m = parseInt(cfg.overrun_minutes, 10);
+      if (isFinite(m) && m >= 0) return m * 60 * 1000;
+    }
+    return 5 * 60 * 1000;
+  }
+
+  function renderOnce(){
+    if (!snapshot) return;
+
+    var rem = computeRemainingNow();
+    var warn = (typeof snapshot.warn_ms === 'number') ? snapshot.warn_ms : (3*60*1000);
+    var alert = (typeof snapshot.alert_ms === 'number') ? snapshot.alert_ms : (1*60*1000);
+    var overMs = computeOverrunMs();
+
+    var dispMs, inOverrun = false, isEnded = false;
+
+    if (rem <= 0) {
+      var overSoFar = Math.abs(rem);
+      if (overSoFar <= overMs) {
+        inOverrun = true;
+        dispMs = overMs - overSoFar; // count DOWN to 0 during overrun
+      } else {
+        isEnded = true;
+        dispMs = 0;
+      }
+    } else {
+      dispMs = rem;
+    }
+
+    var totalSec = Math.max(0, Math.floor(dispMs / 1000));
+    var mm = Math.floor(totalSec / 60);
+    var ss = totalSec % 60;
+    clockEl.textContent = (mm<10?'0'+mm:mm) + ':' + (ss<10?'0'+ss:ss);
+
+    // color + blink driven by body data attributes
+    setBlink(false);
+    if (isEnded) {
+      setMode('ended');
+      return;
+    }
+    if (inOverrun) {
+      setMode('over');
+      return;
+    }
+    // before target
+    if (rem <= alert) setMode('alert');
+    else if (rem <= warn) setMode('warn');
+    else setMode('normal');
+
+    var blinkSec = (cfg && typeof cfg.blink_seconds !== 'undefined') ? Math.max(0, parseInt(cfg.blink_seconds,10)) : 15;
+    if (rem <= blinkSec * 1000 && rem > 0) {
+      setBlink(true);
+    }
+  }
+
+  function startSSE(){
+    // Clear fallback
+    if (pollTimer) { clearInterval(pollTimer); pollTimer=null; }
+    if (!window.EventSource) { startPolling(); return; }
+    if (es) try { es.close(); } catch(_){}
+    es = new EventSource('/sse');
+
+    es.onmessage = function(ev){
+      if (!ev.data) return;
+      try {
+        var msg = JSON.parse(ev.data);
+        if (msg && msg.type === 'config_update') {
+          // Always refresh both to avoid stale drift
+          loadConfig(function(){ loadState(function(){ setMessagesFromConfig(); renderOnce(); }); });
+        }
+      } catch(e){ /* keepalives/notes */ }
+    };
+    es.onerror = function(){
+      try { es.close(); } catch(_){}
+      startPolling();
+    };
+  }
+
+  function startPolling(){
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(function(){
+      // refresh state; also refresh config occasionally
+      loadState(function(err){
+        if (!err) renderOnce();
+      });
+    }, 1000);
+  }
+
+  // periodic safety refresh (handles clock skew or missed events)
+  function startPeriodicRefresh(){
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(function(){
+      loadConfig(function(){ loadState(function(){ setMessagesFromConfig(); renderOnce(); }); });
+    }, 15000);
+  }
+
+  // smooth display tick
+  setInterval(renderOnce, 250);
+
+  // boot
+  initLoad(function(){ startSSE(); startPeriodicRefresh(); });
 })();

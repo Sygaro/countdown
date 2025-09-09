@@ -1,0 +1,14 @@
+{
+  "show_message_primary": true,
+  "show_message_secondary": true,
+  "message_primary": "Velkommen!",
+  "message_secondary": "Vi starter igjen kl:",
+  "warn_minutes": 4,
+  "alert_minutes": 2,
+  "blink_seconds": 10,
+  "overrun_minutes": 1,
+  "admin_password": "",
+  "target_ms": 0,
+  "target_iso": "",
+  "target_datetime": ""
+}
