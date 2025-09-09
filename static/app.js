@@ -1,4 +1,4 @@
-/* /home/reidar/countdown/static/app.js — robust, data-mode CSS, SSE+poll fallback */
+/* /home/reidar/countdown/static/app.js — server-clock synced, stable rendering */
 (function(){
   var clockEl = document.getElementById('clock');
   var msg1 = document.getElementById('msg1');
@@ -6,31 +6,30 @@
 
   var cfg = null;
   var snapshot = null;
-  var lastUpdate = 0;
   var es = null;
   var pollTimer = null;
-  var refreshTimer = null; // periodic hard refresh guard
+  var refreshTimer = null;
+
+  // offset slik at (Date.now() + serverOffsetMs) ≈ serverens nåtid (ms)
+  var serverOffsetMs = 0;
+  function syncOffsetFromState(s){
+    if (!s || typeof s.now_ms !== 'number') return;
+    // enkel glatting for å unngå jitter
+    var estimate = s.now_ms - Date.now();
+    serverOffsetMs = (serverOffsetMs === 0) ? estimate : (serverOffsetMs*0.9 + estimate*0.1);
+  }
 
   function pad(n){ return n < 10 ? '0' + n : '' + n; }
-  function nowPerf(){ return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); }
-
-  function setMode(mode){
-    // allowed: normal,warn,alert,over,ended
-    document.body.setAttribute('data-mode', mode);
-  }
-  function setBlink(on){
-    document.body.setAttribute('data-blink', on ? '1' : '0');
-  }
+  function setMode(mode){ document.body.setAttribute('data-mode', mode); }
+  function setBlink(on){ document.body.setAttribute('data-blink', on ? '1' : '0'); }
 
   function setMessagesFromConfig(){
     if(!cfg) return;
     if (cfg.show_message_primary) {
       msg1.textContent = String(cfg.message_primary || '');
       msg1.style.display = '';
-    } else {
-      msg1.textContent = '';
-      msg1.style.display = 'none';
-    }
+    } else { msg1.textContent = ''; msg1.style.display = 'none'; }
+
     var base = cfg.show_message_secondary ? String(cfg.message_secondary || '') : '';
     var hhmm = (snapshot && snapshot.target_ms)
       ? new Date(snapshot.target_ms).toLocaleTimeString('nb-NO', {hour:'2-digit', minute:'2-digit'})
@@ -53,9 +52,7 @@
         if (xhr.readyState === 4){
           if (xhr.status >= 200 && xhr.status < 300){
             try { cb(null, JSON.parse(xhr.responseText)); } catch(e){ cb(e); }
-          } else {
-            cb(new Error('HTTP '+xhr.status));
-          }
+          } else { cb(new Error('HTTP '+xhr.status)); }
         }
       };
       xhr.send();
@@ -64,44 +61,23 @@
 
   function loadConfig(cb){
     getJSON('/api/config', function(err, json){
-      if (!err) {
-        cfg = json.config || json; // support both shapes
-      }
+      if (!err) cfg = json.config || json;
       if (cb) cb(err);
     });
   }
-
   function loadState(cb){
-    getJSON('/state', function(err, j){
+    getJSON('/state', function(err, s){
       if (!err) {
-        snapshot = j;
-        lastUpdate = nowPerf();
+        snapshot = s;
+        syncOffsetFromState(s);
       }
       if (cb) cb(err);
     });
   }
+  function initLoad(cb){ loadConfig(function(){ loadState(function(){ setMessagesFromConfig(); renderOnce(); if (cb) cb(); }); }); }
 
-  function initLoad(cb){
-    loadConfig(function(){
-      loadState(function(){
-        setMessagesFromConfig();
-        renderOnce();
-        if (cb) cb();
-      });
-    });
-  }
-
-  function computeRemainingNow(){
-    if (!snapshot) return 0;
-    var drift = Math.round(nowPerf() - lastUpdate);
-    var base = (typeof snapshot.remaining_ms === 'number') ? snapshot.remaining_ms : 0;
-    return base - drift;
-  }
-
-  function computeOverrunMs(){
-    // Prefer server-provided
+  function getOverrunMs(){
     if (snapshot && typeof snapshot.overrun_ms === 'number') return snapshot.overrun_ms;
-    // Fallback to cfg
     if (cfg && typeof cfg.overrun_minutes !== 'undefined') {
       var m = parseInt(cfg.overrun_minutes, 10);
       if (isFinite(m) && m >= 0) return m * 60 * 1000;
@@ -112,18 +88,22 @@
   function renderOnce(){
     if (!snapshot) return;
 
-    var rem = computeRemainingNow();
+    // remaining = target_ms - server_now_estimate
+    var targetMs = (typeof snapshot.target_ms === 'number') ? snapshot.target_ms : 0;
+    var serverNow = Date.now() + serverOffsetMs;
+    var rem = targetMs ? (targetMs - serverNow) : 0;
+
     var warn = (typeof snapshot.warn_ms === 'number') ? snapshot.warn_ms : (3*60*1000);
     var alert = (typeof snapshot.alert_ms === 'number') ? snapshot.alert_ms : (1*60*1000);
-    var overMs = computeOverrunMs();
+    var overMs = getOverrunMs();
 
     var dispMs, inOverrun = false, isEnded = false;
 
     if (rem <= 0) {
-      var overSoFar = Math.abs(rem);
+      var overSoFar = -rem; // positivt
       if (overSoFar <= overMs) {
         inOverrun = true;
-        dispMs = overMs - overSoFar; // count DOWN to 0 during overrun
+        dispMs = overMs - overSoFar; // teller NED til 0 i minus-vindu
       } else {
         isEnded = true;
         dispMs = 0;
@@ -137,29 +117,20 @@
     var ss = totalSec % 60;
     clockEl.textContent = (mm<10?'0'+mm:mm) + ':' + (ss<10?'0'+ss:ss);
 
-    // color + blink driven by body data attributes
+    // farger + blink
     setBlink(false);
-    if (isEnded) {
-      setMode('ended');
-      return;
-    }
-    if (inOverrun) {
-      setMode('over');
-      return;
-    }
-    // before target
+    if (isEnded) { setMode('ended'); return; }
+    if (inOverrun){ setMode('over'); return; }
+
     if (rem <= alert) setMode('alert');
     else if (rem <= warn) setMode('warn');
     else setMode('normal');
 
     var blinkSec = (cfg && typeof cfg.blink_seconds !== 'undefined') ? Math.max(0, parseInt(cfg.blink_seconds,10)) : 15;
-    if (rem <= blinkSec * 1000 && rem > 0) {
-      setBlink(true);
-    }
+    if (rem > 0 && rem <= blinkSec * 1000) setBlink(true);
   }
 
   function startSSE(){
-    // Clear fallback
     if (pollTimer) { clearInterval(pollTimer); pollTimer=null; }
     if (!window.EventSource) { startPolling(); return; }
     if (es) try { es.close(); } catch(_){}
@@ -170,10 +141,10 @@
       try {
         var msg = JSON.parse(ev.data);
         if (msg && msg.type === 'config_update') {
-          // Always refresh both to avoid stale drift
+          // Hent alltid fersk config + state for å unngå heng
           loadConfig(function(){ loadState(function(){ setMessagesFromConfig(); renderOnce(); }); });
         }
-      } catch(e){ /* keepalives/notes */ }
+      } catch(e){ /* keepalives/kommentarer */ }
     };
     es.onerror = function(){
       try { es.close(); } catch(_){}
@@ -184,14 +155,11 @@
   function startPolling(){
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = setInterval(function(){
-      // refresh state; also refresh config occasionally
-      loadState(function(err){
-        if (!err) renderOnce();
-      });
+      loadState(function(err){ if (!err) renderOnce(); });
     }, 1000);
   }
 
-  // periodic safety refresh (handles clock skew or missed events)
+  // sikkerhetsnett: hver 15. sek – last config+state på nytt
   function startPeriodicRefresh(){
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(function(){
@@ -199,9 +167,9 @@
     }, 15000);
   }
 
-  // smooth display tick
-  setInterval(renderOnce, 250);
+  // jevn render
+  setInterval(renderOnce, 200);
 
-  // boot
+  // oppstart
   initLoad(function(){ startSSE(); startPeriodicRefresh(); });
 })();
