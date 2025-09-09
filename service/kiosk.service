@@ -1,0 +1,21 @@
+[Unit]
+Description=Chromium Kiosk on minimal Xorg (Pi OS Lite)
+After=multi-user.target network-online.target countdown.service
+Wants=network-online.target countdown.service
+
+[Service]
+Type=simple
+User=reidar
+Group=reidar
+WorkingDirectory=/home/reidar/countdown
+# Vent til backend svarer på /health (maks ~30s)
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do curl -sf http://127.0.0.1:5000/health && exit 0; sleep 1; done; exit 1'
+# Start Xorg på :0 og kjør vår sesjon
+ExecStart=/usr/bin/xinit /home/reidar/countdown/kiosk-session.sh http://127.0.0.1:5000/ -- :0 -nolisten tcp vt7
+Restart=always
+RestartSec=2
+Environment=HOME=/home/reidar
+# (valgfritt) gi en runtime for enkelte apper
+
+[Install]
+WantedBy=multi-user.target

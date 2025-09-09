@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="nb">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Countdown – Admin</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;margin:2rem;line-height:1.4}
+    fieldset{border:1px solid #ccc;border-radius:8px;padding:1rem;margin-bottom:1rem}
+    legend{font-weight:600}
+    label{display:block;margin:.4rem 0}
+    input[type="text"], input[type="number"], input[type="time"], input[type="datetime-local"], input[type="password"]{width:18rem;max-width:100%;padding:.4rem}
+    .actions{display:flex;gap:.5rem;margin-top:1rem}
+    .note{font-size:.9rem;color:#555}
+    .ok{color:#0a0}.err{color:#b00}
+    .grid{display:grid;grid-template-columns: 220px 1fr;gap:.5rem;align-items:center}
+    button{padding:.5rem .9rem;border-radius:8px;border:1px solid #888;background:#f6f6f6;cursor:pointer}
+    button.primary{background:#2b6cb0;color:#fff;border-color:#2b6cb0}
+    code{background:#f3f3f3;padding:.1rem .3rem;border-radius:4px}
+  </style>
+</head>
+<body>
+  <h1>Countdown – Admin</h1>
+  <p class="note">Alle endringer lagres til <code>config.json</code>. Tomme felt <em>overskriver ikke</em> eksisterende verdier.</p>
+
+  <fieldset>
+  <legend>Modus</legend>
+  <label><input type="radio" name="mode" id="mode_daily" checked> Daglig klokkeslett</label>
+  <label><input type="radio" name="mode" id="mode_once"> Engangs-tidspunkt</label>
+</fieldset>
+
+  <fieldset>
+    <legend>Mål-tid</legend>
+    <div class="grid">
+      <label for="daily_time">Daglig tid (HH:MM)</label>
+      <input id="daily_time" type="time" />
+      <label for="target_datetime">Ett-tidspunkt</label>
+      <input id="target_datetime" type="datetime-local" />
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Start med varighet</legend>
+    <div class="grid">
+      <label for="duration_minutes">Varighet (minutter)</label>
+      <input id="duration_minutes" type="number" min="1" step="1" placeholder="10" />
+    </div>
+    <div class="actions">
+      <button id="btnStartDuration" class="primary">Start nedtelling nå</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Meldinger</legend>
+    <label><input type="checkbox" id="show_message_primary"> Vis hovedmelding</label>
+    <input id="message_primary" type="text" placeholder="F.eks. Velkommen" />
+    <label><input type="checkbox" id="show_message_secondary"> Vis sekundær melding</label>
+    <input id="message_secondary" type="text" placeholder="F.eks. Vi starter igjen kl …" />
+  </fieldset>
+
+  <fieldset>
+    <legend>Varsler / blink</legend>
+    <div class="grid">
+      <label for="warn_minutes">Gult ved (minutter igjen)</label>
+      <input id="warn_minutes" type="number" min="0" step="1" />
+      <label for="alert_minutes">Rødt ved (minutter igjen)</label>
+      <input id="alert_minutes" type="number" min="0" step="1" />
+      <label for="blink_seconds">Blink de siste (sekunder)</label>
+      <input id="blink_seconds" type="number" min="0" step="1" />
+      <label for="overrun_minutes">Vis minus-tid i (minutter etterpå)</label>
+      <input id="overrun_minutes" type="number" min="0" step="1" />
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Sikkerhet</legend>
+    <div class="grid">
+      <label for="admin_password">Admin-passord</label>
+      <input id="admin_password" type="password" placeholder="••••••" />
+      <div></div><div class="note">Sendes som header <code>X-Admin-Password</code> ved lagring/start.</div>
+    </div>
+  </fieldset>
+
+  <div class="actions">
+    <button id="btnReload">Last fra server</button>
+    <button id="btnSave" class="primary">Lagre endringer</button>
+  </div>
+
+  <p id="status"></p>
+
+  <script>
+    const base = window.location.origin;
+    const statusEl = document.getElementById('status');
+
+    function setStatus(msg, ok=true){
+      statusEl.textContent = msg;
+      statusEl.className = ok ? 'ok' : 'err';
+    }
+
+    async function loadConfig(){
+      try{
+        const r = await fetch(base + '/api/config', {cache:'no-store'});
+        if(!r.ok) throw new Error(await r.text());
+        const {config} = await r.json();
+        for(const [k,v] of Object.entries(config)){
+          const node = document.getElementById(k);
+          if(!node) continue;
+          if(node.type === 'checkbox') node.checked = !!v; else node.value = v ?? '';
+        }
+        setStatus('Konfigurasjon lastet.');
+      }catch(e){
+        setStatus('Feil ved lasting: ' + e.message, false);
+      }
+    }
+function currentMode(){
+    return document.getElementById('mode_daily').checked ? 'daily' : 'once';
+  }
+
+  function applyModeFromConfig(cfg){
+    const hasTarget = !!cfg.target_datetime;
+    document.getElementById('mode_daily').checked = !hasTarget;
+    document.getElementById('mode_once').checked  = hasTarget;
+  }
+
+    function buildPatch(){
+    const patch = {};
+    const mode = currentMode();
+
+    // vanlige felter
+    const keys = [
+      'message_primary','message_secondary',
+      'show_message_primary','show_message_secondary',
+      'warn_minutes','alert_minutes','blink_seconds','overrun_minutes'
+    ];
+    for(const k of keys){
+      const node = document.getElementById(k);
+      if(!node) continue;
+      let val = node.type === 'checkbox' ? node.checked : node.value;
+      if(node.type !== 'checkbox' && (val==='' || val==null)) continue;
+      if(['warn_minutes','alert_minutes','blink_seconds','overrun_minutes'].includes(k) && val!==''){
+        val = parseInt(val,10);
+      }
+      patch[k] = val;
+    }
+
+    if(mode === 'daily'){
+      const t = (document.getElementById('daily_time').value || '').trim();
+      if(t){
+        patch.daily_time = t;
+        // Viktig: sørg for at engangs-tidspunkt skrus av
+        patch.target_datetime = "__clear__";
+      }
+    } else {
+      const dt = (document.getElementById('target_datetime').value || '').trim();
+      if(dt){
+        patch.target_datetime = dt;
+      }
+    }
+    return patch;
+  }
+async function loadConfig(){
+    try{
+      const r = await fetch(window.location.origin + '/api/config', {cache:'no-store'});
+      if(!r.ok) throw new Error(await r.text());
+      const {config} = await r.json();
+      for(const [k,v] of Object.entries(config)){
+        const node = document.getElementById(k);
+        if(!node) continue;
+        if(node.type === 'checkbox') node.checked = !!v; else node.value = v ?? '';
+      }
+      applyModeFromConfig(config);
+      setStatus('Konfigurasjon lastet.');
+    }catch(e){
+      setStatus('Feil ved lasting: ' + e.message, false);
+    }
+  }
+    async function saveConfig(){
+      try{
+        const patch = buildPatch();
+        const pwd = document.getElementById('admin_password').value.trim();
+        const r = await fetch(base + '/api/config',{
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json',
+            ...(pwd? {'X-Admin-Password': pwd} : {})
+          },
+          body: JSON.stringify(patch)
+        });
+        if(!r.ok) throw new Error(await r.text());
+        await loadConfig();
+        setStatus('Lagret.');
+      }catch(e){
+        setStatus('Feil ved lagring: '+ e.message, false);
+      }
+    }
+
+    async function startDuration(){
+      try{
+        const minutes = parseInt(document.getElementById('duration_minutes').value, 10);
+        if(!Number.isFinite(minutes) || minutes<=0){
+          setStatus('Ugyldig varighet (>0)', false);
+          return;
+        }
+        const pwd = document.getElementById('admin_password').value.trim();
+        const r = await fetch(base + '/api/start',{
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json',
+            ...(pwd? {'X-Admin-Password': pwd} : {})
+          },
+          body: JSON.stringify({minutes})
+        });
+        if(!r.ok) throw new Error(await r.text());
+        await loadConfig();
+        setStatus('Nedtelling startet.');
+      }catch(e){
+        setStatus('Feil ved start: '+ e.message, false);
+      }
+    }
+
+    document.getElementById('btnReload').addEventListener('click', loadConfig);
+    document.getElementById('btnSave').addEventListener('click', saveConfig);
+    document.getElementById('btnStartDuration').addEventListener('click', startDuration);
+
+    loadConfig();
+  </script>
+</body>
+</html>

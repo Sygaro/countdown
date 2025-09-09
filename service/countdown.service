@@ -1,0 +1,30 @@
+[Unit]
+Description=Countdown Flask app (Waitress / wsgi.py)
+After=network.target
+
+[Service]
+Type=simple
+User=reidar
+Group=reidar
+WorkingDirectory=/home/reidar/countdown
+
+# Eget runtime-dir så dconf/dbus slutter å sikte på /run/user/0
+RuntimeDirectory=kiosk
+Environment=XDG_RUNTIME_DIR=/run/kiosk
+# Nøytraliser evt. arvet DBus-adresse (feilmeldingen din kommer herfra)
+Environment=DBUS_SESSION_BUS_ADDRESS=
+
+Environment=HOME=/home/reidar
+
+# Vent til backend er oppe
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do curl -sf http://127.0.0.1:5000/health && exit 0; sleep 1; done; exit 1'
+
+# Start Xorg og sesjonen
+ExecStart=/usr/bin/xinit /home/reidar/countdown/kiosk-session.sh http://127.0.0.1:5000/ -- :0 -nolisten tcp vt7
+
+Restart=always
+RestartSec=5
+
+
+[Install]
+WantedBy=multi-user.target
