@@ -1,220 +1,109 @@
+<!-- static/admin.html -->
 <!doctype html>
-<html lang="nb">
+<html lang="no">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Countdown – Admin</title>
-  <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;margin:2rem;line-height:1.4}
-    fieldset{border:1px solid #ccc;border-radius:8px;padding:1rem;margin-bottom:1rem}
-    legend{font-weight:600}
-    label{display:block;margin:.4rem 0}
-    input[type="text"], input[type="number"], input[type="time"], input[type="datetime-local"], input[type="password"]{width:18rem;max-width:100%;padding:.4rem}
-    .actions{display:flex;gap:.5rem;margin-top:1rem}
-    .note{font-size:.9rem;color:#555}
-    .ok{color:#0a0}.err{color:#b00}
-    .grid{display:grid;grid-template-columns: 220px 1fr;gap:.5rem;align-items:center}
-    button{padding:.5rem .9rem;border-radius:8px;border:1px solid #888;background:#f6f6f6;cursor:pointer}
-    button.primary{background:#2b6cb0;color:#fff;border-color:#2b6cb0}
-    code{background:#f3f3f3;padding:.1rem .3rem;border-radius:4px}
-    #diag{font-size:.9rem;color:#444}
-  </style>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Countdown • Admin</title>
+  <link rel="stylesheet" href="/static/css/ui.css">
+  <script type="module" src="/static/js/admin.js"></script>
 </head>
 <body>
-  <h1>Countdown – Admin</h1>
-  <p class="note">Alle endringer lagres atomisk til <code id="cfgPath">config.json</code>. Tomme felt overskriver ikke eksisterende verdier.</p>
-
-  <fieldset>
-    <legend>Modus</legend>
-    <label><input type="radio" name="mode" id="mode_daily" checked> Daglig klokkeslett</label>
-    <label><input type="radio" name="mode" id="mode_once"> Engangs-tidspunkt</label>
-  </fieldset>
-
-  <fieldset>
-    <legend>Mål-tid</legend>
-    <div class="grid">
-      <label for="daily_time">Daglig tid (HH:MM)</label>
-      <input id="daily_time" type="time" />
-      <label for="target_datetime">Ett-tidspunkt</label>
-      <input id="target_datetime" type="datetime-local" />
+  <div class="nav">
+    <div class="nav-inner">
+      <div class="brand">⏱ Countdown</div>
+      <a class="link" href="/">Visning</a>
+      <a class="link active" href="/admin">Admin</a>
+      <a class="link" href="/diag">Diagnose</a>
+      <a class="link" href="/about">Om</a>
     </div>
-  </fieldset>
-
-  <fieldset>
-    <legend>Start med varighet</legend>
-    <div class="grid">
-      <label for="duration_minutes">Varighet (minutter)</label>
-      <input id="duration_minutes" type="number" min="1" step="1" placeholder="10" />
-    </div>
-    <div class="actions">
-      <button id="btnStartDuration" class="primary">Start nedtelling nå</button>
-    </div>
-  </fieldset>
-
-  <fieldset>
-    <legend>Meldinger</legend>
-    <label><input type="checkbox" id="show_message_primary"> Vis hovedmelding</label>
-    <input id="message_primary" type="text" placeholder="F.eks. Velkommen" />
-    <label><input type="checkbox" id="show_message_secondary"> Vis sekundær melding</label>
-    <input id="message_secondary" type="text" placeholder="F.eks. Vi starter igjen kl …" />
-  </fieldset>
-
-  <fieldset>
-    <legend>Varsler / blink</legend>
-    <div class="grid">
-      <label for="warn_minutes">Gult ved (minutter igjen)</label>
-      <input id="warn_minutes" type="number" min="0" step="1" />
-      <label for="alert_minutes">Rødt ved (minutter igjen)</label>
-      <input id="alert_minutes" type="number" min="0" step="1" />
-      <label for="blink_seconds">Blink de siste (sekunder)</label>
-      <input id="blink_seconds" type="number" min="0" step="1" />
-      <label for="overrun_minutes">Vis minus-tid i (minutter etterpå)</label>
-      <input id="overrun_minutes" type="number" min="0" step="1" />
-    </div>
-  </fieldset>
-
-  <fieldset>
-    <legend>Sikkerhet</legend>
-    <div class="grid">
-      <label for="admin_password">Admin-passord</label>
-      <input id="admin_password" type="password" placeholder="(valgfritt nå)" />
-      <div></div><div class="note">Sendes som header <code>X-Admin-Password</code> ved lagring/start (hvis utfylt).</div>
-    </div>
-  </fieldset>
-
-  <div class="actions">
-    <button id="btnReload">Last fra server</button>
-    <button id="btnSave" class="primary">Lagre endringer</button>
   </div>
 
-  <p id="status"></p>
-  <p id="diag"></p>
+  <div class="container">
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Modus</h3>
+        <div class="row">
+          <label><input type="radio" name="mode" value="daily" id="mode-daily"> Daglig klokkeslett</label>
+          <label><input type="radio" name="mode" value="single" id="mode-single"> Engangs-tidspunkt</label>
+        </div>
+        <hr class="sep">
+        <div class="kv">
+          <label for="daily_time">Daglig tid (HH:MM)</label>
+          <input id="daily_time" type="time" inputmode="numeric" placeholder="--:--">
+          <label for="single_dt">Ett-tidspunkt</label>
+          <input id="single_dt" type="datetime-local">
+        </div>
+        <p class="help">Velg én modus. Lagre for at endring skal gjelde.</p>
+      </div>
 
-  <script>
-    const base = window.location.origin;
-    const statusEl = document.getElementById('status');
-    const diagEl = document.getElementById('diag');
-    const cfgPathEl = document.getElementById('cfgPath');
+      <div class="card">
+        <h3>Start med varighet</h3>
+        <div class="row pill">
+          <button class="btn" data-qs="5">+5 min</button>
+          <button class="btn" data-qs="10">+10 min</button>
+          <button class="btn" data-qs="15">+15 min</button>
+          <button class="btn" data-qs="30">+30 min</button>
+        </div>
+        <div class="row">
+          <label for="start_minutes">Varighet (minutter)</label>
+          <input id="start_minutes" type="number" min="1" step="1" value="10">
+          <button id="start_now" class="btn primary">Start nedtelling nå</button>
+        </div>
+        <p class="help">Krever admin-passord dersom satt.</p>
+      </div>
 
-    function setStatus(msg, ok=true){
-      statusEl.textContent = msg;
-      statusEl.className = ok ? 'ok' : 'err';
-    }
+      <div class="card">
+        <h3>Meldinger</h3>
+        <div class="row">
+          <label><input type="checkbox" id="show_primary"> Vis hovedmelding</label>
+        </div>
+        <textarea id="msg_primary" placeholder="Velkommen!"></textarea>
+        <hr class="sep">
+        <div class="row">
+          <label><input type="checkbox" id="show_secondary"> Vis sekundær melding</label>
+        </div>
+        <input id="msg_secondary" type="text" placeholder="Vi starter igjen kl:">
+      </div>
 
-    function currentMode(){
-      return document.getElementById('mode_daily').checked ? 'daily' : 'once';
-    }
+      <div class="card">
+        <h3>Varsler / blink</h3>
+        <div class="kv">
+          <label for="warn_minutes">Gult ved (minutter igjen)</label>
+          <input id="warn_minutes" type="number" min="0" step="1" value="4">
+          <label for="alert_minutes">Rødt ved (minutter igjen)</label>
+          <input id="alert_minutes" type="number" min="0" step="1" value="2">
+          <label for="blink_seconds">Blink de siste (sekunder)</label>
+          <input id="blink_seconds" type="number" min="0" step="1" value="10">
+          <label for="overrun_minutes">Vis minus-tid (minutter etterpå)</label>
+          <input id="overrun_minutes" type="number" min="0" step="1" value="1">
+        </div>
+      </div>
 
-    function applyModeFromConfig(cfg){
-      // Tolker "__clear__" og "" som "ikke engangs-tid"
-      const raw = (cfg.target_datetime ?? '').toString().trim();
-      const hasOnce = !!raw && raw !== '__clear__';
-      document.getElementById('mode_daily').checked = !hasOnce;
-      document.getElementById('mode_once').checked  = hasOnce;
-    }
+      <div class="card">
+        <h3>Sikkerhet</h3>
+        <div class="row">
+          <label for="admin_password">Admin-passord</label>
+          <input id="admin_password" type="password" autocomplete="current-password" placeholder="(valgfritt)">
+        </div>
+        <p class="help">Sendes som <code>X-Admin-Password</code> ved lagring og start.</p>
+      </div>
 
-    async function loadConfig(){
-      try{
-        const r = await fetch(base + '/api/config', {cache:'no-store'});
-        if(!r.ok) throw new Error(await r.text());
-        const json = await r.json();
-        const cfg = json.config ?? json; // støtt både {config,...} og ren config
-        for(const [k,v] of Object.entries(cfg)){
-          const node = document.getElementById(k);
-          if(!node) continue;
-          if(node.type === 'checkbox') node.checked = !!v; else node.value = v ?? '';
-        }
-        applyModeFromConfig(cfg);
-        cfgPathEl.textContent = (json.__config_path || cfgPathEl.textContent);
-        diagEl.innerHTML = 'Aktiv konfig: <code>'+(json.__config_path||'ukjent')+'</code>';
-        setStatus('Konfigurasjon lastet.');
-      }catch(e){
-        setStatus('Feil ved lasting: ' + e.message, false);
-      }
-    }
+      <div class="card">
+        <h3>Handlinger</h3>
+        <div class="row pill">
+          <button id="btn-load" class="btn">Last fra server</button>
+          <button id="btn-save" class="btn ok">Lagre endringer</button>
+        </div>
+        <div class="row">
+          <span class="badge" id="cfg-path">—</span>
+        </div>
+      </div>
+    </div>
 
-    function buildPatch(){
-      const patch = {};
-      const mode = currentMode();
-
-      // Vanlige felter (nøkkelnavn matcher backend)
-      const keys = [
-        'message_primary','message_secondary',
-        'show_message_primary','show_message_secondary',
-        'warn_minutes','alert_minutes','blink_seconds','overrun_minutes'
-      ];
-      for(const k of keys){
-        const node = document.getElementById(k);
-        if(!node) continue;
-        let val = node.type === 'checkbox' ? node.checked : node.value;
-        if(node.type !== 'checkbox' && (val==='' || val==null)) continue; // tomme str. overskriver ikke
-        if(['warn_minutes','alert_minutes','blink_seconds','overrun_minutes'].includes(k) && val!==''){
-          val = parseInt(val,10);
-        }
-        patch[k] = val;
-      }
-
-      if(mode === 'daily'){
-        const t = (document.getElementById('daily_time').value || '').trim();
-        // Alltid slå av engangs-tid ved daily-modus
-        patch.target_datetime = "__clear__";
-        if(t){ patch.daily_time = t; }
-      } else {
-        const dt = (document.getElementById('target_datetime').value || '').trim();
-        if(dt){ patch.target_datetime = dt; }
-      }
-      return patch;
-    }
-
-    async function saveConfig(){
-      try{
-        const patch = buildPatch();
-        const pwd = document.getElementById('admin_password').value.trim();
-        const r = await fetch(base + '/api/config',{
-          method:'POST',
-          headers:{
-            'Content-Type':'application/json',
-            ...(pwd? {'X-Admin-Password': pwd} : {})
-          },
-          body: JSON.stringify(patch)
-        });
-        if(!r.ok) throw new Error(await r.text());
-        await loadConfig(); // refresher feltene fra serverens sannhet
-        setStatus('Lagret.');
-      }catch(e){
-        setStatus('Feil ved lagring: '+ e.message, false);
-      }
-    }
-
-    async function startDuration(){
-      try{
-        const minutes = parseInt(document.getElementById('duration_minutes').value, 10);
-        if(!Number.isFinite(minutes) || minutes<=0){
-          setStatus('Ugyldig varighet (>0)', false);
-          return;
-        }
-        const pwd = document.getElementById('admin_password').value.trim();
-        const r = await fetch(base + '/api/start',{
-          method:'POST',
-          headers:{
-            'Content-Type':'application/json',
-            ...(pwd? {'X-Admin-Password': pwd} : {})
-          },
-          body: JSON.stringify({minutes})
-        });
-        if(!r.ok) throw new Error(await r.text());
-        await loadConfig();
-        setStatus('Nedtelling startet.');
-      }catch(e){
-        setStatus('Feil ved start: '+ e.message, false);
-      }
-    }
-
-    document.getElementById('btnReload').addEventListener('click', loadConfig);
-    document.getElementById('btnSave').addEventListener('click', saveConfig);
-    document.getElementById('btnStartDuration').addEventListener('click', startDuration);
-
-    loadConfig();
-  </script>
+    <div class="footer-links">
+      Snarveier: <a href="/">Visning</a> · <a href="/admin">Admin</a> · <a href="/diag">Diagnose</a> · <a href="/about">Om</a>
+    </div>
+  </div>
 </body>
 </html>

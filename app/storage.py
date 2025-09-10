@@ -1,20 +1,17 @@
 # app/storage.py
 from __future__ import annotations
-import json
-import os
-import time
-from pathlib import Path
+import json, os, time, fcntl
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
+from pathlib import Path
 from datetime import datetime, timezone
 
-# Katalogoppsett
-APP_DIR = Path(__file__).resolve().parent
-DATA_DIR = APP_DIR / "data"
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+from .settings import CONFIG_PATH, TZ
 
-# Defaultverdier (MINUTTER-baserte nøkler – i tråd med UI/admin)
-DEFAULT_CONFIG: Dict[str, Any] = {
+# Hvorfor: én kilde til sannhet for config-plassering
+_CONFIG_PATH: Path = Path(os.environ.get("COUNTDOWN_CONFIG") or CONFIG_PATH).resolve()
+
+_DEFAULT: Dict[str, Any] = {
     "show_message_primary": True,
     "show_message_secondary": True,
     "message_primary": "Velkommen!",
@@ -27,235 +24,169 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "target_ms": 0,
     "target_iso": "",
     "target_datetime": "",
-    # valgfritt: "daily_time": "23:00",
+    # "daily_time": "23:00",
 }
 
 def get_config_path() -> Path:
-    """
-    Løs aktiv konfigsti dynamisk hver gang, slik at miljøendringer (COUNTDOWN_CONFIG)
-    tas i bruk uten å måtte re-importere modulen.
-    """
-    env = os.environ.get("COUNTDOWN_CONFIG")
-    if env and env.strip():
-        return Path(env.strip())
-    return DATA_DIR / "config.json"
+    return _CONFIG_PATH
 
-def _fsync_directory(path: Path) -> None:
+def _lock_file_for_write(path: Path):
+    # Hvorfor: hindre race ved samtidige writes (gunicorn workers)
+    fd = os.open(str(path), os.O_RDWR | os.O_CREAT, 0o644)
+    fcntl.flock(fd, fcntl.LOCK_EX)
+    return fd
+
+def _unlock_file(fd: int):
     try:
-        fd = os.open(str(path), os.O_DIRECTORY)
-        try:
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-    except Exception:
-        pass  # ikke kritisk på alle FS
+        fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
 
 def _atomic_write_json(path: Path, data: Dict[str, Any]) -> None:
-    path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    # valgfri enkel backup (behold siste .bak)
+    # Backup
     if path.exists() and path.is_file():
-        try:
-            path.replace(path.with_suffix(path.suffix + ".bak"))
-        except Exception:
-            pass
+        try: path.replace(path.with_suffix(path.suffix + ".bak"))
+        except Exception: pass
 
-    with NamedTemporaryFile(mode="w", encoding="utf-8", newline="\n",
-                            dir=str(path.parent), delete=False) as tmp:
+    with NamedTemporaryFile(mode="w", encoding="utf-8", dir=str(path.parent), delete=False) as tmp:
         json.dump(data, tmp, ensure_ascii=False, indent=2)
-        tmp.write("\n")
-        tmp.flush()
-        os.fsync(tmp.fileno())
+        tmp.write("\n"); tmp.flush(); os.fsync(tmp.fileno())
         tmp_name = tmp.name
-
     os.replace(tmp_name, path)
-    _fsync_directory(path.parent)
 
-def _deep_merge_preserve_empty(existing: Dict[str, Any], patch: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Dyp fletting:
-      - Dict merges rekursivt.
-      - Tom streng ("") og None i patch IGNORERES (overskriver ikke).
-      - 0/False er gyldig verdi og overskriver.
-    """
+def _deep_merge_skip_empty(dst: Dict[str, Any], patch: Dict[str, Any]) -> Dict[str, Any]:
     for k, v in patch.items():
-        if v is None or v == "":
-            continue
-        if isinstance(v, dict) and isinstance(existing.get(k), dict):
-            existing[k] = _deep_merge_preserve_empty(existing[k], v)  # type: ignore[arg-type]
+        if v is None or (isinstance(v, str) and v == ""):
+            continue  # hvorfor: tom input skal ikke “rydde vekk” verdier
+        if isinstance(v, dict) and isinstance(dst.get(k), dict):
+            dst[k] = _deep_merge_skip_empty(dst[k], v)  # type: ignore
         else:
-            existing[k] = v
-    return existing
+            dst[k] = v
+    return dst
 
-def _migrate_keys(cfg: Dict[str, Any]) -> Dict[str, Any]:
-    """Migrer gamle nøkler -> nye navn/format. Returnerer evt. endret dict."""
+def _migrate(cfg: Dict[str, Any]) -> Dict[str, Any]:
     changed = False
-
-    # warn_seconds -> warn_minutes
     if "warn_seconds" in cfg and "warn_minutes" not in cfg:
-        try: cfg["warn_minutes"] = max(0, int(cfg["warn_seconds"]) // 60); changed = True
+        try: cfg["warn_minutes"] = max(0, int(cfg["warn_seconds"])) // 60; changed = True
         except Exception: pass
         cfg.pop("warn_seconds", None)
-
-    # crit_seconds -> alert_minutes
-    if "crit_seconds" in cfg and "alert_minutes" not in cfg:
-        try: cfg["alert_minutes"] = max(0, int(cfg["crit_seconds"]) // 60); changed = True
-        except Exception: pass
-        cfg.pop("crit_seconds", None)
-
-    # blink_under_seconds -> blink_seconds
     if "blink_under_seconds" in cfg and "blink_seconds" not in cfg:
         try: cfg["blink_seconds"] = max(0, int(cfg["blink_under_seconds"])); changed = True
         except Exception: pass
         cfg.pop("blink_under_seconds", None)
-
-    # message -> message_primary
     if "message" in cfg and "message_primary" not in cfg:
         try: cfg["message_primary"] = str(cfg["message"]); changed = True
         except Exception: pass
         cfg.pop("message", None)
 
-    # Sørg for at obligatoriske default-felter finnes
-    for k, v in DEFAULT_CONFIG.items():
+    for k, v in _DEFAULT.items():
         cfg.setdefault(k, v)
 
     if changed:
         cfg["_migrated_at"] = int(time.time())
-
     return cfg
+
+def _sanitize_target_patch(patch: Dict[str, Any]) -> Dict[str, Any]:
+    p = dict(patch or {})
+    explicit_clear = p.get("__clear_target") is True or (isinstance(p.get("target_datetime"), str) and p["target_datetime"].strip() == "__clear__")
+
+    td = p.get("target_datetime")
+    if isinstance(td, str) and td and td != "__clear__":
+        try:
+            dt = datetime.fromisoformat(td)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=TZ)
+            utc = dt.astimezone(timezone.utc)
+            p["target_ms"] = int(utc.timestamp() * 1000)
+            p["target_iso"] = utc.isoformat()
+        except Exception:
+            p.pop("target_datetime", None)
+
+    if not explicit_clear:
+        if p.get("target_ms") in (0, None): p.pop("target_ms", None)
+        if isinstance(p.get("target_iso"), str) and not p["target_iso"].strip():
+            p.pop("target_iso", None)
+        if isinstance(p.get("target_datetime"), str) and p["target_datetime"].strip() in ("", "__clear__"):
+            p.pop("target_datetime", None)
+    else:
+        p.update({"target_ms": 0, "target_iso": "", "target_datetime": ""})
+
+    p.pop("__clear_target", None)
+    return p
 
 def load_config() -> Dict[str, Any]:
     path = get_config_path()
-    # Les + migrer + skriv tilbake ved behov
+    if not path.exists():
+        cfg = _DEFAULT.copy()
+        fd = _lock_file_for_write(path)
+        try: _atomic_write_json(path, cfg)
+        finally: _unlock_file(fd)
+        return cfg
+
     try:
         with open(path, "r", encoding="utf-8") as f:
             cfg = json.load(f)
-    except FileNotFoundError:
-        cfg = DEFAULT_CONFIG.copy()
-        _atomic_write_json(path, cfg)
-        return cfg
     except json.JSONDecodeError:
-        # Korrupt → forsøk .bak, ellers default
         bak = path.with_suffix(path.suffix + ".bak")
         if bak.exists():
-            try:
-                with open(bak, "r", encoding="utf-8") as f:
-                    cfg = json.load(f)
-                _atomic_write_json(path, cfg)
-                return cfg
-            except Exception:
-                pass
-        cfg = DEFAULT_CONFIG.copy()
-        _atomic_write_json(path, cfg)
+            with open(bak, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+            fd = _lock_file_for_write(path)
+            try: _atomic_write_json(path, cfg)
+            finally: _unlock_file(fd)
+            return cfg
+        cfg = _DEFAULT.copy()
+        fd = _lock_file_for_write(path)
+        try: _atomic_write_json(path, cfg)
+        finally: _unlock_file(fd)
         return cfg
 
-    migrated = _migrate_keys(dict(cfg))
+    migrated = _migrate(dict(cfg))
     if migrated is not cfg:
-        _atomic_write_json(path, migrated)
+        fd = _lock_file_for_write(path)
+        try: _atomic_write_json(path, migrated)
+        finally: _unlock_file(fd)
     return migrated
 
-def replace_config(new_config: Dict[str, Any]) -> Dict[str, Any]:
-    """Erstatt hele konfigen (full write)."""
-    if not isinstance(new_config, dict):
+def replace_config(new_cfg: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(new_cfg, dict):
         raise TypeError("Config must be a dict")
+    safe = _migrate(_sanitize_target_patch(new_cfg))
+    safe["_updated_at"] = int(time.time())
     path = get_config_path()
-    current = load_config()
-    # Beskytt mot utilsiktet clearing ved full-oppdatering også
-    new_config = _sanitize_target_patch(dict(new_config), current)
-    new_config = _migrate_keys(new_config)
-    new_config.setdefault("_updated_at", int(time.time()))
-    _atomic_write_json(path, new_config)
-    return new_config
-
-def _sanitize_target_patch(patch: Dict[str, Any], current: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Beskytt mål-feltene mot utilsiktet clearing.
-    Tillat KUN clearing når patch uttrykkelig sier fra:
-      - target_datetime == "__clear__"  ELLER
-      - __clear_target == True
-    I alle andre tilfeller:
-      - dropp target_ms=0, tom target_iso, tom/"__clear__" target_datetime
-    """
-    p = dict(patch or {})
-    explicit_clear = False
-
-    td = p.get("target_datetime", None)
-    if isinstance(td, str) and td.strip() == "__clear__":
-        explicit_clear = True
-    if p.get("__clear_target") is True:
-        explicit_clear = True
-
-    if explicit_clear:
-        p.pop("__clear_target", None)
-        p["target_ms"] = 0
-        p["target_iso"] = ""
-        p["target_datetime"] = ""
-        return p
-
-    # Ikke eksplisitt clear → fjern utilsiktede "tomme" verdier
-    if "target_ms" in p:
-        try:
-            if int(p["target_ms"]) <= 0:
-                p.pop("target_ms", None)
-        except Exception:
-            p.pop("target_ms", None)
-
-    if "target_iso" in p:
-        if not p["target_iso"]:
-            p.pop("target_iso", None)
-
-    if "target_datetime" in p:
-        s = str(p["target_datetime"]).strip() if p["target_datetime"] is not None else ""
-        if s == "" or s == "__clear__":
-            # uten explicit_clear skal ikke tom/clear få effekt
-            p.pop("target_datetime", None)
-
-    return p
-
-def save_config(patch: Dict[str, Any]) -> Dict[str, Any]:
-    """Oppdater konfig: dypflett patch inn i eksisterende (tomme felt/None ignoreres),
-       og *ikke* fjern mål med mindre det er eksplisitt.
-    """
-    path = get_config_path()
-    current = load_config()
-    safe_patch = _sanitize_target_patch(dict(patch or {}), current)
-    merged = _deep_merge_preserve_empty(current, safe_patch)
-    merged = _migrate_keys(merged)
-    merged["_updated_at"] = int(time.time())
-    _atomic_write_json(path, merged)
-    return merged
-
-# Backwards-compat aliaser brukt andre steder i appen
-get_config = load_config
-set_config = replace_config
-update_config = save_config
-
-# --- APIer brukt av admin.py ---
+    fd = _lock_file_for_write(path)
+    try: _atomic_write_json(path, safe)
+    finally: _unlock_file(fd)
+    return safe
 
 def save_config_patch(patch: Dict[str, Any]) -> Dict[str, Any]:
-    """Alias brukt av admin.py for delvis oppdatering (patch)."""
-    return save_config(patch)
+    current = load_config()
+    safe_patch = _sanitize_target_patch(patch)
+    merged = _migrate(_deep_merge_skip_empty(current, safe_patch))
+    merged["_updated_at"] = int(time.time())
+    path = get_config_path()
+    fd = _lock_file_for_write(path)
+    try: _atomic_write_json(path, merged)
+    finally: _unlock_file(fd)
+    return merged
 
-def save_target_datetime(target: Union[datetime, int]) -> Dict[str, Any]:
-    """Sett mål-tidspunkt.
-    - target kan være datetime (aware/naiv) eller epoch ms (int).
-    - Lagrer både 'target_ms' og ISO-strenger for kompatibilitet.
-    """
+def save_target_datetime(target: Union[datetime, int], *, __source: Optional[str] = None) -> Dict[str, Any]:
     if isinstance(target, datetime):
         if target.tzinfo is None:
-            target = target.astimezone()
-        target_utc = target.astimezone(timezone.utc)
-        target_ms = int(target_utc.timestamp() * 1000)
-        target_iso = target_utc.isoformat()
+            target = target.replace(tzinfo=TZ)
+        utc = target.astimezone(timezone.utc)
+        ms = int(utc.timestamp() * 1000)
+        iso = utc.isoformat()
     elif isinstance(target, int):
-        target_ms = int(target)
-        target_iso = datetime.fromtimestamp(target_ms / 1000, tz=timezone.utc).isoformat()
+        ms = int(target)
+        iso = datetime.fromtimestamp(ms / 1000, tz=timezone.utc).isoformat()
     else:
-        raise TypeError("target must be a datetime or epoch milliseconds int")
+        raise TypeError("target must be datetime or epoch-ms int")
 
-    return save_config({
-        "target_ms": target_ms,
-        "target_iso": target_iso,
-        "target_datetime": target_iso,  # kompatibilitet med eldre felt
+    return save_config_patch({
+        "target_ms": ms,
+        "target_iso": iso,
+        "target_datetime": iso,
+        "__source": __source or "save_target_datetime",
     })
