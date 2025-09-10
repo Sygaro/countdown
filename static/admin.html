@@ -82,13 +82,24 @@
 
       <div class="card">
         <h3>Sikkerhet</h3>
-        <div class="row">
-          <label for="admin_password">Admin-passord</label>
-          <input id="admin_password" type="password" autocomplete="current-password" placeholder="(valgfritt)">
-        </div>
-        <p class="help">Sendes som <code>X-Admin-Password</code> ved lagring og start.</p>
+        <form onsubmit="return false">
+          <div class="row">
+            <label for="admin_password">Admin-passord</label>
+            <input id="admin_password" type="password" autocomplete="current-password" placeholder="(valgfritt)">
+          </div>
+        </form>
+        <p class="help">Sendes som <code>X-Admin-Password</code> ved lagring/start (hvis utfylt).</p>
       </div>
-
+      <div class="card">
+      <h3>Debug</h3>
+      <div class="row pill">
+        <button id="btn-debug-refresh" class="btn">Oppdater status</button>
+        <button id="btn-debug-write" class="btn ok">Skrivetest</button>
+        <a class="btn ghost" href="/debug/whoami" target="_blank" rel="noopener">Åpne /debug/whoami</a>
+        <a class="btn ghost" href="/debug/config" target="_blank" rel="noopener">Åpne /debug/config</a>
+      </div>
+      <pre id="debug-status" class="mono" style="white-space:pre-wrap;background:#0b1020;padding:12px;border-radius:12px;border:1px solid var(--line);max-height:200px;overflow:auto;">(tom)</pre>
+    </div>
       <div class="card">
         <h3>Handlinger</h3>
         <div class="row pill">
@@ -100,6 +111,9 @@
         </div>
       </div>
     </div>
+
+    
+
 
     <div class="footer-links">
       Snarveier: <a href="/">Visning</a> · <a href="/admin">Admin</a> · <a href="/diag">Diagnose</a> · <a href="/about">Om</a>

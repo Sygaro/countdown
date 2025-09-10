@@ -1,14 +1,17 @@
 {
   "show_message_primary": true,
   "show_message_secondary": true,
-  "message_primary": "Velkommen!",
+  "message_primary": "Hei!",
   "message_secondary": "Vi starter igjen kl:",
   "warn_minutes": 4,
   "alert_minutes": 2,
-  "blink_seconds": 10,
-  "overrun_minutes": 1,
+  "blink_seconds": 9,
+  "overrun_minutes": 20,
   "admin_password": "",
   "target_ms": 0,
   "target_iso": "",
-  "target_datetime": ""
+  "target_datetime": "",
+  "daily_time": "23:20",
+  "_migrated_at": 1757539134,
+  "_updated_at": 1757539363
 }
