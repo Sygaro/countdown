@@ -1,17 +1,18 @@
 {
   "show_message_primary": true,
   "show_message_secondary": true,
-  "message_primary": "Hei!",
+  "message_primary": "Vi tar en pause!",
   "message_secondary": "Vi starter igjen kl:",
   "warn_minutes": 4,
   "alert_minutes": 2,
   "blink_seconds": 9,
   "overrun_minutes": 20,
   "admin_password": "",
-  "target_ms": 0,
-  "target_iso": "",
-  "target_datetime": "",
-  "daily_time": "23:20",
+  "target_ms": 1757545314646,
+  "target_iso": "2025-09-10T23:01:54.646319+00:00",
+  "target_datetime": "2025-09-10T23:01:54.646319+00:00",
+  "daily_time": "19:00",
   "_migrated_at": 1757539134,
-  "_updated_at": 1757539363
+  "_updated_at": 1757543514,
+  "_rw_probe": 1757543447
 }
