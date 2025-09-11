@@ -1,27 +1,20 @@
 # app/routes/api.py
 """
-API-endepunkter i tråd med README:
-- GET  /api/config      -> les config
-- POST /api/config      -> lagre config (inkl. bytte modus)
-- POST /api/start       -> start varighet N minutter (setter mode=duration)
-- GET  /tick            -> status/tick (kompat)
-- GET  /state           -> kompat snapshot (enkelt)
+API:
+- GET  /api/config     -> les config (+tick)
+- POST /api/config     -> lagre config (+sett modus hvis oppgitt)
+- POST /api/start      -> start varighetsmodus (minutes)
+- GET  /api/status     -> enkel tick (kompat)
 """
 from __future__ import annotations
-
 from datetime import datetime
 from flask import Blueprint, request, jsonify
-
 from ..settings import TZ
 from ..storage import (
-    load_config,
-    save_config_patch,
-    set_mode,
-    start_duration,
-    clear_duration_and_switch_to_daily,
+    load_config, save_config_patch, set_mode, start_duration
 )
 from ..countdown import compute_tick
-from ..auth import require_password  # eksisterende dekoratør i prosjektet
+from ..auth import require_password
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -35,17 +28,20 @@ def get_config():
 @require_password
 def post_config():
     data = request.get_json(silent=True) or {}
-    # Tillat eksplisitt bytte av modus:
+    # Bytt modus hvis oppgitt
     if "mode" in data:
         mode = str(data.get("mode")).strip().lower()
         daily_time = str(data.get("daily_time") or "")
         once_at = str(data.get("once_at") or "")
         duration_minutes = int(data.get("duration_minutes") or 0) or None
-        cfg = set_mode(mode, daily_time=daily_time, once_at=once_at, duration_minutes=duration_minutes)
+        try:
+            cfg = set_mode(mode, daily_time=daily_time, once_at=once_at, duration_minutes=duration_minutes)
+        except ValueError as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
     else:
         cfg = load_config()
 
-    # Oppdater øvrige felter (meldinger/varsler/admin)
+    # Øvrige felt (meldinger/varsler/admin)
     passthrough = (
         "message_primary","message_secondary","show_message_primary","show_message_secondary",
         "warn_minutes","alert_minutes","blink_seconds","overrun_minutes","admin_password",
@@ -53,7 +49,10 @@ def post_config():
     )
     patch = {k: data[k] for k in passthrough if k in data}
     if patch:
-        cfg = save_config_patch(patch)
+        try:
+            cfg = save_config_patch(patch)
+        except ValueError as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
 
     t = compute_tick(cfg)
     return jsonify({"ok": True, "config": cfg, "tick": t}), 200
@@ -61,9 +60,6 @@ def post_config():
 @bp.post("/start")
 @require_password
 def start():
-    """
-    Start varighet. Body: {"minutes": <int>}
-    """
     data = request.get_json(silent=True) or {}
     try:
         minutes = int(data.get("minutes"))
@@ -71,12 +67,10 @@ def start():
         return jsonify({"ok": False, "error": "'minutes' må være heltall"}), 400
     if minutes <= 0:
         return jsonify({"ok": False, "error": "'minutes' må være > 0"}), 400
-
     cfg = start_duration(minutes)
     t = compute_tick(cfg)
     return jsonify({"ok": True, "config": cfg, "tick": t}), 200
 
-# Kompatible "public" endepunkter (ikke under /api)
 @bp.get("/status")
 def status():
     cfg = load_config()
