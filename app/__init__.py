@@ -1,22 +1,15 @@
+# app/__init__.py
 from __future__ import annotations
 from flask import Flask
-from .settings import STATIC_DIR
-from .routes.public import bp as public_bp
-from .routes.admin import bp as admin_bp
 
 def create_app() -> Flask:
-    app = Flask(
-        __name__,
-        static_folder=str(STATIC_DIR),
-        static_url_path="/static",
-    )
-    app.register_blueprint(public_bp)
-    app.register_blueprint(admin_bp)  # <— ikke legg til url_prefix her
+    app = Flask(__name__)
 
-    @app.after_request
-    def add_headers(resp):
-        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
-        resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
-        return resp
+    # Blueprints
+    from .routes.pages import bp as pages_bp
+    from .routes.api import bp as api_bp
+
+    app.register_blueprint(pages_bp)
+    app.register_blueprint(api_bp)
 
     return app

@@ -1,15 +1,15 @@
 # app/settings.py
+"""
+Grunninnstillinger for appen.
+"""
 from __future__ import annotations
-import os
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-# Hvorfor: én felles rot og entydig CONFIG_PATH
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-STATIC_DIR = PROJECT_ROOT / "static"
+APP_DIR = Path(__file__).resolve().parents[1]
+STATIC_DIR = APP_DIR / "static"
+CONFIG_PATH = APP_DIR / "config.json"
 
-# Sett COUNTDOWN_CONFIG i miljøet hvis du MÅ overstyre; ellers bruk <repo>/config.json
-CONFIG_PATH = Path(os.environ.get("COUNTDOWN_CONFIG") or (PROJECT_ROOT / "config.json")).resolve()
+TZ = ZoneInfo("Europe/Oslo")
 
-# Lokal tidssone for visning/pars­ing av naive ISO-tider
-TZ = ZoneInfo(os.environ.get("COUNTDOWN_TZ") or "Europe/Oslo")
+SSE_KEEPALIVE_SECONDS = 20
