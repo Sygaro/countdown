@@ -8,10 +8,10 @@
   "blink_seconds": 10,
   "overrun_minutes": 1,
   "admin_password": "",
-  "target_ms": 1757592813919,
-  "target_iso": "2025-09-11T12:13:33.919511+00:00",
-  "target_datetime": "2025-09-11T12:13:33.919511+00:00",
-  "daily_time": "19:00",
-  "_updated_at": 1757592513,
+  "target_ms": 0,
+  "target_iso": "",
+  "target_datetime": "",
+  "daily_time": "19:20",
+  "_updated_at": 1757597503,
   "_migrated_at": 1757592465
 }
