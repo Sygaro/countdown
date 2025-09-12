@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Countdown · Visning (v2)</title>
+  <link rel="stylesheet" href="/static/css/ui.css"/>
+  <style>
+    body { margin:0; }
+    #root { position:relative; width:100vw; height:100vh; overflow:hidden; }
+    #view_countdown, #view_screen { position:absolute; inset:0; display:none; }
+    #view_countdown { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2vh; }
+    #digits { font-weight:800; letter-spacing:.06em; }
+    #msgs_above, #msgs_below { text-align:center; }
+    #view_screen { display:none; align-items:center; justify-content:center; }
+    #screen_inner { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+    #screen_clock { position:absolute; display:none; font-weight:800; }
+    .blink { animation: bl 1s step-end infinite; }
+    @keyframes bl { 50% { opacity: .35; } }
+    #dbg { position:fixed; left:8px; bottom:8px; font:12px/1.3 system-ui, sans-serif; background:rgba(0,0,0,.55); color:#e6edf3; padding:6px 8px; border-radius:8px; border:1px solid rgba(255,255,255,.1); z-index:10; }
+    #btn_fullscreen { position: fixed; right: 12px; top: 12px; }
+  </style>
+</head>
+<body>
+  <button id="btn_fullscreen" class="fs-btn">Fullskjerm</button>
+  <div id="root">
+    <section id="view_countdown">
+      <div id="msgs_above" class="muted" style="display:none">
+        <div id="msg_primary_above"></div>
+        <div id="msg_secondary_above"></div>
+      </div>
+      <div id="digits" class="big">00:00</div>
+      <div id="msgs_below" class="muted" style="display:none">
+        <div id="msg_primary_below"></div>
+        <div id="msg_secondary_below"></div>
+      </div>
+    </section>
+
+    <section id="view_screen" class="screen">
+      <div id="screen_inner"></div>
+      <div id="screen_clock"></div>
+    </section>
+  </div>
+
+  <script type="module" src="/static/js/v2/app.js"></script>
+</body>
+</html>
