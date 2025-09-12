@@ -93,6 +93,7 @@
       <label>Farge normal <input id="color_normal" type="color" value="#e6edf3"/></label>
       <label>Farge gul <input id="color_warn" type="color" value="#ffd166"/></label>
       <label>Farge rød <input id="color_alert" type="color" value="#ff6b6b"/></label>
+      <label>Farge minus-tid <input id="color_over" type="color" value="#9ad0ff"/></label>
       <label><input id="show_target_time" type="checkbox"/> Vis mål-klokkeslett</label>
       <label>Plassering av mål-klokkeslett
         <select id="target_time_after">
@@ -107,7 +108,7 @@
         </select>
       </label>
       <label>Tidsformat → H:MM:SS når over (min)
-        <input id="hms_threshold_minutes" type="number" min="0" step="1" value="60"/>
+        <input id="hms_threshold_minutes" type="number" min="0" max="720" step="1" value="60"/>
       </label>
     </section>
 
@@ -172,7 +173,7 @@
         // Visningsvalg
         $("#use_phase_colors").checked=!!cfg.use_phase_colors; $("#use_blink").checked=!!cfg.use_blink;
         $("#color_normal").value=cfg.color_normal||"#e6edf3"; $("#color_warn").value=cfg.color_warn||"#ffd166"; $("#color_alert").value=cfg.color_alert||"#ff6b6b";
-        $("#show_target_time").checked=!!cfg.show_target_time; $("#target_time_after").value=cfg.target_time_after||"secondary";
+        $("#color_over").value=cfg.color_over||"#9ad0ff";$("#show_target_time").checked=!!cfg.show_target_time; $("#target_time_after").value=cfg.target_time_after||"secondary";
         $("#messages_position").value=cfg.messages_position||"below";
         $("#hms_threshold_minutes").value=cfg.hms_threshold_minutes??60;
         // Meldinger/varsler
@@ -195,7 +196,7 @@
           // visningsvalg
           use_phase_colors:$("#use_phase_colors").checked, use_blink:$("#use_blink").checked,
           color_normal:$("#color_normal").value, color_warn:$("#color_warn").value, color_alert:$("#color_alert").value,
-          show_target_time:$("#show_target_time").checked, target_time_after:$("#target_time_after").value,
+          color_over:$("#color_over").value,show_target_time:$("#show_target_time").checked, target_time_after:$("#target_time_after").value,
           messages_position:$("#messages_position").value,
           hms_threshold_minutes:parseInt($("#hms_threshold_minutes").value||"60",10),
           // meldinger

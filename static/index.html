@@ -1,4 +1,3 @@
-<!-- static/index.html -->
 <!doctype html>
 <html lang="no">
 <head>
@@ -8,6 +7,8 @@
   <link rel="stylesheet" href="/static/css/ui.css"/>
 </head>
 <body class="center fill">
+  <button id="btn_fullscreen" class="fs-btn" title="Fullskjerm">⛶ Fullskjerm</button>
+
   <div id="view_countdown" class="center fill" style="flex-direction:column;gap:2vh;display:none">
     <div id="msgs_above" class="muted" style="display:none;text-align:center">
       <div id="msg_primary_above"></div>
@@ -31,11 +32,25 @@
       const $ = (s)=>document.querySelector(s);
       const state = { cfg:null, tick:null, lastCfgRev:0 };
 
-      function fmt(ms, preferHMS){
-        const neg = ms < 0 ? "-" : ""; ms = Math.abs(ms);
-        let s = Math.floor(ms/1000), h=Math.floor(s/3600); s%=3600; const m=Math.floor(s/60); s%=60;
-        const pad = n=>String(n).padStart(2,"0");
-        return (h>0 || preferHMS) ? `${neg}${h}:${pad(m)}:${pad(s)}` : `${neg}${m}:${pad(s)}`;
+      // Hvorfor: terskelen alene avgjør format (ikke "h>0").
+      function fmtMMSS(ms){
+        const neg = ms < 0 ? "-" : "";
+        ms = Math.abs(ms);
+        const total = Math.floor(ms/1000);
+        const m = Math.floor(total/60);
+        const s = total % 60;
+        return `${neg}${m}:${String(s).padStart(2,"0")}`;
+      }
+      function fmtHMS(ms){
+        const neg = ms < 0 ? "-" : "";
+        ms = Math.abs(ms);
+        const total = Math.floor(ms/1000);
+        const h = Math.floor(total/3600);
+        const rem = total % 3600;
+        const m = Math.floor(rem/60);
+        const s = rem % 60;
+        const pad = (n)=>String(n).padStart(2,"0");
+        return `${neg}${h}:${pad(m)}:${pad(s)}`;
       }
 
       function applyCountdown(){
@@ -43,35 +58,45 @@
         $("#view_screen").style.display = "none";
         $("#view_countdown").style.display = "flex";
 
-        // 2) Velg riktig format (terskel)
-        const preferHMS = (c.hms_threshold_minutes && (Math.abs(t.signed_display_ms) >= c.hms_threshold_minutes*60*1000));
+        const thresholdMs = (c.hms_threshold_minutes ?? 60) * 60 * 1000;
 
-        // 1) Ikke vis gigantisk negativ ved inaktiv: 00:00
-        let ms;
-        if (t.state === "countdown" || t.state === "overrun") ms = t.signed_display_ms;
-        else ms = 0;
+        // 00:00 når teller ikke er aktiv
+        const msActive = (t.state === "countdown" || t.state === "overrun");
+        const ms = msActive ? t.signed_display_ms : 0;
 
-        // 3) Fasefarger / blink
+        // Velg format utelukkende med terskel
+        const useHMS = Math.abs(ms) >= thresholdMs;
         const digits = $("#digits");
-        digits.textContent = fmt(ms, preferHMS);
-        digits.style.color = (c.use_phase_colors
-          ? (t.mode==="alert" ? c.color_alert : (t.mode==="warn" ? c.color_warn : c.color_normal))
-          : c.color_normal);
+        digits.textContent = useHMS ? fmtHMS(ms) : fmtMMSS(ms);
+
+        // Farger inkl. minus-tid
+        let color = c.color_normal;
+        if (c.use_phase_colors) {
+          if (t.state === "overrun" || t.signed_display_ms < 0) {
+            color = c.color_over || c.color_alert;
+          } else if (t.mode === "alert") {
+            color = c.color_alert;
+          } else if (t.mode === "warn") {
+            color = c.color_warn;
+          }
+        }
+        digits.style.color = color;
+
+        // Blink (ekte CSS-animasjon)
         digits.classList.toggle("blink", !!(c.use_blink && t.blink));
 
-        // 4) Meldingstekster + mål-klokkeslett
-        const targetText = (c.show_target_time && t.target_hhmm) ? ` (${t.target_hhmm})` : "";
+        // Meldinger + mål-klokkeslett (uten parentes)
+        const targetText = (c.show_target_time && t.target_hhmm) ? ` ${t.target_hhmm}` : "";
         const prim = (c.show_message_primary ? (c.message_primary||"") : "") + ((c.target_time_after==="primary") ? targetText : "");
         const sec  = (c.show_message_secondary ? (c.message_secondary||"") : "") + ((c.target_time_after==="secondary") ? targetText : "");
 
         const above = c.messages_position === "above";
         $("#msgs_above").style.display = above ? "block" : "none";
         $("#msgs_below").style.display = above ? "none"  : "block";
-
-        $("#msg_primary_above").textContent = above ? prim : "";
-        $("#msg_secondary_above").textContent = above ? sec : "";
-        $("#msg_primary_below").textContent = !above ? prim : "";
-        $("#msg_secondary_below").textContent = !above ? sec : "";
+        $("#msg_primary_above").textContent   = above ? prim : "";
+        $("#msg_secondary_above").textContent = above ? sec  : "";
+        $("#msg_primary_below").textContent   = !above ? prim : "";
+        $("#msg_secondary_below").textContent = !above ? sec  : "";
       }
 
       function applyScreen(){
@@ -80,12 +105,9 @@
         $("#view_screen").style.display = "flex";
         const root = $("#view_screen");
         root.style.background = sc.bg || "#000";
-
         const inner = $("#screen_inner");
         inner.innerHTML = "";
-
         if (sc.type === "blackout") return;
-
         if (sc.type === "image") {
           const wrap = document.createElement("div");
           wrap.style.position="relative"; wrap.style.width="100%"; wrap.style.height="100%";
@@ -94,9 +116,10 @@
           img.style.objectFit = sc.image_fit || "cover";
           img.style.width="100%"; img.style.height="100%";
           img.style.opacity = String((sc.image_opacity ?? 100)/100);
-          wrap.appendChild(img); inner.appendChild(wrap); return;
+          wrap.appendChild(img);
+          inner.appendChild(wrap);
+          return;
         }
-
         const div = document.createElement("div");
         div.className = "text";
         div.textContent = sc.text || "Pause";
@@ -117,9 +140,7 @@
       async function pollTick(){
         const r = await fetch("/tick"); const t = await r.json();
         state.tick = t;
-        if ((t.cfg_rev||0) !== state.lastCfgRev) {
-          await fetchConfig();      // <- auto-oppdater meldinger og stopp-skjerm
-        }
+        if ((t.cfg_rev||0) !== state.lastCfgRev) await fetchConfig();
         render(true);
       }
 
@@ -127,6 +148,16 @@
         const mode = (state.cfg?.mode) || "daily";
         if (mode === "screen") applyScreen(); else applyCountdown();
       }
+
+      // Fullscreen for nettleser
+      const fsBtn = $("#btn_fullscreen");
+      if (!document.fullscreenEnabled) fsBtn.style.display = "none";
+      fsBtn.addEventListener("click", async () => {
+        try {
+          if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+          else await document.exitFullscreen();
+        } catch (e) { console.error(e); }
+      });
 
       firstLoad().catch(console.error);
       setInterval(pollTick, 1000);
