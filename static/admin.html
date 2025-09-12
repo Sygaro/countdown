@@ -333,19 +333,29 @@
         $("#blink_seconds").value = cfg.blink_seconds ?? 10;
         $("#overrun_minutes").value = cfg.overrun_minutes ?? 1;
 
-        // Visning/oppførsel
-        $("#use_phase_colors").checked=!!cfg.use_phase_colors; $("#use_blink").checked=!!cfg.use_blink;
-        $("#color_normal").value=cfg.color_normal||"#e6edf3"; $("#color_warn").value=cfg.color_warn||"#ffd166";
-        $("#color_alert").value=cfg.color_alert||"#ff6b6b"; $("#color_over").value=cfg.color_over||"#9ad0ff";
-        $("#show_target_time").checked=!!cfg.show_target_time; $("#target_time_after").value=cfg.target_time_after||"secondary";
-        $("#messages_position").value=cfg.messages_position||"below";
-        $("#hms_threshold_minutes").value=cfg.hms_threshold_minutes??60;
+        // H:MM:SS-terskel
+        $("#hms_threshold_minutes").value = cfg.hms_threshold_minutes ?? 60;
 
-        // Theme: meldinger/digits
+        // Farger/kontrast (digits/varsler/over)
+        $("#color_normal").value = cfg.color_normal || "#e6edf3";
+        $("#color_warn").value   = cfg.color_warn   || "#ffd166";
+        $("#color_alert").value  = cfg.color_alert  || "#ff6b6b";
+        $("#color_over").value   = cfg.color_over   || "#9ad0ff";
+
+        // Vis/posisjon mål-klokkeslett og meldinger
+        $("#show_target_time").checked = !!cfg.show_target_time;
+        $("#target_time_after").value  = cfg.target_time_after || "secondary";
+        $("#messages_position").value  = cfg.messages_position || "below";
+
+        // Theme: digits/messages
+        $("#digits_size_preset").value = String(cfg?.theme?.digits?.size_vw ?? 14);
         const p=cfg?.theme?.messages?.primary||{}, s=cfg?.theme?.messages?.secondary||{};
-        $("#theme_p_size").value=String(p.size_rem??1.0); $("#theme_p_weight").value=String(p.weight??600); $("#theme_p_color").value=String(p.color??"#9aa4b2");
-        $("#theme_s_size").value=String(s.size_rem??1.0); $("#theme_s_weight").value=String(s.weight??400); $("#theme_s_color").value=String(s.color??"#9aa4b2");
-        $("#digits_size_preset").value=String(cfg?.theme?.digits?.size_vw??14);
+        $("#theme_p_size").value   = String(p.size_rem ?? 1.0);
+        $("#theme_p_weight").value = String(p.weight   ?? 600);
+        $("#theme_p_color").value  = String(p.color    ?? "#9aa4b2");
+        $("#theme_s_size").value   = String(s.size_rem ?? 1.0);
+        $("#theme_s_weight").value = String(s.weight   ?? 400);
+        $("#theme_s_color").value  = String(s.color    ?? "#9aa4b2");
 
         // Theme: visningsbakgrunn
         const bg=cfg?.theme?.background||{}; ($(`input[name=bg_mode][value=${(bg.mode||"solid")}]`)||{}).checked=true;
@@ -362,12 +372,12 @@
         // Stopp-skjerm innhold
         const sc=cfg?.screen||{};
         ($(`input[name=screen_type][value=${sc.type||"text"}]`)||{}).checked=true;
-        $("#screen_text").value = sc.text || "Pause";
-        $("#screen_text_color").value = sc.text_color || "#ffffff";
-        $("#screen_font_vh").value = sc.font_vh ?? 10;
-        $("#screen_image_url").value = sc.image_url || "";
+        $("#screen_text").value        = sc.text || "Pause";
+        $("#screen_text_color").value  = sc.text_color || "#ffffff";
+        $("#screen_font_vh").value     = sc.font_vh ?? 10;
+        $("#screen_image_url").value   = sc.image_url || "";
         $("#screen_image_opacity").value = sc.image_opacity ?? 100;
-        $("#screen_image_fit").value = sc.image_fit || "cover";
+        $("#screen_image_fit").value   = sc.image_fit || "cover";
 
         // Stopp-skjerm bakgrunn + klokke
         $("#sc_use_theme_bg").checked = !!sc.use_theme_background;
@@ -382,13 +392,15 @@
         $("#sc_bg_img_tint").value    = sbg.image?.tint?.color || "#000000";
         $("#sc_bg_img_tint_op").value = sbg.image?.tint?.opacity ?? 0;
 
+        // Klokke (inkl. posisjon — fix)
         $("#sc_clock_show").checked = !!(sc.clock?.show);
         $("#sc_clock_secs").checked = !!(sc.clock?.with_seconds);
-        $("#sc_clock_color").value = sc.clock?.color || "#e6edf3";
-        $("#sc_clock_size").value  = sc.clock?.size_vh ?? 12;
+        $("#sc_clock_color").value  = sc.clock?.color || "#e6edf3";
+        $("#sc_clock_size").value   = sc.clock?.size_vh ?? 12;
+        $("#sc_clock_pos").value    = String((sc.clock?.position) || "top-right");
 
         lock(); updateDigitContrastHints(); updateMessageContrastHints();
-      }
+  }
 
       async function loadAll(){ const r=await fetch("/api/config"); const js=await r.json(); js.config.tick=js.tick; apply(js.config,js.tick); hint.textContent="Status oppdatert"; setTimeout(()=>hint.textContent="",1200); }
 
@@ -410,24 +422,34 @@
           blink_seconds: num("#blink_seconds",10),
           overrun_minutes: num("#overrun_minutes",1),
 
-          // visning/oppførsel
-          use_phase_colors: checked("#use_phase_colors"), use_blink: checked("#use_blink"),
-          color_normal: val("#color_normal","#e6edf3"), color_warn: val("#color_warn","#ffd166"), color_alert: val("#color_alert","#ff6b6b"), color_over: val("#color_over","#9ad0ff"),
-          show_target_time: checked("#show_target_time"), target_time_after: val("#target_time_after","secondary"),
-          messages_position: val("#messages_position","below"), hms_threshold_minutes: parseInt(val("#hms_threshold_minutes","60"),10),
+          // terskel
+          hms_threshold_minutes: num("#hms_threshold_minutes",60),
+
+          // farger
+          color_normal: val("#color_normal","#e6edf3"),
+          color_warn:   val("#color_warn","#ffd166"),
+          color_alert:  val("#color_alert","#ff6b6b"),
+          color_over:   val("#color_over","#9ad0ff"),
+
+          // vis/posisjon
+          show_target_time: checked("#show_target_time"),
+          target_time_after: val("#target_time_after","secondary"),
+          messages_position: val("#messages_position","below"),
 
           // theme
           theme: {
             digits: { size_vw: Number(val("#digits_size_preset","14")) },
             messages: {
-              primary:   { size_rem: Number(val("#theme_p_size","1.0")), weight: Number(val("#theme_p_weight","600")), color: val("#theme_p_color","#9aa4b2") },
-              secondary: { size_rem: Number(val("#theme_s_size","1.0")), weight: Number(val("#theme_s_weight","400")), color: val("#theme_s_color","#9aa4b2") }
+              primary:   { size_rem: Number(val("#theme_p_size","1")), weight: Number(val("#theme_p_weight","600")), color: val("#theme_p_color","#9aa4b2") },
+              secondary: { size_rem: Number(val("#theme_s_size","1")), weight: Number(val("#theme_s_weight","400")), color: val("#theme_s_color","#9aa4b2") }
             },
             background: {
               mode: selBgMode(),
               solid:    { color: val("#bg_solid_color","#0b0f14") },
               gradient: { from: val("#bg_grad_from","#142033"), to: val("#bg_grad_to","#0b0f14"), angle_deg: Number(val("#bg_grad_angle","180")) },
-              image:    { url: val("#bg_img_url",""), fit: val("#bg_img_fit","cover"), opacity: Number(val("#bg_img_op","1")), tint: { color: val("#bg_img_tint","#000000"), opacity: Number(val("#bg_img_tint_op","0")) } }
+              image:    { url: val("#bg_img_url",""), fit: val("#bg_img_fit","cover"),
+                          opacity: Number(val("#bg_img_op","1")),
+                          tint: { color: val("#bg_img_tint","#000000"), opacity: Number(val("#bg_img_tint_op","0")) } }
             }
           },
 
@@ -445,15 +467,24 @@
               mode: selScBgMode(),
               solid:    { color: val("#sc_bg_solid_color","#0b0f14") },
               gradient: { from: val("#sc_bg_grad_from","#142033"), to: val("#sc_bg_grad_to","#0b0f14"), angle_deg: Number(val("#sc_bg_grad_angle","180")) },
-              image:    { url: val("#sc_bg_img_url",""), fit: val("#sc_bg_img_fit","cover"), opacity: Number(val("#sc_bg_img_op","1")), tint: { color: val("#sc_bg_img_tint","#000000"), opacity: Number(val("#sc_bg_img_tint_op","0")) } }
+              image:    { url: val("#sc_bg_img_url",""), fit: val("#sc_bg_img_fit","cover"),
+                          opacity: Number(val("#sc_bg_img_op","1")),
+                          tint: { color: val("#sc_bg_img_tint","#000000"), opacity: Number(val("#sc_bg_img_tint_op","0")) } }
             },
             clock: {
               show: checked("#sc_clock_show"),
               with_seconds: checked("#sc_clock_secs"),
               color: val("#sc_clock_color","#e6edf3"),
-              size_vh: Number(val("#sc_clock_size","12"))
+              size_vh: Number(val("#sc_clock_size","12")),
+              position: String(val("#sc_clock_pos","top-right"))  /* ← FIX */
             }
           }
+        };
+
+        const r=await fetch("/api/config",{method:"POST",headers:headers(),body:JSON.stringify(body)});
+        if(!r.ok) throw new Error(await r.text());
+        const js=await r.json(); apply(js.config, js.tick); hint.textContent="Lagret"; setTimeout(()=>hint.textContent="",1200);
+  }
         };
 
         const r=await fetch("/api/config",{method:"POST",headers:headers(),body:JSON.stringify(body)});
