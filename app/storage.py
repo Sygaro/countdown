@@ -1,7 +1,7 @@
 # app/storage.py
 """
-Config I/O med eksplisitt mode, inkl. 'screen' (stopp-skjerm).
-Atomisk skriving og validering.
+Config I/O med eksplisitt mode inkl. 'screen'. Atomisk skriving og validering.
+Nye felt: visningsvalg (mål-klokkeslett, plassering, farger, blink, hms-terskel).
 """
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ _DEFAULTS: Dict[str, Any] = {
     "once_at": "",
     "duration_minutes": 10,
     "duration_started_ms": 0,
+
     # Stopp-skjerm
     "screen": {
         "type": "text",              # text | image | blackout
@@ -30,16 +31,30 @@ _DEFAULTS: Dict[str, Any] = {
         "image_opacity": 100,        # 0..100
         "image_fit": "cover",        # cover | contain
     },
-    # Meldinger
+
+    # Meldinger (innhold)
     "message_primary": "",
     "message_secondary": "",
     "show_message_primary": True,
     "show_message_secondary": False,
-    # Varsler/blink
+
+    # Varsler/blink (logikk)
     "warn_minutes": 4,
     "alert_minutes": 2,
     "blink_seconds": 10,
     "overrun_minutes": 1,
+
+    # Visningsvalg (utseende/oppførsel)
+    "show_target_time": False,            # vis mål-klokkeslett
+    "target_time_after": "secondary",     # "primary" | "secondary"
+    "messages_position": "below",         # "above" | "below"
+    "use_blink": True,                    # benytt blink i sluttsekunder
+    "use_phase_colors": False,            # fargelegg digits etter fase
+    "color_normal": "#e6edf3",
+    "color_warn":   "#ffd166",
+    "color_alert":  "#ff6b6b",
+    "hms_threshold_minutes": 60,          # >60 min -> vis H:MM:SS
+
     # Admin
     "admin_password": None,
 }
@@ -69,7 +84,7 @@ def _deep_merge(dst: Dict[str, Any], src: Dict[str, Any]) -> Dict[str, Any]:
     return dst
 
 def _merge_defaults(cfg: Dict[str, Any]) -> Dict[str, Any]:
-    merged = json.loads(json.dumps(_DEFAULTS))  # deep copy
+    merged = json.loads(json.dumps(_DEFAULTS))
     return _deep_merge(merged, cfg or {})
 
 def _strip_legacy(cfg: Dict[str, Any]) -> Dict[str, Any]:
@@ -78,13 +93,23 @@ def _strip_legacy(cfg: Dict[str, Any]) -> Dict[str, Any]:
             cfg.pop(k, None)
     return cfg
 
+def _coerce_bool(v, default: bool) -> bool:
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, str):
+        s = v.strip().lower()
+        if s in ("1","true","yes","y","on"): return True
+        if s in ("0","false","no","n","off"): return False
+    return default
+
 def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     def _i(v, d=None):
         if v in (None, ""): return d
         try: return int(v)
         except Exception: return d
 
-    for k in ("warn_minutes","alert_minutes","blink_seconds","overrun_minutes","duration_minutes","duration_started_ms"):
+    for k in ("warn_minutes","alert_minutes","blink_seconds","overrun_minutes",
+              "duration_minutes","duration_started_ms","hms_threshold_minutes"):
         if k in cfg: cfg[k] = _i(cfg[k], _DEFAULTS.get(k, 0))
 
     # Meldinger / tider
@@ -92,23 +117,29 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         if cfg.get(k) is None: cfg[k] = ""
 
     # Booleans
-    for k in ("show_message_primary","show_message_secondary"):
+    for k, d in (
+        ("show_message_primary", _DEFAULTS["show_message_primary"]),
+        ("show_message_secondary", _DEFAULTS["show_message_secondary"]),
+        ("show_target_time", _DEFAULTS["show_target_time"]),
+        ("use_blink", _DEFAULTS["use_blink"]),
+        ("use_phase_colors", _DEFAULTS["use_phase_colors"]),
+    ):
+        if k in cfg: cfg[k] = _coerce_bool(cfg[k], d)
+        else: cfg[k] = d
+
+    # Valgfrie str
+    for k in ("target_time_after","messages_position","color_normal","color_warn","color_alert"):
         v = cfg.get(k)
-        if isinstance(v, str):
-            cfg[k] = v.strip().lower() in ("1","true","yes","y","on")
+        if v is None: cfg[k] = _DEFAULTS[k]
 
     # Screen
     sc = cfg.get("screen") or {}
-    sc.setdefault("type", "text")
-    sc.setdefault("text", "Pause")
-    sc.setdefault("text_color", "#ffffff")
-    sc.setdefault("bg", "#000000")
-    sc["font_vh"] = _i(sc.get("font_vh"), 10)
-    sc.setdefault("image_url", "")
-    sc["image_opacity"] = max(0, min(100, _i(sc.get("image_opacity"), 100)))
-    sc.setdefault("image_fit", "cover")
-    cfg["screen"] = sc
-
+    sc_defaults = _DEFAULTS["screen"]
+    merged = json.loads(json.dumps(sc_defaults))
+    _deep_merge(merged, sc)
+    merged["font_vh"] = _i(merged.get("font_vh"), sc_defaults["font_vh"])
+    merged["image_opacity"] = max(0, min(100, _i(merged.get("image_opacity"), sc_defaults["image_opacity"])))
+    cfg["screen"] = merged
     return cfg
 
 def _validate(cfg: Dict[str, Any]) -> Tuple[bool, str]:
@@ -140,7 +171,6 @@ def _validate(cfg: Dict[str, Any]) -> Tuple[bool, str]:
     return True, ""
 
 def _clean_by_mode(cfg: Dict[str, Any]) -> Dict[str, Any]:
-    # Hold irrelevant data tomt for valgt modus
     m = cfg.get("mode")
     if m == "daily":
         cfg["once_at"] = ""
@@ -203,7 +233,8 @@ def set_mode(mode: str, *, daily_time: str = "", once_at: str = "", duration_min
             cfg["duration_minutes"] = int(duration_minutes)
     elif mode == "screen":
         if screen:
-            cfg["screen"] = _merge_defaults({"screen": {}})["screen"]  # baseline
+            base = _merge_defaults({"screen": {}})["screen"]
+            cfg["screen"] = base
             _deep_merge(cfg["screen"], screen)
     else:
         raise ValueError("Ugyldig mode")

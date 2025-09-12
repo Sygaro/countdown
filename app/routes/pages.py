@@ -1,9 +1,7 @@
 # app/routes/pages.py
 """
-Sider og kompat-endepunkter.
-- /admin, /diag, /about
-- /tick, /state
-- /debug/* inkl. /debug/selftest
+Sider + kompat-endepunkter + debug/selftest.
+/tick inkluderer cfg_rev slik at klient kan hente config ved endring.
 """
 from __future__ import annotations
 from datetime import datetime, timedelta
@@ -16,31 +14,25 @@ bp = Blueprint("pages", __name__)
 
 _STATIC = (PROJECT_ROOT / "static").resolve()
 
-
 @bp.get("/")
 def index():
     return send_from_directory(_STATIC, "index.html")
-
 
 @bp.get("/admin")
 def admin():
     return send_from_directory(_STATIC, "admin.html")
 
-
 @bp.get("/diag")
 def diag():
     return send_from_directory(_STATIC, "diag.html")
-
 
 @bp.get("/about")
 def about():
     return send_from_directory(_STATIC, "about.html")
 
-
 @bp.get("/health")
 def health():
     return {"ok": True}
-
 
 @bp.get("/tick")
 def tick():
@@ -48,8 +40,8 @@ def tick():
     t = compute_tick(cfg)
     if t["state"] == "ended" and cfg.get("mode") == "duration":
         clear_duration_and_switch_to_daily()
+    t["cfg_rev"] = int(cfg.get("_updated_at", 0))  # <- gjør UI i stand til å hente config ved endring
     return jsonify(t), 200
-
 
 @bp.get("/state")
 def state_snapshot():
@@ -64,7 +56,6 @@ def state_snapshot():
         "mode": t["mode"],
     }), 200
 
-
 @bp.get("/debug/whoami")
 def dbg_whoami():
     return jsonify({
@@ -73,7 +64,6 @@ def dbg_whoami():
         "config_path": str((PROJECT_ROOT / "config.json").resolve()),
         "server_time": datetime.now(TZ).isoformat()
     }), 200
-
 
 @bp.get("/debug/config")
 def dbg_config():
@@ -93,36 +83,26 @@ def dbg_config():
     result["config"] = cfg
     return jsonify(result), 200
 
-
 @bp.get("/debug/selftest")
 def dbg_selftest():
-    """
-    Kjører lette, interne checks av kjerne-logikk (ikke pytest).
-    Brukes fra /diag for å vise grønn/rød status.
-    """
     tests = []
     ok_all = True
-
     def add(name: str, ok: bool, info: str = ""):
         nonlocal ok_all
         tests.append({"name": name, "ok": bool(ok), "info": info})
         ok_all = ok_all and ok
 
-    # 1) Daily next occurrence + overrun
     cfg = {"mode": "daily", "daily_time": "09:00", "overrun_minutes": 2}
     now = datetime.now(TZ).replace(hour=9, minute=1, second=0, microsecond=0)
     target1 = compute_target_ms(cfg, now_ms=int(now.timestamp()*1000))
-    # behold dagens target i minusvinduet
     add("daily_overrun_window", datetime.fromtimestamp(target1/1000, tz=TZ).hour == 9)
 
-    # 2) Once in the future
     now2 = datetime.now(TZ)
     future = (now2 + timedelta(minutes=30)).replace(second=0, microsecond=0)
     cfg2 = {"mode": "once", "once_at": future.isoformat()}
     target2 = compute_target_ms(cfg2, now_ms=int(now2.timestamp()*1000))
     add("once_future", target2 == int(future.timestamp()*1000))
 
-    # 3) Duration 10 min
     start_ms = int(now2.timestamp()*1000)
     cfg3 = {"mode": "duration", "duration_minutes": 10, "duration_started_ms": start_ms}
     target3 = compute_target_ms(cfg3, now_ms=start_ms)
