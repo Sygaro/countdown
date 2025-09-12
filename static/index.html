@@ -1,167 +1,132 @@
+<!-- static/index.html -->
 <!doctype html>
-<html lang="no">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Countdown · Visning</title>
-  <link rel="stylesheet" href="/static/css/ui.css"/>
+<html lang="no"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Countdown · Visning</title>
+<link rel="stylesheet" href="/static/css/ui.css"/>
 </head>
 <body class="center fill">
   <button id="btn_fullscreen" class="fs-btn" title="Fullskjerm">⛶ Fullskjerm</button>
 
   <div id="view_countdown" class="center fill" style="flex-direction:column;gap:2vh;display:none">
     <div id="msgs_above" class="muted" style="display:none;text-align:center">
-      <div id="msg_primary_above"></div>
-      <div id="msg_secondary_above"></div>
+      <div id="msg_primary_above"></div><div id="msg_secondary_above"></div>
     </div>
-
     <div id="digits" class="big">00:00</div>
-
     <div id="msgs_below" class="muted" style="display:none;text-align:center">
-      <div id="msg_primary_below"></div>
-      <div id="msg_secondary_below"></div>
+      <div id="msg_primary_below"></div><div id="msg_secondary_below"></div>
     </div>
   </div>
 
-  <div id="view_screen" class="screen" style="display:none">
-    <div id="screen_inner"></div>
-  </div>
+  <div id="view_screen" class="screen" style="display:none"><div id="screen_inner"></div></div>
 
-  <script>
-    (function(){
-      const $ = (s)=>document.querySelector(s);
-      const state = { cfg:null, tick:null, lastCfgRev:0 };
-      let lastActivityTs = Date.now();
+<script>
+(function(){
+  const $ = s=>document.querySelector(s);
+  const state = { cfg:null, tick:null, lastCfgRev:0 };
+  let lastActivityTs = Date.now();
 
-      function fmtMMSS(ms){ const neg=ms<0?"-":""; ms=Math.abs(ms); const t=Math.floor(ms/1000), m=Math.floor(t/60), s=t%60; return `${neg}${m}:${String(s).padStart(2,"0")}`; }
-      function fmtHMS(ms){ const neg=ms<0?"-":""; ms=Math.abs(ms); const t=Math.floor(ms/1000), h=Math.floor(t/3600), r=t%3600, m=Math.floor(r/60), s=r%60; const pad=n=>String(n).padStart(2,"0"); return `${neg}${h}:${pad(m)}:${pad(s)}`; }
+  const fmtMMSS = ms => { const neg=ms<0?"-":""; ms=Math.abs(ms); const t=Math.floor(ms/1000), m=Math.floor(t/60), s=t%60; return `${neg}${m}:${String(s).padStart(2,"0")}`; };
+  const fmtHMS  = ms => { const neg=ms<0?"-":""; ms=Math.abs(ms); const t=Math.floor(ms/1000), h=Math.floor(t/3600), r=t%3600, m=Math.floor(r/60), s=r%60; const pad=n=>String(n).padStart(2,"0"); return `${neg}${h}:${pad(m)}:${pad(s)}`; };
 
-      function applyDigitsSize(){
-        const vw = Number(state.cfg?.theme?.digits?.size_vw ?? 14);
-        $("#digits").style.fontSize = `${vw}vw`;
-      }
-      function applyMessageStyles(){
-        const p = state.cfg?.theme?.messages?.primary   || {};
-        const s = state.cfg?.theme?.messages?.secondary || {};
-        const set = (sel, m)=> {
-          const el = $(sel); if(!el) return;
-          el.style.fontSize   = `${Number(m.size_rem ?? 1.0)}rem`;
-          el.style.fontWeight = String(Number(m.weight ?? 400));
-          el.style.color      = String(m.color ?? '#9aa4b2');
-        };
-        set("#msg_primary_above", p);
-        set("#msg_secondary_above", s);
-        set("#msg_primary_below", p);
-        set("#msg_secondary_below", s);
-      }
+  function applyDigitsSize(){
+    const vw = Number(state.cfg?.theme?.digits?.size_vw ?? 14);
+    $("#digits").style.fontSize = `${vw}vw`;
+  }
+  function applyMessageStyles(){
+    const p = state.cfg?.theme?.messages?.primary   || {};
+    const s = state.cfg?.theme?.messages?.secondary || {};
+    const set = (sel, m)=>{ const el=$(sel); if(!el) return; el.style.fontSize=`${Number(m.size_rem??1)}rem`; el.style.fontWeight=String(Number(m.weight??400)); el.style.color=String(m.color??'#9aa4b2'); };
+    ["#msg_primary_above","#msg_primary_below"].forEach(sel=>set(sel,p));
+    ["#msg_secondary_above","#msg_secondary_below"].forEach(sel=>set(sel,s));
+  }
+  function applyBackground(rootEl){
+    const bg = state.cfg?.theme?.background || {};
+    const mode = (bg.mode||"solid").toLowerCase();
+    if (mode==="solid"){
+      rootEl.style.background = bg.solid?.color || "#0b0f14";
+    } else if (mode==="gradient"){
+      const g = bg.gradient||{};
+      rootEl.style.background = `linear-gradient(${Number(g.angle_deg||180)}deg, ${g.from||"#142033"}, ${g.to||"#0b0f14"})`;
+    } else if (mode==="image"){
+      const img = bg.image||{};
+      rootEl.style.background = (img.tint?.opacity>0)
+        ? `linear-gradient(rgba(${hex2rgb(img.tint.color||"#000")}, ${img.tint.opacity||0}), rgba(${hex2rgb(img.tint.color||"#000")}, ${img.tint.opacity||0})), url('${img.url||""}')`
+        : `url('${img.url||""}')`;
+      rootEl.style.backgroundSize = img.fit||"cover";
+      rootEl.style.backgroundPosition = "center";
+      rootEl.style.backgroundRepeat = "no-repeat";
+      rootEl.style.opacity = String(img.opacity ?? 1);
+    }
+  }
+  function hex2rgb(h){ const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h||""); if(!m) return "0,0,0"; return `${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)}`; }
 
-      function applyCountdown(){
-        const t = state.tick, c = state.cfg;
-        $("#view_screen").style.display = "none";
-        $("#view_countdown").style.display = "flex";
-        applyDigitsSize();
-        applyMessageStyles();
+  function applyCountdown(){
+    $("#view_screen").style.display="none";
+    const root=$("#view_countdown"); root.style.display="flex";
+    applyBackground(document.body); // legg tema-bakgrunn på body
+    applyDigitsSize(); applyMessageStyles();
 
-        const thresholdMs = (c.hms_threshold_minutes ?? 60) * 60 * 1000;
-        const msActive = (t.state === "countdown" || t.state === "overrun");
-        const ms = msActive ? t.signed_display_ms : 0;
+    const c=state.cfg, t=state.tick;
+    const thresholdMs=(c.hms_threshold_minutes??60)*60*1000;
+    const msActive=(t.state==="countdown"||t.state==="overrun");
+    const ms = msActive? t.signed_display_ms : 0;
+    const useHMS = Math.abs(ms) >= thresholdMs;
+    const digits=$("#digits");
+    digits.textContent = useHMS? fmtHMS(ms) : fmtMMSS(ms);
 
-        const useHMS = Math.abs(ms) >= thresholdMs;
-        const digits = $("#digits");
-        digits.textContent = useHMS ? fmtHMS(ms) : fmtMMSS(ms);
+    let color=c.color_normal;
+    if(c.use_phase_colors){
+      if(t.state==="overrun"||t.signed_display_ms<0) color=c.color_over||c.color_alert;
+      else if(t.mode==="alert") color=c.color_alert;
+      else if(t.mode==="warn")  color=c.color_warn;
+    }
+    digits.style.color=color;
+    digits.classList.toggle("blink", !!(c.use_blink && t.blink));
 
-        let color = c.color_normal;
-        if (c.use_phase_colors) {
-          if (t.state === "overrun" || t.signed_display_ms < 0) color = c.color_over || c.color_alert;
-          else if (t.mode === "alert") color = c.color_alert;
-          else if (t.mode === "warn")  color = c.color_warn;
-        }
-        digits.style.color = color;
-        digits.classList.toggle("blink", !!(c.use_blink && t.blink));
+    const targetText = (c.show_target_time && t.target_hhmm) ? ` ${t.target_hhmm}` : "";
+    const prim=(c.show_message_primary?(c.message_primary||""):"")+((c.target_time_after==="primary")?targetText:"");
+    const sec =(c.show_message_secondary?(c.message_secondary||""):"")+((c.target_time_after==="secondary")?targetText:"");
+    const above=c.messages_position==="above";
+    $("#msgs_above").style.display=above?"block":"none";
+    $("#msgs_below").style.display=above?"none":"block";
+    $("#msg_primary_above").textContent = above ? prim : "";
+    $("#msg_secondary_above").textContent= above ? sec  : "";
+    $("#msg_primary_below").textContent = !above ? prim : "";
+    $("#msg_secondary_below").textContent= !above ? sec  : "";
+  }
 
-        const targetText = (c.show_target_time && t.target_hhmm) ? ` ${t.target_hhmm}` : "";
-        const prim = (c.show_message_primary ? (c.message_primary||"") : "") + ((c.target_time_after==="primary") ? targetText : "");
-        const sec  = (c.show_message_secondary ? (c.message_secondary||"") : "") + ((c.target_time_after==="secondary") ? targetText : "");
+  function applyScreen(){
+    const sc=state.cfg.screen||{};
+    $("#view_countdown").style.display="none";
+    const root=$("#view_screen"); root.style.display="flex";
+    root.style.background = sc.bg||"#000";
+    const inner=$("#screen_inner"); inner.innerHTML="";
+    if(sc.type==="blackout") return;
+    if(sc.type==="image"){
+      const wrap=document.createElement("div"); wrap.style.position="relative"; wrap.style.width="100%"; wrap.style.height="100%";
+      const img=document.createElement("img"); img.src=sc.image_url||""; img.style.objectFit=sc.image_fit||"cover"; img.style.width="100%"; img.style.height="100%"; img.style.opacity=String((sc.image_opacity??100)/100);
+      wrap.appendChild(img); inner.appendChild(wrap); return;
+    }
+    const div=document.createElement("div");
+    div.className="text"; div.textContent=sc.text||"Pause"; div.style.color=sc.text_color||"#fff"; div.style.fontSize=`${Math.max(4,Math.min(30,Number(sc.font_vh??10)))}vh`;
+    inner.appendChild(div);
+  }
 
-        const above = c.messages_position === "above";
-        $("#msgs_above").style.display = above ? "block" : "none";
-        $("#msgs_below").style.display = above ? "none"  : "block";
-        $("#msg_primary_above").textContent   = above ? prim : "";
-        $("#msg_secondary_above").textContent = above ? sec  : "";
-        $("#msg_primary_below").textContent   = !above ? prim : "";
-        $("#msg_secondary_below").textContent = !above ? sec  : "";
-      }
+  async function fetchConfig(){ const r=await fetch("/api/config"); const js=await r.json(); state.cfg=js.config; state.lastCfgRev=js.config._updated_at||0; sendHeartbeat(); }
+  async function firstLoad(){ await fetchConfig(); const r=await fetch("/tick"); state.tick=await r.json(); render(); sendHeartbeat(); }
+  async function pollTick(){ const r=await fetch("/tick"); const t=await r.json(); state.tick=t; if((t.cfg_rev||0)!==state.lastCfgRev) await fetchConfig(); render(true); }
+  function render(){ const mode=(state.cfg?.mode)||"daily"; if(mode==="screen") applyScreen(); else applyCountdown(); }
 
-      function applyScreen(){
-        const sc = state.cfg.screen || {};
-        $("#view_countdown").style.display = "none";
-        $("#view_screen").style.display = "flex";
-        const root = $("#view_screen");
-        root.style.background = sc.bg || "#000";
-        const inner = $("#screen_inner"); inner.innerHTML = "";
-        if (sc.type === "blackout") return;
-        if (sc.type === "image") {
-          const wrap = document.createElement("div");
-          wrap.style.position="relative"; wrap.style.width="100%"; wrap.style.height="100%";
-          const img = document.createElement("img");
-          img.src = sc.image_url || ""; img.style.objectFit = sc.image_fit || "cover";
-          img.style.width="100%"; img.style.height="100%"; img.style.opacity = String((sc.image_opacity ?? 100)/100);
-          wrap.appendChild(img); inner.appendChild(wrap); return;
-        }
-        const div = document.createElement("div");
-        div.className = "text";
-        div.textContent = sc.text || "Pause";
-        div.style.color = sc.text_color || "#fff";
-        div.style.fontSize = `${Math.max(4, Math.min(30, Number(sc.font_vh ?? 10)))}vh`;
-        inner.appendChild(div);
-      }
+  // heartbeat + FS auto-skjul
+  function sendHeartbeat(){ const payload=JSON.stringify({rev:state.lastCfgRev,page:"view"}); if(navigator.sendBeacon){ const blob=new Blob([payload],{type:"application/json"}); navigator.sendBeacon("/debug/view-heartbeat",blob);} else { fetch("/debug/view-heartbeat",{method:"POST",headers:{"Content-Type":"application/json"},body:payload}).catch(()=>{});} }
+  setInterval(sendHeartbeat, 10000);
+  const fsBtn=$("#btn_fullscreen"); function showFs(){ fsBtn.style.display=(document.fullscreenEnabled?"inline-block":"none"); fsBtn.style.opacity="1"; } function hideFs(){ if(document.fullscreenEnabled) fsBtn.style.opacity="0"; }
+  ["mousemove","mousedown","keydown","touchstart"].forEach(ev=>document.addEventListener(ev,()=>{lastActivityTs=Date.now(); showFs();},{passive:true}));
+  setInterval(()=>{ if(Date.now()-lastActivityTs>5000) hideFs(); },1000);
+  fsBtn.addEventListener("click",async()=>{ try{ if(!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen(); }catch(e){} });
 
-      async function fetchConfig(){
-        const r = await fetch("/api/config"); const js = await r.json();
-        state.cfg = js.config; state.lastCfgRev = js.config._updated_at || 0;
-        sendHeartbeat();
-      }
-      async function firstLoad(){
-        await fetchConfig();
-        const r = await fetch("/tick"); state.tick = await r.json();
-        render(); sendHeartbeat();
-      }
-      async function pollTick(){
-        const r = await fetch("/tick"); const t = await r.json();
-        state.tick = t;
-        if ((t.cfg_rev||0) !== state.lastCfgRev) await fetchConfig();
-        render(true);
-      }
-
-      function render(){
-        const mode = (state.cfg?.mode) || "daily";
-        if (mode === "screen") applyScreen(); else applyCountdown();
-      }
-
-      // Heartbeat + fullskjerm auto-skjul (som før)
-      function sendHeartbeat(){
-        const payload = JSON.stringify({ rev: state.lastCfgRev, page: "view" });
-        if (navigator.sendBeacon) {
-          const blob = new Blob([payload], {type: "application/json"});
-          navigator.sendBeacon("/debug/view-heartbeat", blob);
-        } else {
-          fetch("/debug/view-heartbeat",{method:"POST",headers:{"Content-Type":"application/json"},body:payload}).catch(()=>{});
-        }
-      }
-      setInterval(sendHeartbeat, 10000);
-
-      const fsBtn = $("#btn_fullscreen");
-      function showFsBtn(){ fsBtn.style.display = (document.fullscreenEnabled ? "inline-block" : "none"); fsBtn.style.opacity = "1"; }
-      function hideFsBtn(){ if (document.fullscreenEnabled) fsBtn.style.opacity = "0"; }
-      function bumpActivity(){ lastActivityTs = Date.now(); showFsBtn(); }
-      ["mousemove","mousedown","keydown","touchstart"].forEach(ev => document.addEventListener(ev, bumpActivity, {passive:true}));
-      setInterval(()=>{ if (Date.now()-lastActivityTs > 5000) hideFsBtn(); }, 1000);
-      fsBtn.addEventListener("click", async () => { try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen(); } catch(e){} });
-
-      showFsBtn();
-      firstLoad().catch(console.error);
-      setInterval(pollTick, 1000);
-    })();
-  </script>
-</body>
-</html>
+  showFs(); firstLoad().catch(console.error); setInterval(pollTick,1000);
+})();
+</script>
+</body></html>

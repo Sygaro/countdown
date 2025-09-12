@@ -31,27 +31,16 @@ pre{background:#0b0f14;border:1px solid var(--border);padding:12px;border-radius
 }
 .fs-btn:hover{opacity:1}
 
-/* Bedre kontrast for time/datetime pickere på mørk bakgrunn */
+/* Bedre kontrast på time/datetime-picker på mørk bakgrunn */
 input[type="time"]::-webkit-calendar-picker-indicator,
-input[type="datetime-local"]::-webkit-calendar-picker-indicator{
-  filter: invert(1) brightness(1.2);
-  opacity: .9;
-}
-input[type="time"],
-input[type="datetime-local"]{
-  color: var(--text);
-  background:#0e1420;
-  border:1px solid var(--border);
-}
+input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(1) brightness(1.2); opacity: .9; }
+input[type="time"], input[type="datetime-local"] { color: var(--text); background:#0e1420; border:1px solid var(--border); }
 
-/* Forhåndsvisning-boks i Admin */
-.preview{
-  background:#0b0f14;
-  border:1px solid var(--border);
-  border-radius:12px;
-  padding:16px;
-  min-height:220px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
+/* Forhåndsvisning */
+.preview{ background:#0b0f14; border:1px solid var(--border); border-radius:12px; padding:14px; min-height:200px; display:flex; align-items:center; justify-content:center }
+.pv-box{ width:100%; max-width:800px; aspect-ratio:16/8; border:1px solid var(--border); border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:10px; }
+.pv-digits{ font-weight:800; letter-spacing:.06em; font-size: clamp(4vw, 8vw, 10vw); }
+
+/* Ekte blinking for digits */
+@keyframes flash { 0%,50%,100% { opacity:1 } 25%,75% { opacity:.2 } }
+.big.blink, .pv-digits.blink { animation: flash .8s steps(1) infinite; }
