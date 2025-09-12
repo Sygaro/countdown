@@ -30,3 +30,28 @@ pre{background:#0b0f14;border:1px solid var(--border);padding:12px;border-radius
   padding:8px 10px; border-radius:8px; opacity:.6; z-index:1000
 }
 .fs-btn:hover{opacity:1}
+
+/* Bedre kontrast for time/datetime pickere på mørk bakgrunn */
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator{
+  filter: invert(1) brightness(1.2);
+  opacity: .9;
+}
+input[type="time"],
+input[type="datetime-local"]{
+  color: var(--text);
+  background:#0e1420;
+  border:1px solid var(--border);
+}
+
+/* Forhåndsvisning-boks i Admin */
+.preview{
+  background:#0b0f14;
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:16px;
+  min-height:220px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}

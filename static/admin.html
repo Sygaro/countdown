@@ -1,4 +1,3 @@
-<!-- static/admin.html -->
 <!doctype html>
 <html lang="no">
 <head>
@@ -12,10 +11,7 @@
     .ok { color:#0b0f14; background:#69db7c; border-color:transparent; }
     .warn { color:#0b0f14; background:#ffd166; border-color:transparent; }
     .off { color:#e6edf3; background:#374151; }
-    .pulse { animation: pulse .9s ease 1; } @keyframes pulse { 0%{opacity:.5} 100%{opacity:1} }
-    .help { color: var(--muted); font-size:.9rem }
-    .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center }
-    .hint-inline { font-size:.85rem; opacity:.9; margin-left:6px }
+    .preview { background:#0b0f14;border:1px solid var(--border); border-radius:12px; padding:16px; min-height:220px; display:flex; align-items:center; justify-content:center }
   </style>
 </head>
 <body>
@@ -32,113 +28,66 @@
   <div class="actions">
     <button id="btn_save" class="primary" title="Lagre endringer">Lagre</button>
     <button id="btn_refresh" title="Hent status fra server">Oppdater</button>
-    <button id="btn_reset_view" title="Tilbakestill visningsvalg (lokalt, husk å lagre)">Tilbakestill visning</button>
+    <button id="btn_reset_view" title="Tilbakestill (hentes fra server-defaults)">Tilbakestill visning</button>
     <span id="sync_pill" class="pill off">Synk: —</span>
     <span id="save_hint" class="muted"></span>
   </div>
 
   <main class="grid">
-    <section class="card">
-      <h2>Modus</h2>
-      <label title="Teller ned til fast klokkeslett hver dag"><input type="radio" name="mode" value="daily"/> Daglig klokkeslett</label>
-      <input id="daily_time" type="time" step="60"/>
-      <br/>
-      <label title="Teller ned til ett bestemt tidspunkt"><input type="radio" name="mode" value="once"/> Engangs-tidspunkt</label>
-      <input id="once_at" type="datetime-local"/>
-      <br/>
-      <label title="Manuell varighetsnedtelling"><input type="radio" name="mode" value="duration"/> Varighet (manuell start)</label>
-      <br/>
-      <label title="Vis ren stopp-skjerm (tekst/bilde/blackout)"><input type="radio" name="mode" value="screen"/> Stopp-skjerm</label>
-      <p class="hint">Velg én modus. Lagre for at endring skal gjelde.</p>
-      <p id="active_mode" class="muted">Aktiv modus: — · Fase: —</p>
-    </section>
+    <!-- … eksisterende seksjoner: Modus, Start, Stopp-skjerm, Visning/oppførsel, Meldinger, Varsler, Sikkerhet, Debug … -->
 
     <section class="card">
-      <h2>Start med varighet</h2>
+      <h2>Utseende – Meldinger</h2>
+      <div class="help">Styr typografi for hoved- og sekundærmelding. Endringene forhåndsvises under, men lagres ikke før du trykker <em>Lagre</em>.</div>
       <div class="row">
-        <button class="preset" data-min="5">+5 min</button>
-        <button class="preset" data-min="10">+10 min</button>
-        <button class="preset" data-min="15">+15 min</button>
-        <button class="preset" data-min="30">+30 min</button>
-        <label>Varighet <input id="start_minutes" type="number" min="1" step="1" value="10"/></label>
-        <button id="btn_start" class="primary">Start nå</button>
-        <button id="btn_stop">Stopp nå</button>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Stopp-skjerm</h2>
-      <label><input type="radio" name="screen_type" value="text"/> Tekst</label>
-      <label><input type="radio" name="screen_type" value="image"/> Bilde</label>
-      <label><input type="radio" name="screen_type" value="blackout"/> Blackout</label>
-      <div id="screen_text_cfg">
-        <label>Tekst <input id="screen_text" type="text" placeholder="Pause"/></label>
-        <label>Tekstfarge <input id="screen_text_color" type="color" value="#ffffff"/></label>
-        <label>Bakgrunn <input id="screen_bg" type="color" value="#000000"/></label>
-        <label>Skriftstørrelse (vh) <input id="screen_font_vh" type="number" min="4" max="30" step="1" value="10"/></label>
-      </div>
-      <div id="screen_image_cfg">
-        <label>Bilde-URL <input id="screen_image_url" type="url" placeholder="https://..."/></label>
-        <label>Opacity (0–100) <input id="screen_image_opacity" type="number" min="0" max="100" step="1" value="100"/></label>
-        <label>Tilpasning
-          <select id="screen_image_fit"><option value="cover">cover</option><option value="contain">contain</option></select>
+        <strong>Hovedmelding</strong>
+        <label>Størrelse (rem) <input id="theme_p_size" type="number" step="0.1" min="0.6" max="3.0"/></label>
+        <label>Vekt
+          <select id="theme_p_weight">
+            <option>300</option><option>400</option><option>500</option>
+            <option selected>600</option><option>700</option><option>800</option><option>900</option>
+          </select>
         </label>
-        <label>Bakgrunn <input id="screen_bg_img" type="color" value="#000000"/></label>
+        <label>Farge <input id="theme_p_color" type="color"/></label>
       </div>
-      <p class="hint">Gjelder når modus = Stopp-skjerm.</p>
+      <div class="row">
+        <strong>Sekundær</strong>
+        <label>Størrelse (rem) <input id="theme_s_size" type="number" step="0.1" min="0.6" max="3.0"/></label>
+        <label>Vekt
+          <select id="theme_s_weight">
+            <option>300</option><option selected>400</option><option>500</option>
+            <option>600</option><option>700</option><option>800</option><option>900</option>
+          </select>
+        </label>
+        <label>Farge <input id="theme_s_color" type="color"/></label>
+      </div>
+      <div class="row">
+        <strong>Digits</strong>
+        <label>Størrelse
+          <select id="digits_size_preset">
+            <option value="14">Normal</option>
+            <option value="18">Stor</option>
+            <option value="22">Ekstra stor</option>
+          </select>
+        </label>
+      </div>
     </section>
 
     <section class="card">
-      <h2>Visning / oppførsel</h2>
-      <div class="help">Format-terskel: ved ≥ terskel vises <strong>H:MM:SS</strong>, ellers <strong>MM:SS</strong>. Eksempel: 70 → <code>2:00:00</code>, 300 → <code>120:00</code>.</div>
-      <label title="Fargelegg tall etter gul/rød terskel"><input id="use_phase_colors" type="checkbox"/> Fargelegg ved gult/rødt</label>
-      <label title="Blink i sluttsekunder (klientstyrt)"><input id="use_blink" type="checkbox"/> Blink de siste sekundene</label>
-
-      <div class="row">
-        <label>Farge normal <input id="color_normal" type="color" value="#e6edf3"/></label><span id="c_contrast_normal" class="hint-inline"></span>
+      <h2>Forhåndsvisning</h2>
+      <div id="preview" class="preview">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+          <div id="pv_msgs_above" style="display:none;text-align:center">
+            <div id="pv_prim_above"></div>
+            <div id="pv_sec_above"></div>
+          </div>
+          <div id="pv_digits" class="big">12:34</div>
+          <div id="pv_msgs_below" style="display:block;text-align:center">
+            <div id="pv_prim_below"></div>
+            <div id="pv_sec_below"></div>
+          </div>
+        </div>
       </div>
-      <div class="row">
-        <label>Farge gul <input id="color_warn" type="color" value="#ffd166"/></label><span id="c_contrast_warn" class="hint-inline"></span>
-      </div>
-      <div class="row">
-        <label>Farge rød <input id="color_alert" type="color" value="#ff6b6b"/></label><span id="c_contrast_alert" class="hint-inline"></span>
-      </div>
-      <div class="row">
-        <label>Farge minus-tid <input id="color_over" type="color" value="#9ad0ff"/></label><span id="c_contrast_over" class="hint-inline"></span>
-      </div>
-
-      <label title="Vis måltid etter valgt melding"><input id="show_target_time" type="checkbox"/> Vis mål-klokkeslett</label>
-      <label>Plassering av mål-klokkeslett
-        <select id="target_time_after"><option value="primary">etter hovedmelding</option><option value="secondary">etter sekundær melding</option></select>
-      </label>
-      <label>Plassering av meldinger
-        <select id="messages_position"><option value="above">over nedtellingen</option><option value="below">under nedtellingen</option></select>
-      </label>
-      <label title="Ved ≥ terskel vises H:MM:SS, ellers MM:SS">Tidsformat → H:MM:SS når over (min)
-        <input id="hms_threshold_minutes" type="number" min="0" max="720" step="1" value="60"/>
-      </label>
-    </section>
-
-    <section class="card">
-      <h2>Meldinger</h2>
-      <label><input id="show_message_primary" type="checkbox"/> Vis hovedmelding</label>
-      <textarea id="message_primary" rows="2" placeholder="Velkommen !"></textarea>
-      <label><input id="show_message_secondary" type="checkbox"/> Vis sekundær melding</label>
-      <input id="message_secondary" type="text" placeholder="Vi starter igjen kl:"/>
-    </section>
-
-    <section class="card">
-      <h2>Varsler / blink</h2>
-      <label title="Gult når ≤ dette antall minutter gjenstår">Gult ved (min igjen) <input id="warn_minutes" type="number" min="0" step="1"/></label>
-      <label title="Rødt når ≤ dette antall minutter gjenstår">Rødt ved (min igjen) <input id="alert_minutes" type="number" min="0" step="1"/></label>
-      <label title="Blink siste N sekunder">Blink de siste (sek) <input id="blink_seconds" type="number" min="0" step="1"/></label>
-      <label title="Vis minus i inntil N minutter etter mål">Vis minus-tid (min etterpå) <input id="overrun_minutes" type="number" min="0" step="1"/></label>
-    </section>
-
-    <section class="card">
-      <h2>Sikkerhet</h2>
-      <input id="admin_password" type="password" placeholder="Admin-passord (valgfritt)"/>
-      <p class="hint">Sendes som X-Admin-Password ved lagring/start/stop.</p>
     </section>
 
     <section class="card">
@@ -151,167 +100,125 @@
     (function(){
       const $ = s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
       const debug=$("#debug"), hint=$("#save_hint"), pill=$("#sync_pill");
-      let lastCfg = null;
+      let lastCfg=null, defaultsCache=null;
+
+      async function fetchDefaults(){
+        if (defaultsCache) return defaultsCache;
+        const r = await fetch("/api/defaults"); const js = await r.json();
+        defaultsCache = js.defaults; return defaultsCache;
+      }
 
       function headers(){
-        const pwd = ($("#admin_password").value||"").trim();
+        const pwd = ($("#admin_password")?.value||"").trim();
         const h={"Content-Type":"application/json"}; if(pwd) h["X-Admin-Password"]=pwd; return h;
       }
-      function selMode(){ const r=$$("input[name=mode]:checked")[0]; return r? r.value : "daily"; }
-      function selScreenType(){ const r=$$("input[name=screen_type]:checked")[0]; return r? r.value : "text"; }
-      function lock(){
-        const m=selMode();
-        $("#daily_time").disabled=(m!=="daily"); $("#once_at").disabled=(m!=="once");
-        const st=(m==="screen");
-        $("#screen_text_cfg").style.display = st ? "block":"none";
-        $("#screen_image_cfg").style.display = st ? "block":"none";
-      }
-      function pulse(el){ if(!el) return; el.classList.remove("pulse"); void el.offsetWidth; el.classList.add("pulse"); }
 
-      // --- Kontrast (store tall, 3:1) ---
-      function hexToRgb(h){ const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h.trim()); return m? [parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)] : [230,237,243]; }
-      function luminance([r,g,b]){ const a=[r,g,b].map(v=>{v/=255; return (v<=0.03928)? v/12.92 : Math.pow((v+0.055)/1.055,2.4)}); return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2]; }
-      function contrast(c1,c2){ const L1=luminance(hexToRgb(c1)), L2=luminance(hexToRgb(c2)); const [hi,lo]=L1>L2?[L1,L2]:[L2,L1]; return (hi+0.05)/(lo+0.05); }
-      function updateContrastHints(){
-        // bakgrunn: primær bakgrunn (#0b0f14) – gradient fallback
-        const bg = "#0b0f14";
-        const set = (id, val) => {
-          const ratio = contrast(val,bg);
-          const el = $(id);
-          el.textContent = `kontrast ${ratio.toFixed(2)}${ratio>=3?' ✔':' ⚠'}`;
-          el.style.color = ratio>=3 ? '#69db7c' : '#ffd166';
-        };
-        set("#c_contrast_normal", $("#color_normal").value);
-        set("#c_contrast_warn",   $("#color_warn").value);
-        set("#c_contrast_alert",  $("#color_alert").value);
-        set("#c_contrast_over",   $("#color_over").value);
-      }
-
+      // ----- APPLY (les config -> UI) -----
       function apply(cfg, tick){
         lastCfg = cfg;
-        const r=$(`input[name=mode][value=${cfg.mode||"daily"}]`); if(r) r.checked=true;
-        $("#daily_time").value=cfg.daily_time||""; $("#once_at").value=(cfg.once_at||"").replace("Z","");
-        // Screen
-        const sc=cfg.screen||{}; const sr=$(`input[name=screen_type][value=${sc.type||"text"}]`); if(sr) sr.checked=true;
-        $("#screen_text").value=sc.text||"Pause"; $("#screen_text_color").value=sc.text_color||"#ffffff";
-        $("#screen_bg").value=sc.bg||"#000000"; $("#screen_font_vh").value=sc.font_vh??10;
-        $("#screen_image_url").value=sc.image_url||""; $("#screen_image_opacity").value=sc.image_opacity??100;
-        $("#screen_image_fit").value=sc.image_fit||"cover"; $("#screen_bg_img").value=sc.bg||"#000000";
-        // Visningsvalg
-        $("#use_phase_colors").checked=!!cfg.use_phase_colors; $("#use_blink").checked=!!cfg.use_blink;
-        $("#color_normal").value=cfg.color_normal||"#e6edf3"; $("#color_warn").value=cfg.color_warn||"#ffd166"; $("#color_alert").value=cfg.color_alert||"#ff6b6b"; $("#color_over").value=cfg.color_over||"#9ad0ff";
-        $("#show_target_time").checked=!!cfg.show_target_time; $("#target_time_after").value=cfg.target_time_after||"secondary";
-        $("#messages_position").value=cfg.messages_position||"below";
-        $("#hms_threshold_minutes").value=cfg.hms_threshold_minutes??60;
-        // Meldinger/varsler
-        $("#message_primary").value=cfg.message_primary||""; $("#message_secondary").value=cfg.message_secondary||"";
-        $("#show_message_primary").checked=!!cfg.show_message_primary; $("#show_message_secondary").checked=!!cfg.show_message_secondary;
-        $("#warn_minutes").value=cfg.warn_minutes??4; $("#alert_minutes").value=cfg.alert_minutes??2; $("#blink_seconds").value=cfg.blink_seconds??10; $("#overrun_minutes").value=cfg.overrun_minutes??1;
-        $("#active_mode").textContent=`Aktiv modus: ${cfg.mode} · Fase: ${tick?.mode||"—"} (${tick?.state||"—"})`;
-        lock(); if(debug) debug.textContent=JSON.stringify({cfg,tick},null,2);
-        updateContrastHints();
-        updateSyncPill(); // etter ny status
+
+        // Theme: messages
+        const p = cfg?.theme?.messages?.primary   || {};
+        const s = cfg?.theme?.messages?.secondary || {};
+        $("#theme_p_size").value = String(p.size_rem ?? 1.0);
+        $("#theme_p_weight").value = String(p.weight ?? 600);
+        $("#theme_p_color").value = String(p.color ?? "#9aa4b2");
+        $("#theme_s_size").value = String(s.size_rem ?? 1.0);
+        $("#theme_s_weight").value = String(s.weight ?? 400);
+        $("#theme_s_color").value = String(s.color ?? "#9aa4b2");
+
+        // Digits preset
+        $("#digits_size_preset").value = String(cfg?.theme?.digits?.size_vw ?? 14);
+
+        // Debug-panelet (kort)
+        if (debug) debug.textContent = JSON.stringify({cfg,tick},null,2);
+
+        renderPreview();
       }
 
-      async function loadAll(){
-        const r=await fetch("/api/config"); const js=await r.json(); apply(js.config,js.tick); pulse(hint); hint.textContent="Status oppdatert";
-        setTimeout(()=>hint.textContent="",1500);
-      }
+      // ----- SAVE (UI -> server) -----
       async function saveAll(){
-        const m=selMode();
-        const body={
-          mode:m,
-          daily_time:$("#daily_time").value, once_at:$("#once_at").value,
-          use_phase_colors:$("#use_phase_colors").checked, use_blink:$("#use_blink").checked,
-          color_normal:$("#color_normal").value, color_warn:$("#color_warn").value, color_alert:$("#color_alert").value, color_over:$("#color_over").value,
-          show_target_time:$("#show_target_time").checked, target_time_after:$("#target_time_after").value,
-          messages_position:$("#messages_position").value,
-          hms_threshold_minutes:parseInt($("#hms_threshold_minutes").value||"60",10),
-          message_primary:$("#message_primary").value, message_secondary:$("#message_secondary").value,
-          show_message_primary:$("#show_message_primary").checked, show_message_secondary:$("#show_message_secondary").checked,
-          warn_minutes:parseInt($("#warn_minutes").value||"0",10),
-          alert_minutes:parseInt($("#alert_minutes").value||"0",10),
-          blink_seconds:parseInt($("#blink_seconds").value||"0",10),
-          overrun_minutes:parseInt($("#overrun_minutes").value||"0",10)
+        const body = {
+          theme: {
+            digits: { size_vw: Number($("#digits_size_preset").value || "14") },
+            messages: {
+              primary:   { size_rem: Number($("#theme_p_size").value || "1.0"), weight: Number($("#theme_p_weight").value || "600"), color: $("#theme_p_color").value },
+              secondary: { size_rem: Number($("#theme_s_size").value || "1.0"), weight: Number($("#theme_s_weight").value || "400"), color: $("#theme_s_color").value }
+            }
+          }
         };
-        if(m==="screen"){
-          const st=selScreenType();
-          body.screen={
-            type:st, text:$("#screen_text").value, text_color:$("#screen_text_color").value,
-            bg:(st==="image")?$("#screen_bg_img").value:$("#screen_bg").value,
-            font_vh:parseInt($("#screen_font_vh").value||"10",10),
-            image_url:$("#screen_image_url").value,
-            image_opacity:parseInt($("#screen_image_opacity").value||"100",10),
-            image_fit:$("#screen_image_fit").value
-          };
-        }
         const r=await fetch("/api/config",{method:"POST",headers:headers(),body:JSON.stringify(body)});
         if(!r.ok) throw new Error(await r.text());
-        const js=await r.json(); apply(js.config,js.tick); pulse(hint); hint.textContent="Lagret";
-        setTimeout(()=>hint.textContent="",1500);
-      }
-      async function startDuration(){
-        const minutes=parseInt($("#start_minutes").value||"0",10); if(!minutes||minutes<=0) return alert("Ugyldig varighet");
-        const r=await fetch("/api/start",{method:"POST",headers:headers(),body:JSON.stringify({minutes})});
-        if(!r.ok) throw new Error(await r.text());
-        const js=await r.json(); apply(js.config,js.tick); pulse(hint); hint.textContent="Varighet startet";
-        setTimeout(()=>hint.textContent="",1500);
-      }
-      async function stopDuration(){
-        const r=await fetch("/api/stop",{method:"POST",headers:headers(),body:"{}"});
-        if(!r.ok) throw new Error(await r.text());
-        const js=await r.json(); apply(js.config,js.tick); pulse(hint); hint.textContent="Varighet stoppet";
-        setTimeout(()=>hint.textContent="",1500);
+        const js=await r.json();
+        apply(js.config,js.tick); hint.textContent="Lagret"; setTimeout(()=>hint.textContent="",1500);
       }
 
-      // --- Synk-indikator (basert på visningens heartbeat) ---
+      // ----- RESET (defaults fra server) -----
+      async function resetView(){
+        const d = await fetchDefaults();
+        $("#digits_size_preset").value = String(d.theme?.digits?.size_vw ?? 14);
+        $("#theme_p_size").value = String(d.theme?.messages?.primary?.size_rem ?? 1.0);
+        $("#theme_p_weight").value = String(d.theme?.messages?.primary?.weight ?? 600);
+        $("#theme_p_color").value = String(d.theme?.messages?.primary?.color ?? "#9aa4b2");
+        $("#theme_s_size").value = String(d.theme?.messages?.secondary?.size_rem ?? 1.0);
+        $("#theme_s_weight").value = String(d.theme?.messages?.secondary?.weight ?? 400);
+        $("#theme_s_color").value = String(d.theme?.messages?.secondary?.color ?? "#9aa4b2");
+        renderPreview();
+        hint.textContent="Tilbakestilt (lagre for å aktivere)"; setTimeout(()=>hint.textContent="",2000);
+      }
+
+      // ----- PREVIEW -----
+      function renderPreview(){
+        const p = { size_rem: Number($("#theme_p_size").value||"1.0"), weight: Number($("#theme_p_weight").value||"600"), color: $("#theme_p_color").value };
+        const s = { size_rem: Number($("#theme_s_size").value||"1.0"), weight: Number($("#theme_s_weight").value||"400"), color: $("#theme_s_color").value };
+        const vw = Number($("#digits_size_preset").value || "14");
+        $("#pv_digits").style.fontSize = `${vw}vw`;
+
+        function style(el, m){ el.style.fontSize = `${m.size_rem}rem`; el.style.fontWeight = String(m.weight); el.style.color = m.color; }
+        style($("#pv_prim_above"), p); style($("#pv_sec_above"), s);
+        style($("#pv_prim_below"), p); style($("#pv_sec_below"), s);
+
+        const showAbove = (lastCfg?.messages_position || "below") === "above";
+        $("#pv_msgs_above").style.display = showAbove ? "block" : "none";
+        $("#pv_msgs_below").style.display = showAbove ? "none"  : "block";
+
+        const tt = (lastCfg?.show_target_time && (lastCfg?.tick?.target_hhmm || lastCfg?.target_hhmm)) ? " 19:00" : "";
+        $("#pv_prim_above").textContent = showAbove ? ((lastCfg?.message_primary || "Velkommen!") + (lastCfg?.target_time_after==="primary"?tt:"")) : "";
+        $("#pv_sec_above").textContent  = showAbove ? ((lastCfg?.message_secondary || "Vi starter igjen kl:") + (lastCfg?.target_time_after==="secondary"?tt:"")) : "";
+        $("#pv_prim_below").textContent = !showAbove ? ((lastCfg?.message_primary || "Velkommen!") + (lastCfg?.target_time_after==="primary"?tt:"")) : "";
+        $("#pv_sec_below").textContent  = !showAbove ? ((lastCfg?.message_secondary || "Vi starter igjen kl:") + (lastCfg?.target_time_after==="secondary"?tt:"")) : "";
+      }
+
+      // ----- Synk-pille (uendret struktur; enkel polling) -----
       async function updateSyncPill(){
         try{
           const r = await fetch("/debug/view-heartbeat"); const js = await r.json();
           const hb = js.heartbeat || {}; const age = hb.age_seconds ?? 9999;
           const viewRev = hb.rev || 0;
           const cfgRev = (lastCfg && lastCfg._updated_at) ? lastCfg._updated_at : 0;
-          if (age > 30 || !hb.ts_iso) {
-            pill.textContent = "Synk: visning offline";
-            pill.className = "pill off";
-          } else if (viewRev >= cfgRev) {
-            pill.textContent = `Synk: OK (rev ${viewRev})`;
-            pill.className = "pill ok";
-          } else {
-            pill.textContent = `Synk: venter (view ${viewRev} < cfg ${cfgRev})`;
-            pill.className = "pill warn";
-          }
-        } catch(e){
-          pill.textContent = "Synk: —"; pill.className = "pill off";
-        }
-      }
-      setInterval(updateSyncPill, 3000);
-
-      // --- Reset visningsvalg (lokalt) ---
-      function resetViewOptions(){
-        $("#use_phase_colors").checked=false; $("#use_blink").checked=true;
-        $("#color_normal").value="#e6edf3"; $("#color_warn").value="#ffd166"; $("#color_alert").value="#ff6b6b"; $("#color_over").value="#9ad0ff";
-        $("#show_target_time").checked=false; $("#target_time_after").value="secondary";
-        $("#messages_position").value="below"; $("#hms_threshold_minutes").value=60;
-        updateContrastHints();
-        pulse(hint); hint.textContent="Tilbakestilt (lagre for å aktivere)";
-        setTimeout(()=>hint.textContent="",2000);
+          if (age > 30 || !hb.ts_iso) { pill.textContent = "Synk: visning offline"; pill.className = "pill off"; }
+          else if (viewRev >= cfgRev) { pill.textContent = `Synk: OK (rev ${viewRev})`; pill.className = "pill ok"; }
+          else { pill.textContent = `Synk: venter (view ${viewRev} < cfg ${cfgRev})`; pill.className = "pill warn"; }
+        } catch(e){ pill.textContent = "Synk: —"; pill.className = "pill off"; }
       }
 
-      // events
-      $$("input[name=mode]").forEach(el=>el.addEventListener("change",lock));
-      $$("input[name=screen_type]").forEach(el=>el.addEventListener("change",lock));
-      $$(".preset").forEach(b=>b.addEventListener("click",()=>{$("#start_minutes").value=b.dataset.min;}));
+      // ----- Init / Events -----
       $("#btn_save").addEventListener("click",()=>saveAll().catch(e=>alert(e.message)));
       $("#btn_refresh").addEventListener("click",()=>loadAll().catch(e=>alert(e.message)));
-      $("#btn_start").addEventListener("click",()=>startDuration().catch(e=>alert(e.message)));
-      $("#btn_stop").addEventListener("click",()=>stopDuration().catch(e=>alert(e.message)));
-      $("#btn_reset_view").addEventListener("click", resetViewOptions);
-      ["#color_normal","#color_warn","#color_alert","#color_over"].forEach(sel=>{
-        $(sel).addEventListener("input", updateContrastHints);
+      $("#btn_reset_view").addEventListener("click",()=>resetView().catch(e=>alert(e.message)));
+      ["theme_p_size","theme_p_weight","theme_p_color","theme_s_size","theme_s_weight","theme_s_color","digits_size_preset"].forEach(id=>{
+        document.getElementById(id).addEventListener("input", renderPreview);
       });
 
-      loadAll().catch(e=>{ if (debug) debug.textContent=String(e); });
+      async function loadAll(){
+        const r=await fetch("/api/config"); const js=await r.json();
+        // pakk inn tick litt for PV-tekst
+        js.config.tick = js.tick;
+        apply(js.config, js.tick); updateSyncPill();
+      }
+
+      loadAll().catch(console.error);
+      setInterval(updateSyncPill, 3000);
     })();
   </script>
 </body>

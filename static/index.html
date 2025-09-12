@@ -1,4 +1,3 @@
-<!-- static/index.html -->
 <!doctype html>
 <html lang="no">
 <head>
@@ -34,30 +33,34 @@
       const state = { cfg:null, tick:null, lastCfgRev:0 };
       let lastActivityTs = Date.now();
 
-      function fmtMMSS(ms){
-        const neg = ms < 0 ? "-" : "";
-        ms = Math.abs(ms);
-        const total = Math.floor(ms/1000);
-        const m = Math.floor(total/60);
-        const s = total % 60;
-        return `${neg}${m}:${String(s).padStart(2,"0")}`;
+      function fmtMMSS(ms){ const neg=ms<0?"-":""; ms=Math.abs(ms); const t=Math.floor(ms/1000), m=Math.floor(t/60), s=t%60; return `${neg}${m}:${String(s).padStart(2,"0")}`; }
+      function fmtHMS(ms){ const neg=ms<0?"-":""; ms=Math.abs(ms); const t=Math.floor(ms/1000), h=Math.floor(t/3600), r=t%3600, m=Math.floor(r/60), s=r%60; const pad=n=>String(n).padStart(2,"0"); return `${neg}${h}:${pad(m)}:${pad(s)}`; }
+
+      function applyDigitsSize(){
+        const vw = Number(state.cfg?.theme?.digits?.size_vw ?? 14);
+        $("#digits").style.fontSize = `${vw}vw`;
       }
-      function fmtHMS(ms){
-        const neg = ms < 0 ? "-" : "";
-        ms = Math.abs(ms);
-        const total = Math.floor(ms/1000);
-        const h = Math.floor(total/3600);
-        const rem = total % 3600;
-        const m = Math.floor(rem/60);
-        const s = rem % 60;
-        const pad = (n)=>String(n).padStart(2,"0");
-        return `${neg}${h}:${pad(m)}:${pad(s)}`;
+      function applyMessageStyles(){
+        const p = state.cfg?.theme?.messages?.primary   || {};
+        const s = state.cfg?.theme?.messages?.secondary || {};
+        const set = (sel, m)=> {
+          const el = $(sel); if(!el) return;
+          el.style.fontSize   = `${Number(m.size_rem ?? 1.0)}rem`;
+          el.style.fontWeight = String(Number(m.weight ?? 400));
+          el.style.color      = String(m.color ?? '#9aa4b2');
+        };
+        set("#msg_primary_above", p);
+        set("#msg_secondary_above", s);
+        set("#msg_primary_below", p);
+        set("#msg_secondary_below", s);
       }
 
       function applyCountdown(){
         const t = state.tick, c = state.cfg;
         $("#view_screen").style.display = "none";
         $("#view_countdown").style.display = "flex";
+        applyDigitsSize();
+        applyMessageStyles();
 
         const thresholdMs = (c.hms_threshold_minutes ?? 60) * 60 * 1000;
         const msActive = (t.state === "countdown" || t.state === "overrun");
@@ -69,13 +72,9 @@
 
         let color = c.color_normal;
         if (c.use_phase_colors) {
-          if (t.state === "overrun" || t.signed_display_ms < 0) {
-            color = c.color_over || c.color_alert;
-          } else if (t.mode === "alert") {
-            color = c.color_alert;
-          } else if (t.mode === "warn") {
-            color = c.color_warn;
-          }
+          if (t.state === "overrun" || t.signed_display_ms < 0) color = c.color_over || c.color_alert;
+          else if (t.mode === "alert") color = c.color_alert;
+          else if (t.mode === "warn")  color = c.color_warn;
         }
         digits.style.color = color;
         digits.classList.toggle("blink", !!(c.use_blink && t.blink));
@@ -99,20 +98,15 @@
         $("#view_screen").style.display = "flex";
         const root = $("#view_screen");
         root.style.background = sc.bg || "#000";
-        const inner = $("#screen_inner");
-        inner.innerHTML = "";
+        const inner = $("#screen_inner"); inner.innerHTML = "";
         if (sc.type === "blackout") return;
         if (sc.type === "image") {
           const wrap = document.createElement("div");
           wrap.style.position="relative"; wrap.style.width="100%"; wrap.style.height="100%";
           const img = document.createElement("img");
-          img.src = sc.image_url || "";
-          img.style.objectFit = sc.image_fit || "cover";
-          img.style.width="100%"; img.style.height="100%";
-          img.style.opacity = String((sc.image_opacity ?? 100)/100);
-          wrap.appendChild(img);
-          inner.appendChild(wrap);
-          return;
+          img.src = sc.image_url || ""; img.style.objectFit = sc.image_fit || "cover";
+          img.style.width="100%"; img.style.height="100%"; img.style.opacity = String((sc.image_opacity ?? 100)/100);
+          wrap.appendChild(img); inner.appendChild(wrap); return;
         }
         const div = document.createElement("div");
         div.className = "text";
@@ -130,15 +124,12 @@
       async function firstLoad(){
         await fetchConfig();
         const r = await fetch("/tick"); state.tick = await r.json();
-        render();
-        sendHeartbeat();
+        render(); sendHeartbeat();
       }
       async function pollTick(){
         const r = await fetch("/tick"); const t = await r.json();
         state.tick = t;
-        if ((t.cfg_rev||0) !== state.lastCfgRev) {
-          await fetchConfig();
-        }
+        if ((t.cfg_rev||0) !== state.lastCfgRev) await fetchConfig();
         render(true);
       }
 
@@ -147,36 +138,26 @@
         if (mode === "screen") applyScreen(); else applyCountdown();
       }
 
-      // --- Heartbeat til admin ---
+      // Heartbeat + fullskjerm auto-skjul (som før)
       function sendHeartbeat(){
         const payload = JSON.stringify({ rev: state.lastCfgRev, page: "view" });
         if (navigator.sendBeacon) {
           const blob = new Blob([payload], {type: "application/json"});
           navigator.sendBeacon("/debug/view-heartbeat", blob);
         } else {
-          // fallback
-          fetch("/debug/view-heartbeat", {method:"POST", headers:{"Content-Type":"application/json"}, body: payload})
-            .catch(()=>{});
+          fetch("/debug/view-heartbeat",{method:"POST",headers:{"Content-Type":"application/json"},body:payload}).catch(()=>{});
         }
       }
       setInterval(sendHeartbeat, 10000);
 
-      // --- Fullscreen + auto-skjul ---
       const fsBtn = $("#btn_fullscreen");
       function showFsBtn(){ fsBtn.style.display = (document.fullscreenEnabled ? "inline-block" : "none"); fsBtn.style.opacity = "1"; }
       function hideFsBtn(){ if (document.fullscreenEnabled) fsBtn.style.opacity = "0"; }
       function bumpActivity(){ lastActivityTs = Date.now(); showFsBtn(); }
       ["mousemove","mousedown","keydown","touchstart"].forEach(ev => document.addEventListener(ev, bumpActivity, {passive:true}));
       setInterval(()=>{ if (Date.now()-lastActivityTs > 5000) hideFsBtn(); }, 1000);
+      fsBtn.addEventListener("click", async () => { try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen(); } catch(e){} });
 
-      fsBtn.addEventListener("click", async () => {
-        try {
-          if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
-          else await document.exitFullscreen();
-        } catch (e) { console.error(e); }
-      });
-
-      // boot
       showFsBtn();
       firstLoad().catch(console.error);
       setInterval(pollTick, 1000);
