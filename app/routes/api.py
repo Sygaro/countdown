@@ -4,19 +4,26 @@ API:
 - GET  /api/config     -> les config (+tick)
 - POST /api/config     -> lagre config (+sett modus hvis oppgitt)
 - POST /api/start      -> start varighetsmodus (minutes)
+- POST /api/stop       -> stopp varighet nå (switch -> daily)
 - GET  /api/status     -> enkel tick (kompat)
 """
 from __future__ import annotations
 from datetime import datetime
 from flask import Blueprint, request, jsonify
+
 from ..settings import TZ
 from ..storage import (
-    load_config, save_config_patch, set_mode, start_duration
+    load_config,
+    save_config_patch,
+    set_mode,
+    start_duration,
+    clear_duration_and_switch_to_daily,
 )
 from ..countdown import compute_tick
 from ..auth import require_password
 
 bp = Blueprint("api", __name__, url_prefix="/api")
+
 
 @bp.get("/config")
 def get_config():
@@ -24,11 +31,13 @@ def get_config():
     t = compute_tick(cfg)
     return jsonify({"ok": True, "config": cfg, "tick": t, "server_time": datetime.now(TZ).isoformat()}), 200
 
+
 @bp.post("/config")
 @require_password
 def post_config():
     data = request.get_json(silent=True) or {}
-    # Bytt modus hvis oppgitt
+
+    # Sett modus hvis spesifisert
     if "mode" in data:
         mode = str(data.get("mode")).strip().lower()
         daily_time = str(data.get("daily_time") or "")
@@ -41,7 +50,7 @@ def post_config():
     else:
         cfg = load_config()
 
-    # Øvrige felt (meldinger/varsler/admin)
+    # Øvrige felt
     passthrough = (
         "message_primary","message_secondary","show_message_primary","show_message_secondary",
         "warn_minutes","alert_minutes","blink_seconds","overrun_minutes","admin_password",
@@ -57,6 +66,7 @@ def post_config():
     t = compute_tick(cfg)
     return jsonify({"ok": True, "config": cfg, "tick": t}), 200
 
+
 @bp.post("/start")
 @require_password
 def start():
@@ -70,6 +80,18 @@ def start():
     cfg = start_duration(minutes)
     t = compute_tick(cfg)
     return jsonify({"ok": True, "config": cfg, "tick": t}), 200
+
+
+@bp.post("/stop")
+@require_password
+def stop():
+    """
+    Stopp aktiv varighetsnedtelling nå, og bytt til daglig modus.
+    """
+    cfg = clear_duration_and_switch_to_daily()
+    t = compute_tick(cfg)
+    return jsonify({"ok": True, "config": cfg, "tick": t}), 200
+
 
 @bp.get("/status")
 def status():
