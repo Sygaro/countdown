@@ -2,6 +2,8 @@
 // Admin-forhåndsvisning som bruker samme renderer som visningen (screen.js).
 
 import { renderScreen } from "/static/js/v2/screen.js";
+import { apiGetConfig } from "/static/js/v2/api.js";
+
 
 const $  = (s)=>document.querySelector(s);
 const $$ = (s)=>Array.from(document.querySelectorAll(s));
@@ -11,10 +13,11 @@ let themeBgCache = null;
 async function getThemeBackground(){
   if (themeBgCache) return themeBgCache;
   try{
-    const r = await fetch("/api/config", { cache:"no-store" });
-    const js = await r.json();
+    const js = await apiGetConfig();
     themeBgCache = js?.config?.theme?.background || { mode:"solid", solid:{ color:"#0b0f14" } };
-  }catch{ themeBgCache = { mode:"solid", solid:{ color:"#0b0f14" } }; }
+  }catch{
+    themeBgCache = { mode:"solid", solid:{ color:"#0b0f14" } };
+  }
   return themeBgCache;
 }
 

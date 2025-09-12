@@ -3,6 +3,8 @@
 
 import { applyBackground } from "./background.js";
 import { renderScreen } from "./screen.js";
+import { apiGetConfig, apiGetTick } from "./api.js";
+
 
 const DEFAULT_SELECTORS = {
   btnFullscreen:  "#btn_fullscreen",
@@ -31,6 +33,7 @@ const state = {
   rev: 0,
   timers: { clockTimer: null, pollTimer: null },
   els: {},
+  errs: { cfg:null, tick:null }, // hvorfor: synliggjøre feil
 };
 
 function fmtMMSS(ms){
@@ -116,23 +119,53 @@ function renderCountdown(){
 }
 
 function render(){
+  if (!state.cfg || !state.tick) return; // hvorfor: vent på begge
   const mode = state.cfg?.mode || "daily";
-  if (mode === "screen") renderScreen(state.cfg, state.tick, state.els, state.timers);
-  else renderCountdown();
+  if (mode === "screen") {
+    // Import on demand for sikkerhet (allerede importert i topp, men bevarer struktur)
+    renderScreen(state.cfg, state.tick, state.els, state.timers);
+  } else {
+    renderCountdown();
+  }
+  mountDebug();
+}
+
+async function fetchJSON(url){
+  const r = await fetch(`${url}${url.includes("?")?"&":"?"}ts=${Date.now()}`, {
+    method: "GET",
+    headers: { "Accept":"application/json" },
+    cache: "no-store",
+    credentials: "same-origin"
+  });
+  if (!r.ok) {
+    const txt = await r.text().catch(()=>String(r.status));
+    throw new Error(`HTTP ${r.status} on ${url}: ${txt.slice(0,200)}`);
+  }
+  return r.json();
 }
 
 async function fetchConfig(){
-  const r = await fetch("/api/config", { cache:"no-store" });
-  const js = await r.json();
-  state.cfg = js.config;
-  state.rev = js.config?._updated_at || 0;
-  sendHeartbeat();
+  try{
+    const js = await apiGetConfig();
+    state.cfg = js.config;
+    state.rev = js.config?._updated_at || 0;
+    state.errs.cfg = null;
+    sendHeartbeat();
+  } catch(err){
+    state.errs.cfg = String(err.message||err);
+  }
 }
 
 async function fetchTick(){
-  const r = await fetch("/tick", { cache:"no-store" });
-  state.tick = await r.json();
+  try{
+    const js = await apiGetTick();
+    state.tick = js;
+    state.errs.tick = null;
+  } catch(err){
+    state.errs.tick = String(err.message||err);
+  }
 }
+
 
 function sendHeartbeat(){
   const payload = JSON.stringify({ rev: state.rev, page: "view" });
@@ -160,10 +193,14 @@ function mountDebug(){
   }
   const sc = state.cfg?.screen || {};
   const bg = sc.use_theme_background ? (state.cfg?.theme?.background) : (sc.background || {mode:"—"});
+  const errLine = (state.errs.cfg || state.errs.tick)
+    ? `<div style="color:#ffd166">errs: cfg=<code>${state.errs.cfg||"OK"}</code> tick=<code>${state.errs.tick||"OK"}</code></div>`
+    : `<div style="color:#69db7c">errs: OK</div>`;
   dbg.innerHTML =
     `<div>mode=<code>${state.cfg?.mode}</code> · phase=<code>${state.tick?.mode}/${state.tick?.state}</code></div>`+
-    `<div>screen.type=<code>${sc.type}</code> use_theme_bg=<code>${!!sc.use_theme_background}</code> bg.mode=<code>${bg?.mode}</code></div>`+
-    `<div>clock: pos=<code>${sc.clock?.position}</code> secs=<code>${!!sc.clock?.with_seconds}</code> size_vh=<code>${sc.clock?.size_vh}</code></div>`;
+    `<div>screen.type=<code>${sc.type}</code> use_theme_bg=<code>${!!sc.use_theme_background}</code> bg.mode=<code>${bg?.mode}</code> cfg_rev=<code>${state.rev}</code></div>`+
+    `<div>clock: pos=<code>${sc.clock?.position}</code> secs=<code>${!!sc.clock?.with_seconds}</code> size_vh=<code>${sc.clock?.size_vh}</code></div>`+
+    errLine;
 }
 
 function bindFullscreen(btn){
@@ -181,27 +218,14 @@ function bindFullscreen(btn){
 }
 
 export async function init(options={}){
-  // Finn elementer
-  state.els = (() => {
-    const s = { ...DEFAULT_SELECTORS, ...(options.selectors||{}) };
-    const out = {};
-    for (const [k, sel] of Object.entries(s)) {
-      const el = document.querySelector(sel);
-      if (!el) throw new Error(`Mangler nødvendig element for '${k}' (selector: ${sel})`);
-      out[k] = el;
-    }
-    return out;
-  })();
+  state.els = resolveSelectors(options.selectors);
 
-  // Fullskjerm-knapp
   bindFullscreen($(DEFAULT_SELECTORS.btnFullscreen));
 
-  // Første last
+  // Første last: hent begge med feiltoleranse
   await fetchConfig();
   await fetchTick();
   render();
-  sendHeartbeat();
-  mountDebug();
 
   // Poll
   const pollMs = clamp(Number(options.pollMs || 1000), 250, 5000);
@@ -210,7 +234,6 @@ export async function init(options={}){
     await fetchTick();
     if ((state.tick?.cfg_rev||0) !== state.rev) { await fetchConfig(); }
     render();
-    mountDebug();
   }, pollMs);
 }
 
