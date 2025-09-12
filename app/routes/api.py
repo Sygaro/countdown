@@ -22,10 +22,10 @@ def get_config():
 @require_password
 def post_config():
     data = request.get_json(silent=True) or {}
-    mode = data.get("mode")
 
-    if mode:
-        mode = str(mode).strip().lower()
+    # Bytt modus hvis spesifisert (inkl. screen-objekt)
+    if "mode" in data:
+        mode = str(data.get("mode")).strip().lower()
         daily_time = str(data.get("daily_time") or "")
         once_at = str(data.get("once_at") or "")
         duration_minutes = int(data.get("duration_minutes") or 0) or None
@@ -37,9 +37,21 @@ def post_config():
     else:
         cfg = load_config()
 
+    # Felter som kan patches direkte i config.
+    # NB: inkluderer alle 'Visning / oppførsel' felter.
     passthrough = (
+        # meldinger
         "message_primary","message_secondary","show_message_primary","show_message_secondary",
-        "warn_minutes","alert_minutes","blink_seconds","overrun_minutes","admin_password",
+        # varsler/blink (logikk)
+        "warn_minutes","alert_minutes","blink_seconds","overrun_minutes",
+        # visning / oppførsel (NYE)
+        "use_blink","use_phase_colors",
+        "color_normal","color_warn","color_alert",
+        "show_target_time","target_time_after",
+        "messages_position","hms_threshold_minutes",
+        # admin
+        "admin_password",
+        # tider og screen-objekt
         "daily_time","once_at","duration_minutes","screen"
     )
     patch = {k: data[k] for k in passthrough if k in data}
