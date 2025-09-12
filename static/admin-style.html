@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Countdown · Admin (Utseende)</title>
+  <link rel="stylesheet" href="/static/css/ui.css"/>
+  <style>
+    .actions { position: sticky; top: 0; z-index: 5; padding: 10px 16px; background: rgba(11,15,20,.8); backdrop-filter: blur(8px); border-bottom:1px solid var(--border); display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+    .pill { padding:4px 8px; border-radius:999px; font-size:.85rem; border:1px solid var(--border); }
+    .ok { color:#0b0f14; background:#69db7c; border-color:transparent; }
+    .warn { color:#0b0f14; background:#ffd166; border-color:transparent; }
+    .off { color:#e6edf3; background:#374151; }
+    .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center }
+    .preview { background:#0b0f14;border:1px solid var(--border); border-radius:12px; padding:14px; min-height:200px; display:flex; align-items:center; justify-content:center }
+    .pv-box { width:100%; max-width:840px; aspect-ratio: 16/8; border:1px solid var(--border); border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:10px; }
+    .pv-digits { font-weight:800; letter-spacing:.06em; font-size: clamp(4vw, 8vw, 10vw); }
+    .tag { font-size:.8rem; color:var(--muted); border:1px dashed var(--border); padding:2px 6px; border-radius:6px }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Countdown · Admin</h1>
+    <nav>
+      <a href="/static/admin-timer.html">Admin · Timer</a>
+      <a class="active" href="/static/admin-style.html">Admin · Utseende</a>
+      <a href="/">Visning</a>
+      <a href="/diag">Diagnose</a>
+      <a href="/about">Om</a>
+    </nav>
+  </header>
+
+  <div class="actions">
+    <button id="btn_save" class="primary">Lagre</button>
+    <button id="btn_refresh">Oppdater</button>
+    <button id="btn_reset_view">Tilbakestill visning</button>
+    <label style="margin-left:auto">Admin-passord <input id="admin_password" type="password" placeholder="(valgfritt)"/></label>
+    <span id="sync_pill" class="pill off">Synk: —</span>
+    <span id="save_hint" class="muted"></span>
+  </div>
+
+  <main class="grid">
+    <!-- Utseende – Meldinger -->
+    <section class="card">
+      <h2>Utseende – Meldinger</h2>
+      <div class="row">
+        <strong>Hovedmelding</strong>
+        <label>Størrelse (rem) <input id="theme_p_size" type="number" step="0.1" min="0.6" max="3.0"/></label>
+        <label>Vekt
+          <select id="theme_p_weight"><option>300</option><option>400</option><option>500</option><option selected>600</option><option>700</option><option>800</option><option>900</option></select>
+        </label>
+        <label>Farge <input id="theme_p_color" type="color"/></label>
+        <span id="m_contrast_p" class="tag"></span>
+      </div>
+      <div class="row">
+        <strong>Sekundær</strong>
+        <label>Størrelse (rem) <input id="theme_s_size" type="number" step="0.1" min="0.6" max="3.0"/></label>
+        <label>Vekt
+          <select id="theme_s_weight"><option>300</option><option selected>400</option><option>500</option><option>600</option><option>700</option><option>800</option><option>900</option></select>
+        </label>
+        <label>Farge <input id="theme_s_color" type="color"/></label>
+        <span id="m_contrast_s" class="tag"></span>
+      </div>
+      <div class="row">
+        <strong>Digits</strong>
+        <label>Størrelse
+          <select id="digits_size_preset">
+            <option value="14">Normal</option><option value="18">Stor</option><option value="22">Ekstra stor</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <!-- Utseende – Bakgrunn (visning) -->
+    <section class="card">
+      <h2>Utseende – Bakgrunn</h2>
+      <div class="row">
+        <label>Preset
+          <select id="bg_preset">
+            <option value="none">(ingen)</option>
+            <option value="dark-solid">Mørk ensfarget</option>
+            <option value="dark-grad">Mørk gradient</option>
+            <option value="photo-tint">Foto m/tint</option>
+          </select>
+        </label>
+        <button id="btn_apply_preset">Bruk preset</button>
+      </div>
+      <label><input type="radio" name="bg_mode" value="solid"/> Ensfarget</label>
+      <label><input type="radio" name="bg_mode" value="gradient"/> Gradient</label>
+      <label><input type="radio" name="bg_mode" value="image"/> Bilde</label>
+
+      <div id="bg_solid_cfg">
+        <label>Farge <input id="bg_solid_color" type="color" value="#0b0f14"/></label>
+      </div>
+      <div id="bg_grad_cfg">
+        <label>Fra <input id="bg_grad_from" type="color" value="#142033"/></label>
+        <label>Til <input id="bg_grad_to" type="color" value="#0b0f14"/></label>
+        <label>Vinkel (°) <input id="bg_grad_angle" type="number" min="0" max="360" step="1" value="180"/></label>
+      </div>
+      <div id="bg_img_cfg">
+        <label>Bilde-URL <input id="bg_img_url" type="url" placeholder="https://..."/></label>
+        <label>Fit
+          <select id="bg_img_fit"><option>cover</option><option>contain</option></select>
+        </label>
+        <label>Opacity (0–1) <input id="bg_img_op" type="number" min="0" max="1" step="0.05" value="1"/></label>
+        <label>Tint-farge <input id="bg_img_tint" type="color" value="#000000"/></label>
+        <label>Tint-opacity (0–1) <input id="bg_img_tint_op" type="number" min="0" max="1" step="0.05" value="0"/></label>
+      </div>
+    </section>
+
+    <!-- Stopp-skjerm – Innhold -->
+    <section class="card">
+      <h2>Stopp-skjerm – Innhold</h2>
+      <label><input type="radio" name="screen_type" value="text"/> Tekst</label>
+      <label><input type="radio" name="screen_type" value="image"/> Bilde</label>
+      <label><input type="radio" name="screen_type" value="blackout"/> Blackout</label>
+
+      <div id="screen_text_cfg">
+        <label>Tekst <input id="screen_text" type="text" placeholder="Pause"/></label>
+        <label>Tekstfarge <input id="screen_text_color" type="color" value="#ffffff"/></label>
+        <label>Skriftstørrelse (vh) <input id="screen_font_vh" type="number" min="4" max="30" step="1" value="10"/></label>
+      </div>
+      <div id="screen_image_cfg">
+        <label>Bilde-URL <input id="screen_image_url" type="url" placeholder="https://..."/></label>
+        <label>Opacity (0–100) <input id="screen_image_opacity" type="number" min="0" max="100" step="1" value="100"/></label>
+        <label>Tilpasning
+          <select id="screen_image_fit"><option value="cover">cover</option><option value="contain">contain</option></select>
+        </label>
+      </div>
+    </section>
+
+    <!-- Stopp-skjerm – Bakgrunn & Klokke -->
+    <section class="card">
+      <h2>Stopp-skjerm – Bakgrunn & Klokke</h2>
+      <label><input id="sc_use_theme_bg" type="checkbox"/> Bruk samme bakgrunn som visningen</label>
+
+      <div id="sc_bg_cfg">
+        <label><input type="radio" name="sc_bg_mode" value="solid"/> Ensfarget</label>
+        <label><input type="radio" name="sc_bg_mode" value="gradient"/> Gradient</label>
+        <label><input type="radio" name="sc_bg_mode" value="image"/> Bilde</label>
+        <div id="sc_bg_solid"><label>Farge <input id="sc_bg_solid_color" type="color" value="#0b0f14"/></label></div>
+        <div id="sc_bg_grad">
+          <label>Fra <input id="sc_bg_grad_from" type="color" value="#142033"/></label>
+          <label>Til <input id="sc_bg_grad_to" type="color" value="#0b0f14"/></label>
+          <label>Vinkel (°) <input id="sc_bg_grad_angle" type="number" min="0" max="360" step="1" value="180"/></label>
+        </div>
+        <div id="sc_bg_img">
+          <label>Bilde-URL <input id="sc_bg_img_url" type="url" placeholder="https://..."/></label>
+          <label>Fit
+            <select id="sc_bg_img_fit"><option>cover</option><option>contain</option></select>
+          </label>
+          <label>Opacity (0–1) <input id="sc_bg_img_op" type="number" min="0" max="1" step="0.05" value="1"/></label>
+          <label>Tint-farge <input id="sc_bg_img_tint" type="color" value="#000000"/></label>
+          <label>Tint-opacity (0–1) <input id="sc_bg_img_tint_op" type="number" min="0" max="1" step="0.05" value="0"/></label>
+        </div>
+      </div>
+
+      <hr/>
+      <label><input id="sc_clock_show" type="checkbox"/> Vis klokke</label>
+      <label><input id="sc_clock_secs" type="checkbox"/> Vis sekunder</label>
+      <label>Klokke-farge <input id="sc_clock_color" type="color" value="#e6edf3"/></label>
+      <label>Klokke-størrelse (vh) <input id="sc_clock_size" type="number" min="6" max="30" step="1" value="12"/></label>
+    </section>
+
+    <!-- Forhåndsvisning -->
+    <section class="card">
+      <h2>Forhåndsvisning</h2>
+      <div class="row">
+        <span class="tag">Simuler:</span>
+        <label><input type="radio" name="pv_state" value="normal" checked/> Normal</label>
+        <label><input type="radio" name="pv_state" value="warn"/> Gul</label>
+        <label><input type="radio" name="pv_state" value="alert"/> Rød</label>
+        <label><input type="radio" name="pv_state" value="overrun"/> Minus-tid</label>
+        <label><input type="checkbox" id="pv_blink"/> Blink</label>
+      </div>
+      <div id="preview" class="preview">
+        <div id="pv_box" class="pv-box" style="background:#0b0f14">
+          <div id="pv_above" style="display:none;text-align:center">
+            <div id="pv_prim_above"></div><div id="pv_sec_above"></div>
+          </div>
+          <div id="pv_digits" class="pv-digits">12:34</div>
+          <div id="pv_below" style="display:block;text-align:center">
+            <div id="pv_prim_below"></div><div id="pv_sec_below"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/js/admin-style.js"></script>
+</body>
+</html>
