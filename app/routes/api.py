@@ -67,9 +67,14 @@ def post_config():
     t = compute_tick(cfg)
     return jsonify({"ok": True, "config": cfg, "tick": t}), 200
 
-@bp.post("/start")
+@bp.post("/start-duration")
+#@bp.post("/start")
 @require_password
-def start():
+def start_duration_compat():
+    """
+    Kompatibilitetsalias for UI som kaller /api/start-duration eller /api/start_duration.
+    Gjør identisk som /api/start: forventer JSON {"minutes": <int>}.
+    """
     data = request.get_json(silent=True) or {}
     try:
         minutes = int(data.get("minutes"))
@@ -77,9 +82,11 @@ def start():
         return jsonify({"ok": False, "error": "'minutes' må være heltall"}), 400
     if minutes <= 0:
         return jsonify({"ok": False, "error": "'minutes' må være > 0"}), 400
-    cfg = start_duration(minutes)
+
+    cfg = start_duration(minutes)  # eksisterende storage-funksjon
     t = compute_tick(cfg)
     return jsonify({"ok": True, "config": cfg, "tick": t}), 200
+
 
 @bp.post("/stop")
 @require_password

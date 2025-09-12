@@ -86,7 +86,7 @@ import { ui } from '/static/js/ui.js';
     state.password = val('admin_password') || '';
     var m = minutes != null ? Number(minutes) : Number(val('start_minutes'));
     if (!isFinite(m) || m <= 0) { ui.toast('Ugyldig varighet', 'bad'); return Promise.resolve(); }
-    return ui.post('/api/start', { minutes: Math.floor(m) }, { password: state.password })
+    return ui.post('/api/start-duration', { minutes: Math.floor(m) }, { password: state.password })
       .then(function(){ ui.toast('Startet +' + Math.floor(m) + ' min', 'ok'); })
       .catch(function(err){ ui.toast('Start feilet: ' + (err && err.message ? err.message : String(err)), 'bad'); });
   }

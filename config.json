@@ -1,6 +1,6 @@
 {
   "_migrated_at": 1757592465,
-  "_updated_at": 1757687901,
+  "_updated_at": 1757691772,
   "admin_password": "",
   "alert_minutes": 3,
   "blink_seconds": 50,
@@ -10,13 +10,13 @@
   "color_warn": "#ffd166",
   "daily_time": "17:00",
   "duration_minutes": 10,
-  "duration_started_ms": 0,
+  "duration_started_ms": 1757691772474,
   "hms_threshold_minutes": 60,
   "message_primary": "Velkommen!",
   "message_secondary": "Vi starter kl:",
   "messages_position": "above",
-  "mode": "once",
-  "once_at": "2025-09-14T16:38",
+  "mode": "duration",
+  "once_at": "",
   "overrun_minutes": 30,
   "screen": {
     "background": {
@@ -63,7 +63,7 @@
     "background": {
       "gradient": {
         "angle_deg": 180,
-        "from": "#142033",
+        "from": "#111827",
         "to": "#0b0f14"
       },
       "image": {
@@ -71,11 +71,11 @@
         "opacity": 1.0,
         "tint": {
           "color": "#000000",
-          "opacity": 0.0
+          "opacity": 0.4
         },
-        "url": ""
+        "url": "https://picsum.photos/1600/900"
       },
-      "mode": "solid",
+      "mode": "image",
       "solid": {
         "color": "#0b0f14"
       }
