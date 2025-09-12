@@ -39,8 +39,8 @@
 
   <script>
     (function(){
-      const $ = (s)=>document.querySelector(s);
-      const state = { cfg:null, tick:null, lastCfgRev:0, clockTimer:null };
+      const $=s=>document.querySelector(s);
+      const state={ cfg:null, tick:null, lastCfgRev:0, clockTimer:null };
       const qs = new URLSearchParams(location.search);
       const isKiosk = qs.get("kiosk")==="1";
       const wantDebug = qs.get("debug")==="1";
@@ -63,41 +63,32 @@
       }
 
       function applyThemeBackground(rootEl, bg){
-        const mode = String(bg?.mode || "solid").toLowerCase();
+    const mode = String(bg?.mode || "solid").toLowerCase();
 
-        // Full reset hver gang (hindrer "firkant"/lekk fra tidligere modus)
-        rootEl.style.background = "";
-        rootEl.style.backgroundSize = "";
-        rootEl.style.backgroundPosition = "";
-        rootEl.style.backgroundRepeat = "";
+    // Full reset for konsistent bytte
+    rootEl.style.background = "";
+    rootEl.style.backgroundSize = "";
+    rootEl.style.backgroundPosition = "";
+    rootEl.style.backgroundRepeat = "";
 
-        if (mode === "solid"){
-          rootEl.style.background = bg.solid?.color || "#0b0f14";
-          return;
-        }
-
-        if (mode === "gradient"){
-          const g = bg.gradient || {};
-          const angle = Number(g.angle_deg ?? 180);
-          rootEl.style.background = `linear-gradient(${angle}deg, ${g.from || "#142033"}, ${g.to || "#0b0f14"})`;
-          return;
-        }
-
-        if (mode === "image"){
-          const im = bg.image || {};
-          const tint = im.tint || {};
-          const hasTint = Number(tint.opacity ?? 0) > 0;
-          const tintLayer = hasTint ? `linear-gradient(rgba(${hex2rgb(tint.color || "#000")}, ${Number(tint.opacity)}), rgba(${hex2rgb(tint.color || "#000")}, ${Number(tint.opacity)})), ` : "";
-          const url = im.url ? `url("${im.url}")` : "none";
-
-          // NB: ingen rootEl.opacity — vi bevarer klokke/innhold lysstyrke
-          rootEl.style.background = `${tintLayer}${url}`;
-          rootEl.style.backgroundSize = im.fit || "cover";
-          rootEl.style.backgroundPosition = "center";
-          rootEl.style.backgroundRepeat = "no-repeat";
-          return;
-        }
-      }
+    if (mode === "solid"){
+      rootEl.style.background = bg.solid?.color || "#0b0f14"; return;
+    }
+    if (mode === "gradient"){
+      const g=bg.gradient||{}; const angle=Number(g.angle_deg??180);
+      rootEl.style.background = `linear-gradient(${angle}deg, ${g.from||"#142033"}, ${g.to||"#0b0f14"})`; return;
+    }
+    if (mode === "image"){
+      const im=bg.image||{}, tint=im.tint||{}; const hasTint=Number(tint.opacity??0)>0;
+      const tintLayer = hasTint ? `linear-gradient(rgba(${hex2rgb(tint.color||"#000")}, ${Number(tint.opacity)}), rgba(${hex2rgb(tint.color||"#000")}, ${Number(tint.opacity)})), ` : "";
+      const url = im.url ? `url("${im.url}")` : "none";
+      rootEl.style.background = `${tintLayer}${url}`;
+      rootEl.style.backgroundSize = im.fit || "cover";
+      rootEl.style.backgroundPosition = "center";
+      rootEl.style.backgroundRepeat = "no-repeat";
+      return;
+    }
+  }
 
       function applyCountdown(){
         $("#view_screen").style.display = "none";
@@ -144,97 +135,82 @@
       }
 
       function applyScreen(){
-        const sc = state.cfg.screen || {};
-        $("#view_countdown").style.display = "none";
+    const sc = state.cfg.screen || {};
+    $("#view_countdown").style.display = "none";
+    const root = $("#view_screen");
+    const inner = $("#screen_inner");
+    const clkEl = $("#screen_clock");
 
-        const root = $("#view_screen");
-        root.style.display = "flex";
-        root.style.alignItems = "center";
-        root.style.justifyContent = "center";
+    root.style.display = "flex";
+    root.style.alignItems = "center";
+    root.style.justifyContent = "center";
 
-        // Velg bakgrunn (theme eller egen)
-        const activeBg = sc.use_theme_background ? (state.cfg?.theme?.background) : (sc.background || {mode:"solid",solid:{color:"#0b0f14"}});
-        applyThemeBackground(root, activeBg);
+    // Rydd alt innhold først
+    inner.innerHTML = "";
 
-        // Klokke – forankret til root
-        const clk = sc.clock || {};
-        const clkEl = $("#screen_clock");
-        if (clkEl && clkEl.parentElement !== root) root.appendChild(clkEl);
+    // Blackout: sett helsvart *før* alt annet og nullstill bakgrunnsegenskaper
+    if (sc.type === "blackout") {
+      root.style.background = "#000";
+      root.style.backgroundSize = "";
+      root.style.backgroundPosition = "";
+      root.style.backgroundRepeat = "";
+      // Klokke vises fortsatt dersom valgt
+    } else {
+      // Velg bakgrunn (theme eller egen)
+      const activeBg = sc.use_theme_background ? (state.cfg?.theme?.background) : (sc.background || {mode:"solid",solid:{color:"#0b0f14"}});
+      applyThemeBackground(root, activeBg);
+    }
 
-        if (clk.show) {
-          clkEl.style.display = "block";
-          // Reset posisjon – forhindrer “speilvendt”/forskyvning
-          clkEl.style.top = clkEl.style.right = clkEl.style.bottom = clkEl.style.left = "auto";
-          clkEl.style.transform = "none";
+    // Klokke – forankret til root
+    const clk = sc.clock || {};
+    if (clkEl && clkEl.parentElement !== root) root.appendChild(clkEl);
+    if (clk.show) {
+      clkEl.style.display = "block";
+      // reset posisjon
+      clkEl.style.top=clkEl.style.right=clkEl.style.bottom=clkEl.style.left="auto";
+      clkEl.style.transform = "none";
+      const pos=String(clk.position||"top-right");
+      if (pos==="top-left")         { clkEl.style.top="3vh";    clkEl.style.left="4vw"; }
+      else if (pos==="top-right")   { clkEl.style.top="3vh";    clkEl.style.right="4vw"; }
+      else if (pos==="bottom-left") { clkEl.style.bottom="3vh"; clkEl.style.left="4vw"; }
+      else if (pos==="bottom-right"){ clkEl.style.bottom="3vh"; clkEl.style.right="4vw"; }
+      else if (pos==="top")         { clkEl.style.top="3vh";    clkEl.style.left="50%"; clkEl.style.transform="translateX(-50%)"; }
+      else if (pos==="bottom")      { clkEl.style.bottom="3vh"; clkEl.style.left="50%"; clkEl.style.transform="translateX(-50%)"; }
+      else if (pos==="center")      { clkEl.style.top="50%";    clkEl.style.left="50%"; clkEl.style.transform="translate(-50%,-50%)"; }
+      else                          { clkEl.style.top="3vh";    clkEl.style.right="4vw"; }
+      clkEl.style.color = clk.color || "#e6edf3";
+      clkEl.style.fontSize = `${Math.max(6, Math.min(30, Number(clk.size_vh || 12)))}vh`;
 
-          const pos = String(clk.position || "top-right");
-          if (pos === "top-left")         { clkEl.style.top = "3vh";    clkEl.style.left = "4vw"; }
-          else if (pos === "top-right")   { clkEl.style.top = "3vh";    clkEl.style.right = "4vw"; }
-          else if (pos === "bottom-left") { clkEl.style.bottom = "3vh"; clkEl.style.left = "4vw"; }
-          else if (pos === "bottom-right"){ clkEl.style.bottom = "3vh"; clkEl.style.right = "4vw"; }
-          else if (pos === "top")         { clkEl.style.top = "3vh";    clkEl.style.left = "50%"; clkEl.style.transform = "translateX(-50%)"; }
-          else if (pos === "bottom")      { clkEl.style.bottom = "3vh"; clkEl.style.left = "50%"; clkEl.style.transform = "translateX(-50%)"; }
-          else if (pos === "center")      { clkEl.style.top = "50%";    clkEl.style.left = "50%"; clkEl.style.transform = "translate(-50%,-50%)"; }
-          else                             { clkEl.style.top = "3vh";    clkEl.style.right = "4vw"; }
+      if (state.clockTimer){ clearInterval(state.clockTimer); state.clockTimer=null; }
+      const updateClock=()=>{ const d=new Date(); const HH=String(d.getHours()).padStart(2,"0"); const MM=String(d.getMinutes()).padStart(2,"0"); const SS=String(d.getSeconds()).padStart(2,"0"); clkEl.textContent = clk.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`; };
+      updateClock(); state.clockTimer=setInterval(updateClock, clk.with_seconds?1000:5000);
+    } else {
+      clkEl.style.display = "none";
+      if (state.clockTimer){ clearInterval(state.clockTimer); state.clockTimer=null; }
+    }
 
-          clkEl.style.color = clk.color || "#e6edf3";
-          clkEl.style.fontSize = `${Math.max(6, Math.min(30, Number(clk.size_vh || 12)))}vh`;
-
-          if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
-          const updateClock = () => {
-            const d = new Date();
-            const HH = String(d.getHours()).padStart(2,"0");
-            const MM = String(d.getMinutes()).padStart(2,"0");
-            const SS = String(d.getSeconds()).padStart(2,"0");
-            clkEl.textContent = clk.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
-          };
-          updateClock();
-          state.clockTimer = setInterval(updateClock, clk.with_seconds ? 1000 : 5000);
-        } else {
-          clkEl.style.display = "none";
-          if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
-        }
-
-        // Innhold
-        const inner = $("#screen_inner");
-        inner.innerHTML = "";
-
-        // Blackout = full sort skjerm
-        if (sc.type === "blackout") {
-          root.style.background = "#000";
-          return;
-        }
-
-        const activeBgMode = String(activeBg?.mode || "solid");
-
-        // Hindre dobbelt-bilde: tegn innhold=bilde bare hvis bakgrunn IKKE er image
-        if (sc.type === "image" && activeBgMode !== "image") {
-          const wrap = document.createElement("div");
-          wrap.style.position = "relative";
-          wrap.style.maxWidth = "90vw";
-          wrap.style.maxHeight = "80vh";
-
-          const img = document.createElement("img");
-          img.src = sc.image_url || "";
-          img.style.objectFit = sc.image_fit || "cover";
-          img.style.width = "100%";
-          img.style.height = "100%";
-          img.style.opacity = String((sc.image_opacity ?? 100)/100);
-
-          wrap.appendChild(img);
-          inner.appendChild(wrap);
-          return;
-        }
-
-        if (sc.type === "text") {
-          const div = document.createElement("div");
-          div.className = "text";
-          div.textContent = sc.text || "Pause";
-          div.style.color = sc.text_color || "#fff";
-          div.style.fontSize = `${Math.max(4, Math.min(30, Number(sc.font_vh ?? 10)))}vh`;
-          inner.appendChild(div);
-        }
+    // Innhold (unngå dobbelt-bilde)
+    if (sc.type === "image") {
+      const activeBg = sc.use_theme_background ? (state.cfg?.theme?.background) : sc.background;
+      const activeBgMode = String(activeBg?.mode || "solid");
+      if (activeBgMode !== "image"){
+        const wrap=document.createElement("div");
+        wrap.style.position="relative";
+        wrap.style.maxWidth="90vw"; wrap.style.maxHeight="80vh";
+        const img=document.createElement("img");
+        img.src=sc.image_url||""; img.style.objectFit=sc.image_fit||"cover";
+        img.style.width="100%"; img.style.height="100%";
+        img.style.opacity=String((sc.image_opacity??100)/100);
+        wrap.appendChild(img); inner.appendChild(wrap);
       }
+    } else if (sc.type === "text") {
+      const div=document.createElement("div");
+      div.className="text"; div.textContent=sc.text||"Pause";
+      div.style.color=sc.text_color||"#fff";
+      div.style.fontSize=`${Math.max(4, Math.min(30, Number(sc.font_vh??10)))}vh`;
+      inner.appendChild(div);
+    }
+  }
 
       async function fetchConfig(){
         const r = await fetch("/api/config"); const js = await r.json();
