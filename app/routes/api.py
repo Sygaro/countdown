@@ -23,7 +23,6 @@ def get_config():
 def post_config():
     data = request.get_json(silent=True) or {}
 
-    # Bytt modus hvis spesifisert (inkl. screen-objekt)
     if "mode" in data:
         mode = str(data.get("mode")).strip().lower()
         daily_time = str(data.get("daily_time") or "")
@@ -37,18 +36,16 @@ def post_config():
     else:
         cfg = load_config()
 
-    # Felter som kan patches direkte i config.
-    # NB: inkluderer alle 'Visning / oppførsel' felter.
     passthrough = (
         # meldinger
         "message_primary","message_secondary","show_message_primary","show_message_secondary",
         # varsler/blink (logikk)
         "warn_minutes","alert_minutes","blink_seconds","overrun_minutes",
-        # visning / oppførsel (NYE)
+        # visning / oppførsel
         "use_blink","use_phase_colors",
-        "color_normal","color_warn","color_alert",
-        "show_target_time","target_time_after",
-        "messages_position","hms_threshold_minutes",
+        "color_normal","color_warn","color_alert","color_over",
+        "show_target_time","target_time_after","messages_position",
+        "hms_threshold_minutes",
         # admin
         "admin_password",
         # tider og screen-objekt
