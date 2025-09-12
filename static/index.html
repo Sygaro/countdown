@@ -1,3 +1,4 @@
+<!-- static/index.html -->
 <!doctype html>
 <html lang="no">
 <head>
@@ -31,8 +32,8 @@
     (function(){
       const $ = (s)=>document.querySelector(s);
       const state = { cfg:null, tick:null, lastCfgRev:0 };
+      let lastActivityTs = Date.now();
 
-      // Hvorfor: terskelen alene avgjør format (ikke "h>0").
       function fmtMMSS(ms){
         const neg = ms < 0 ? "-" : "";
         ms = Math.abs(ms);
@@ -59,17 +60,13 @@
         $("#view_countdown").style.display = "flex";
 
         const thresholdMs = (c.hms_threshold_minutes ?? 60) * 60 * 1000;
-
-        // 00:00 når teller ikke er aktiv
         const msActive = (t.state === "countdown" || t.state === "overrun");
         const ms = msActive ? t.signed_display_ms : 0;
 
-        // Velg format utelukkende med terskel
         const useHMS = Math.abs(ms) >= thresholdMs;
         const digits = $("#digits");
         digits.textContent = useHMS ? fmtHMS(ms) : fmtMMSS(ms);
 
-        // Farger inkl. minus-tid
         let color = c.color_normal;
         if (c.use_phase_colors) {
           if (t.state === "overrun" || t.signed_display_ms < 0) {
@@ -81,11 +78,8 @@
           }
         }
         digits.style.color = color;
-
-        // Blink (ekte CSS-animasjon)
         digits.classList.toggle("blink", !!(c.use_blink && t.blink));
 
-        // Meldinger + mål-klokkeslett (uten parentes)
         const targetText = (c.show_target_time && t.target_hhmm) ? ` ${t.target_hhmm}` : "";
         const prim = (c.show_message_primary ? (c.message_primary||"") : "") + ((c.target_time_after==="primary") ? targetText : "");
         const sec  = (c.show_message_secondary ? (c.message_secondary||"") : "") + ((c.target_time_after==="secondary") ? targetText : "");
@@ -131,16 +125,20 @@
       async function fetchConfig(){
         const r = await fetch("/api/config"); const js = await r.json();
         state.cfg = js.config; state.lastCfgRev = js.config._updated_at || 0;
+        sendHeartbeat();
       }
       async function firstLoad(){
         await fetchConfig();
         const r = await fetch("/tick"); state.tick = await r.json();
         render();
+        sendHeartbeat();
       }
       async function pollTick(){
         const r = await fetch("/tick"); const t = await r.json();
         state.tick = t;
-        if ((t.cfg_rev||0) !== state.lastCfgRev) await fetchConfig();
+        if ((t.cfg_rev||0) !== state.lastCfgRev) {
+          await fetchConfig();
+        }
         render(true);
       }
 
@@ -149,9 +147,28 @@
         if (mode === "screen") applyScreen(); else applyCountdown();
       }
 
-      // Fullscreen for nettleser
+      // --- Heartbeat til admin ---
+      function sendHeartbeat(){
+        const payload = JSON.stringify({ rev: state.lastCfgRev, page: "view" });
+        if (navigator.sendBeacon) {
+          const blob = new Blob([payload], {type: "application/json"});
+          navigator.sendBeacon("/debug/view-heartbeat", blob);
+        } else {
+          // fallback
+          fetch("/debug/view-heartbeat", {method:"POST", headers:{"Content-Type":"application/json"}, body: payload})
+            .catch(()=>{});
+        }
+      }
+      setInterval(sendHeartbeat, 10000);
+
+      // --- Fullscreen + auto-skjul ---
       const fsBtn = $("#btn_fullscreen");
-      if (!document.fullscreenEnabled) fsBtn.style.display = "none";
+      function showFsBtn(){ fsBtn.style.display = (document.fullscreenEnabled ? "inline-block" : "none"); fsBtn.style.opacity = "1"; }
+      function hideFsBtn(){ if (document.fullscreenEnabled) fsBtn.style.opacity = "0"; }
+      function bumpActivity(){ lastActivityTs = Date.now(); showFsBtn(); }
+      ["mousemove","mousedown","keydown","touchstart"].forEach(ev => document.addEventListener(ev, bumpActivity, {passive:true}));
+      setInterval(()=>{ if (Date.now()-lastActivityTs > 5000) hideFsBtn(); }, 1000);
+
       fsBtn.addEventListener("click", async () => {
         try {
           if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
@@ -159,6 +176,8 @@
         } catch (e) { console.error(e); }
       });
 
+      // boot
+      showFsBtn();
       firstLoad().catch(console.error);
       setInterval(pollTick, 1000);
     })();

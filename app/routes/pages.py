@@ -1,10 +1,9 @@
 # app/routes/pages.py
 """
-Sider + kompat-endepunkter + debug/selftest.
-/tick inkluderer cfg_rev slik at klient kan hente config ved endring.
+Sider + kompat-endepunkter + debug/selftest + view-heartbeat.
 """
 from __future__ import annotations
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from flask import Blueprint, send_from_directory, jsonify, request
 from ..settings import PROJECT_ROOT, TZ
 from ..storage import load_config, clear_duration_and_switch_to_daily, replace_config
@@ -13,6 +12,32 @@ from ..countdown import compute_tick, compute_target_ms
 bp = Blueprint("pages", __name__)
 
 _STATIC = (PROJECT_ROOT / "static").resolve()
+
+# --- Enkelt in-memory heartbeat fra visningen (for Admin-synk) ---
+_LAST_VIEW_HEARTBEAT = {"rev": 0, "ts": None, "page": "view"}  # ts = aware datetime
+
+@bp.post("/debug/view-heartbeat")
+def view_hb_post():
+    try:
+        data = request.get_json(silent=True) or {}
+        rev = int(data.get("rev") or 0)
+        page = str(data.get("page") or "view")
+    except Exception:
+        rev = 0
+        page = "view"
+    _LAST_VIEW_HEARTBEAT["rev"] = rev
+    _LAST_VIEW_HEARTBEAT["page"] = page
+    _LAST_VIEW_HEARTBEAT["ts"] = datetime.now(timezone.utc)
+    return jsonify({"ok": True})
+
+@bp.get("/debug/view-heartbeat")
+def view_hb_get():
+    hb = dict(_LAST_VIEW_HEARTBEAT)
+    ts = hb.get("ts")
+    hb["ts_iso"] = ts.isoformat() if ts else None
+    hb["age_seconds"] = (datetime.now(timezone.utc) - ts).total_seconds() if ts else None
+    return jsonify({"ok": True, "heartbeat": hb})
+
 
 @bp.get("/")
 def index():
@@ -40,7 +65,7 @@ def tick():
     t = compute_tick(cfg)
     if t["state"] == "ended" and cfg.get("mode") == "duration":
         clear_duration_and_switch_to_daily()
-    t["cfg_rev"] = int(cfg.get("_updated_at", 0))  # <- gjør UI i stand til å hente config ved endring
+    t["cfg_rev"] = int(cfg.get("_updated_at", 0))
     return jsonify(t), 200
 
 @bp.get("/state")
@@ -95,7 +120,8 @@ def dbg_selftest():
     cfg = {"mode": "daily", "daily_time": "09:00", "overrun_minutes": 2}
     now = datetime.now(TZ).replace(hour=9, minute=1, second=0, microsecond=0)
     target1 = compute_target_ms(cfg, now_ms=int(now.timestamp()*1000))
-    add("daily_overrun_window", datetime.fromtimestamp(target1/1000, tz=TZ).hour == 9)
+    from datetime import datetime as _dt
+    add("daily_overrun_window", _dt.fromtimestamp(target1/1000, tz=TZ).hour == 9)
 
     now2 = datetime.now(TZ)
     future = (now2 + timedelta(minutes=30)).replace(second=0, microsecond=0)
