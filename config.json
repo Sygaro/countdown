@@ -1,58 +1,58 @@
 {
   "_migrated_at": 1757592465,
-  "_updated_at": 1757691772,
+  "_updated_at": 1757702209,
   "admin_password": "",
-  "alert_minutes": 3,
-  "blink_seconds": 50,
+  "alert_minutes": 5,
+  "blink_seconds": 1,
   "color_alert": "#ff6b6b",
   "color_normal": "#e6edf3",
   "color_over": "#9ad0ff",
   "color_warn": "#ffd166",
-  "daily_time": "17:00",
-  "duration_minutes": 10,
-  "duration_started_ms": 1757691772474,
+  "daily_time": "19:00",
+  "duration_minutes": 5,
+  "duration_started_ms": 0,
   "hms_threshold_minutes": 60,
   "message_primary": "Velkommen!",
   "message_secondary": "Vi starter kl:",
   "messages_position": "above",
-  "mode": "duration",
+  "mode": "screen",
   "once_at": "",
   "overrun_minutes": 30,
   "screen": {
     "background": {
       "gradient": {
-        "angle_deg": 180,
-        "from": "#142033",
+        "angle_deg": 181,
+        "from": "#496797",
         "to": "#0b0f14"
       },
       "image": {
-        "fit": "cover",
-        "opacity": 1.0,
+        "fit": "contain",
+        "opacity": 0.75,
         "tint": {
           "color": "#000000",
           "opacity": 0.0
         },
-        "url": ""
+        "url": "https://picsum.photos/1600/900"
       },
-      "mode": "solid",
+      "mode": "image",
       "solid": {
         "color": "#000000"
       }
     },
     "bg": "#000000",
     "clock": {
-      "color": "#e6edf3",
-      "show": false,
-      "size_vh": 12,
-      "with_seconds": false
+      "color": "#173d5e",
+      "show": true,
+      "size_vh": 15,
+      "with_seconds": true
     },
     "font_vh": 20,
     "image_fit": "contain",
-    "image_opacity": 100,
-    "image_url": "",
+    "image_opacity": 75,
+    "image_url": "https://picsum.photos/1600/900",
     "text": "Pause!",
     "text_color": "#f5f5f5",
-    "type": "text",
+    "type": "blackout",
     "use_theme_background": false
   },
   "show_message_primary": true,
@@ -83,22 +83,22 @@
     "digits": {
       "font_weight": 800,
       "letter_spacing_em": 0.06,
-      "size_vw": 14
+      "size_vw": 18
     },
     "messages": {
       "primary": {
         "color": "#9aa4b2",
-        "size_rem": 1.0,
-        "weight": 600
+        "size_rem": 2.0,
+        "weight": 500
       },
       "secondary": {
         "color": "#9aa4b2",
-        "size_rem": 1.0,
-        "weight": 400
+        "size_rem": 1.5,
+        "weight": 300
       }
     }
   },
   "use_blink": true,
   "use_phase_colors": true,
-  "warn_minutes": 5
+  "warn_minutes": 10
 }

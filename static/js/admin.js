@@ -11,68 +11,92 @@ import { ui } from '/static/js/ui.js';
   var state = { password: '' };
 
   function loadConfig(){
-    return ui.get('/api/config').then(function(resp){
-      var cfg = resp.config || resp;
+  return ui.get('/api/config').then(function(resp){
+    var cfg = resp.config || resp;
 
-      setChecked('show_primary', !!cfg.show_message_primary);
-      setChecked('show_secondary', !!cfg.show_message_secondary);
-      setVal('msg_primary', String(cfg.message_primary || ''));
-      setVal('msg_secondary', String(cfg.message_secondary || ''));
+    // Meldinger
+    setChecked('show_primary',   !!cfg.show_message_primary);
+    setChecked('show_secondary', !!cfg.show_message_secondary);
+    setVal('msg_primary',  String(cfg.message_primary  || ''));
+    setVal('msg_secondary', String(cfg.message_secondary|| ''));
 
-      setVal('warn_minutes',    String(isFinite(cfg.warn_minutes)    ? cfg.warn_minutes    : 4));
-      setVal('alert_minutes',   String(isFinite(cfg.alert_minutes)   ? cfg.alert_minutes   : 2));
-      setVal('blink_seconds',   String(isFinite(cfg.blink_seconds)   ? cfg.blink_seconds   : 10));
-      setVal('overrun_minutes', String(isFinite(cfg.overrun_minutes) ? cfg.overrun_minutes : 1));
+    // Varsler
+    setVal('warn_minutes',    String(isFinite(cfg.warn_minutes)    ? cfg.warn_minutes    : 4));
+    setVal('alert_minutes',   String(isFinite(cfg.alert_minutes)   ? cfg.alert_minutes   : 2));
+    setVal('blink_seconds',   String(isFinite(cfg.blink_seconds)   ? cfg.blink_seconds   : 10));
+    setVal('overrun_minutes', String(isFinite(cfg.overrun_minutes) ? cfg.overrun_minutes : 1));
 
-      var hasDaily = !!cfg.daily_time;
-      el('mode-daily').checked = hasDaily;
-      el('mode-single').checked = !hasDaily;
-      setVal('daily_time', hasDaily ? (cfg.daily_time || '') : '');
+    // Modus
+    var hasDaily = !!cfg.daily_time;
+    el('mode-daily').checked = hasDaily;
+    el('mode-single').checked = !hasDaily;
+    setVal('daily_time', hasDaily ? (cfg.daily_time || '') : '');
 
-      var iso = cfg.target_datetime || cfg.target_iso || '';
-      if (iso) {
-        try {
-          var dt = new Date(iso);
-          var off = dt.getTimezoneOffset();
-          var local = new Date(dt.getTime() - off*60000);
-          setVal('single_dt', local.toISOString().slice(0,16));
-        } catch(e) { setVal('single_dt', ''); }
-      } else {
-        setVal('single_dt', '');
-      }
-
-      var badge = document.getElementById('cfg-path');
-      if (badge) badge.textContent = resp.__config_path || '(ukjent sti)';
-
-      ui.toast('Konfig lastet', 'ok');
-    }).catch(function(err){
-      ui.toast('Kunne ikke laste /api/config: ' + (err && err.message ? err.message : String(err)), 'bad');
-    });
-  }
-
-  function collectPatch(){
-    var patch = {
-      show_message_primary:   !!el('show_primary').checked,
-      show_message_secondary: !!el('show_secondary').checked,
-      message_primary:  val('msg_primary'),
-      message_secondary: val('msg_secondary'),
-      warn_minutes:    numOr(val('warn_minutes'), 4),
-      alert_minutes:   numOr(val('alert_minutes'), 2),
-      blink_seconds:   numOr(val('blink_seconds'), 10),
-      overrun_minutes: numOr(val('overrun_minutes'), 1),
-    };
-
-    var daily = !!el('mode-daily').checked;
-    if (daily) {
-      patch.daily_time = val('daily_time') || '';
-      patch.target_datetime = '__clear__'; // rydder engangsmål
+    var iso = cfg.target_datetime || cfg.target_iso || '';
+    if (iso) {
+      try {
+        var dt = new Date(iso);
+        var off = dt.getTimezoneOffset();
+        var local = new Date(dt.getTime() - off*60000);
+        setVal('single_dt', local.toISOString().slice(0,16));
+      } catch(e) { setVal('single_dt', ''); }
     } else {
-      patch.daily_time = '';
-      var sdt = val('single_dt');
-      if (sdt) patch.target_datetime = sdt;
+      setVal('single_dt', '');
     }
-    return patch;
+
+    // Stopp-skjerm – klokke
+    var clk = (cfg.screen && cfg.screen.clock) ? cfg.screen.clock : {};
+    setChecked('sc_clock_show', !!clk.show);
+    setChecked('sc_clock_secs', !!clk.with_seconds);
+    setVal('sc_clock_color', String(clk.color || '#e6edf3'));
+    setVal('sc_clock_size', String(isFinite(clk.size_vh) ? clk.size_vh : 12));
+    setVal('sc_clock_pos',  String(clk.position || 'top-right'));
+
+    var badge = document.getElementById('cfg-path');
+    if (badge) badge.textContent = resp.__config_path || '(ukjent sti)';
+
+    ui.toast('Konfig lastet', 'ok');
+  }).catch(function(err){
+    ui.toast('Kunne ikke laste /api/config: ' + (err && err.message ? err.message : String(err)), 'bad');
+  });
+}
+
+function collectPatch(){
+  var patch = {
+    show_message_primary:   !!el('show_primary').checked,
+    show_message_secondary: !!el('show_secondary').checked,
+    message_primary:  val('msg_primary'),
+    message_secondary: val('msg_secondary'),
+    warn_minutes:    numOr(val('warn_minutes'), 4),
+    alert_minutes:   numOr(val('alert_minutes'), 2),
+    blink_seconds:   numOr(val('blink_seconds'), 10),
+    overrun_minutes: numOr(val('overrun_minutes'), 1),
+  };
+
+  // Modusfelter
+  var daily = !!el('mode-daily').checked;
+  if (daily) {
+    patch.daily_time = val('daily_time') || '';
+    patch.target_datetime = '__clear__';
+  } else {
+    patch.daily_time = '';
+    var sdt = val('single_dt');
+    if (sdt) patch.target_datetime = sdt;
   }
+
+  // Stopp-skjerm – klokke
+  patch.screen = patch.screen || {};
+  patch.screen.clock = {
+    show:         !!el('sc_clock_show').checked,
+    with_seconds: !!el('sc_clock_secs').checked,
+    color:        val('sc_clock_color') || '#e6edf3',
+    size_vh:      numOr(val('sc_clock_size'), 12),
+    position:     val('sc_clock_pos') || 'top-right'
+  };
+
+  return patch;
+}
+
 
   function saveChanges(){
     state.password = val('admin_password') || '';
