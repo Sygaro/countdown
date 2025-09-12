@@ -1,19 +1,27 @@
+<!-- static/diag.html -->
 <!doctype html>
 <html lang="no">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Countdown · Diagnose</title>
-  <link rel="stylesheet" href="/static/css/ui.css"/>
+  <link rel="stylesheet" href="/static/css/ui.css" />
   <style>
-    .readout { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
-    .mono { font-family: ui-monospace, monospace }
+    /* Kun for diagnose: gjøre nedtelling mer synlig */
+    .big { font-size: 8vh; line-height: 1.1; font-weight: 700; }
+    .muted { opacity: .75; }
+    .ok { color: #6dd96d; }
+    .fail { color: #ff6b6b; }
+    .grid { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+    @media (min-width: 960px) { .grid { grid-template-columns: 1fr 1fr; } }
+    pre { max-height: 40vh; overflow: auto; }
     .chip { border:1px solid var(--border); border-radius:8px; padding:4px 8px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
   </style>
 </head>
 <body>
   <header>
-    <h1>Countdown · Diagnose</h1>
+    <h1>Diagnose</h1>
     <nav>
       <a href="/">Visning</a>
       <a href="/admin">Admin</a>
@@ -24,49 +32,85 @@
 
   <main class="grid">
     <section class="card">
-      <h2>Status</h2>
-      <div class="row">
-        <button id="btn_upd">Oppdater</button>
+      <h2>Nedtelling (live)</h2>
+      <div id="countdown" class="big">00:00</div>
+      <div id="phase" class="muted">fase: — · state: —</div>
+      <div id="meta" class="muted">mål: — · nå: —</div>
+      <div id="both" class="muted">format: — / —</div>
+      <div style="margin-top:.5rem;display:flex;gap:.5rem;align-items:center">
+        <button id="refresh">Oppdater</button>
         <span id="lat" class="chip">latency: — ms</span>
       </div>
-      <div id="tick_line" class="readout"></div>
-      <div id="fmt_line" class="readout"></div>
+    </section>
+
+    <section class="card">
+      <h2>Selvtest</h2>
+      <p>Rask sanitetssjekk av kjerne-logikk (ikke pytest).</p>
+      <ul id="selftest"></ul>
+      <div style="margin-top:.5rem">
+        <button id="run_selftest">Kjør selvtest</button>
+      </div>
     </section>
 
     <section class="card">
       <h2>Debug</h2>
-      <div class="row">
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem">
         <button id="btn_who">/debug/whoami</button>
         <button id="btn_cfg">/api/config</button>
         <button id="btn_self">/debug/selftest</button>
         <button id="btn_hb">/debug/view-heartbeat</button>
       </div>
-      <pre id="out" class="mono">( tom )</pre>
+      <pre id="raw" class="mono">(tom)</pre>
     </section>
   </main>
 
-<script>
-(function(){
-  const $=s=>document.querySelector(s);
-  const fmt = (ms)=>{ const abs=Math.abs(ms); const h=Math.floor(abs/3600000), m=Math.floor((abs%3600000)/60000), s=Math.floor((abs%60000)/1000); return {h,m,s,mmss:`${Math.floor(abs/60000)}:${String(Math.floor((abs/1000)%60)).padStart(2,"0")}`, hms:`${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`}; };
+  <script>
+    (function(){
+      const fmtBoth = (ms) => {
+        const sgn = ms < 0 ? "-" : "";
+        ms = Math.abs(ms);
+        let s = Math.floor(ms/1000);
+        const h = Math.floor(s/3600); s%=3600;
+        const m = Math.floor(s/60); s%=60;
+        const pad = (n) => String(n).padStart(2,"0");
+        return {
+          mmss: `${sgn}${Math.floor((h*60)+m)}:${pad(s)}`,
+          hms:  `${sgn}${h}:${pad(m)}:${pad(s)}`
+        };
+      };
+      async function poll() {
+        const t0 = performance.now();
+        const r = await fetch("/tick"); const t = await r.json();
+        const dt = performance.now() - t0;
+        const both = fmtBoth(t.signed_display_ms);
+        document.getElementById("countdown").textContent = both.mmss;
+        document.getElementById("phase").textContent = `fase: ${t.mode} · state: ${t.state}`;
+        document.getElementById("meta").textContent = `mål: ${t.target_hhmm || t.target_ms} · nå: ${new Date(t.now_ms).toLocaleTimeString()}`;
+        document.getElementById("both").textContent = `format: ${both.hms} / ${both.mmss}`;
+        document.getElementById("lat").textContent = `latency: ${dt.toFixed(0)} ms`;
+        document.getElementById("raw").textContent = JSON.stringify(t, null, 2);
+      }
+      async function selftest() {
+        const r = await fetch("/debug/selftest"); const js = await r.json();
+        const ul = document.getElementById("selftest"); ul.innerHTML = "";
+        js.tests.forEach(t => {
+          const li = document.createElement("li");
+          li.textContent = `${t.ok ? "✔" : "✖"} ${t.name}${t.info ? " — "+t.info : ""}`;
+          li.className = t.ok ? "ok" : "fail"; ul.appendChild(li);
+        });
+      }
+      async function dump(url){ const r = await fetch(url); const js = await r.json(); document.getElementById("raw").textContent = JSON.stringify(js, null, 2); }
 
-  async function tick(){
-    const t0=performance.now();
-    const r=await fetch("/tick"); const t=await r.json();
-    const dt=performance.now()-t0; $("#lat").textContent=`latency: ${dt.toFixed(0)} ms`;
-    $("#tick_line").textContent = `mode=${t.mode} state=${t.state} now=${t.now_ms} target=${t.target_ms} display=${t.display_ms} signed=${t.signed_display_ms}`;
-    const f=fmt(t.signed_display_ms);
-    $("#fmt_line").textContent = `format: ${f.hms}  /  ${f.mmss}`;
-  }
-  async function dump(url){ const r=await fetch(url); const js=await r.json(); $("#out").textContent = JSON.stringify(js,null,2); }
+      document.getElementById("refresh").addEventListener("click", () => poll().catch(console.error));
+      document.getElementById("run_selftest").addEventListener("click", () => selftest().catch(console.error));
+      document.getElementById("btn_who").addEventListener("click", () => dump("/debug/whoami").catch(console.error));
+      document.getElementById("btn_cfg").addEventListener("click", () => dump("/api/config").catch(console.error));
+      document.getElementById("btn_self").addEventListener("click", () => dump("/debug/selftest").catch(console.error));
+      document.getElementById("btn_hb").addEventListener("click", () => dump("/debug/view-heartbeat").catch(console.error));
 
-  $("#btn_upd").addEventListener("click",()=>tick().catch(console.error));
-  $("#btn_who").addEventListener("click",()=>dump("/debug/whoami").catch(console.error));
-  $("#btn_cfg").addEventListener("click",()=>dump("/api/config").catch(console.error));
-  $("#btn_self").addEventListener("click",()=>dump("/debug/selftest").catch(console.error));
-  $("#btn_hb").addEventListener("click",()=>dump("/debug/view-heartbeat").catch(console.error));
-  tick().catch(console.error);
-})();
-</script>
+      poll().catch(console.error);
+      setInterval(poll, 1000);
+    })();
+  </script>
 </body>
 </html>
