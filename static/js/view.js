@@ -1,6 +1,9 @@
 /* static/js/view.js
-   Driftssikker visning: leser /api/config, pinger /tick, rendrer klokke/meldinger og stoppskjerm.
-   Defansiv mot nettverksfeil. Oppdaterer heartbeat (best-effort).
+   Robust visning med:
+   - Tick-interval fra config (100–2000 ms).
+   - Dynamisk digitstørrelse basert på vmin + H:MM:SS-justering.
+   - Fullskjermknapp skjules i fullscreen.
+   - Én skjermklokke-timer, ikke multiplisert.
 */
 (function(){
   const $=s=>document.querySelector(s);
@@ -17,54 +20,56 @@
 
   let CFG = null;
   let lastCfgRev = 0;
+  let tickTimerId = null;
+  let screenClockTimerId = null;
+  let currentShowHMS = false;
 
-  // --- utils ---
   const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
   const pad2  = n => String(n).padStart(2,"0");
+
   const fmtBoth = (ms) => {
     const sgn = ms < 0 ? "-" : "";
     ms = Math.abs(ms);
     let s = Math.floor(ms/1000);
     const h = Math.floor(s/3600); s%=3600;
     const m = Math.floor(s/60); s%=60;
-    return {
-      h: h, m: m, s: s,
-      mmss: `${sgn}${Math.floor((h*60)+m)}:${pad2(s)}`,
-      hms: `${sgn}${h}:${pad2(m)}:${pad2(s)}`
-    };
+    return { h, m, s, mmss: `${sgn}${Math.floor((h*60)+m)}:${pad2(s)}`, hms: `${sgn}${h}:${pad2(m)}:${pad2(s)}` };
   };
+
   function setHidden(el, hidden){ if(!el) return; el.classList.toggle("hidden", !!hidden); }
   function showErr(msg){ if(!errBar) return; errBar.textContent = msg; setHidden(errBar, !msg); }
 
-  // --- background / theme ---
+  // -------- Tema / bakgrunn
+  function hex(h){ const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((h||"").trim()); return m?[parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)]:[0,0,0]; }
   function applyTheme(c){
-    // messages typography
     const p = c?.theme?.messages?.primary || {};
     const s = c?.theme?.messages?.secondary || {};
     [pTop, pBottom].forEach(el => { if(!el) return; el.style.fontSize = `${p.size_rem??1}rem`; el.style.fontWeight = String(p.weight??600); el.style.color = p.color ?? "#9aa4b2"; });
     [sTop, sBottom].forEach(el => { if(!el) return; el.style.fontSize = `${s.size_rem??1}rem`; el.style.fontWeight = String(s.weight??400); el.style.color = s.color ?? "#9aa4b2"; });
-    // digits size/weight
-    digitsEl.style.fontSize = `min(20vw, ${clamp((c?.theme?.digits?.size_vw ?? 14), 8, 28)}vw)`;
+
+    // Start med et rimelig utgangspunkt, finjusteres i renderDigits()
+    const baseVmin = clamp((c?.theme?.digits?.size_vw ?? 14), 8, 28); // bruker vmin for bedre ratio-tilpasning
+    digitsEl.style.fontSize = `${baseVmin}vmin`;
     document.documentElement.style.setProperty("--digits-weight", String(c?.theme?.digits?.weight ?? 800));
 
-    // background
     const box = document.body;
     const bg = c?.theme?.background || {};
     if (bg.mode === "solid"){
       box.style.background = bg.solid?.color || "#0b0f14";
+      box.style.backgroundSize = ""; box.style.backgroundRepeat=""; box.style.backgroundPosition=""; box.style.opacity="";
     } else if (bg.mode === "gradient"){
       const ang = bg.gradient?.angle_deg ?? 180;
-      const from = bg.gradient?.from || "#142033";
-      const to   = bg.gradient?.to   || "#0b0f14";
-      box.style.background = `linear-gradient(${ang}deg, ${from}, ${to})`;
+      box.style.background = `linear-gradient(${ang}deg, ${bg.gradient?.from||"#142033"}, ${bg.gradient?.to||"#0b0f14"})`;
+      box.style.backgroundSize = ""; box.style.backgroundRepeat=""; box.style.backgroundPosition=""; box.style.opacity="";
     } else if (bg.mode === "image"){
       const url = bg.image?.url || "";
       const fit = bg.image?.fit || "cover";
       const op  = Number(bg.image?.opacity ?? 1);
       const tint = bg.image?.tint?.color || "#000000";
       const to   = Number(bg.image?.tint?.opacity ?? 0);
+      const [r,g,b] = hex(tint);
       box.style.background = (to>0)
-        ? `linear-gradient(rgba(${hex(tint).join(",")},${to}), rgba(${hex(tint).join(",")},${to})), url('${url}')`
+        ? `linear-gradient(rgba(${r},${g},${b},${to}), rgba(${r},${g},${b},${to})), url('${url}')`
         : `url('${url}')`;
       box.style.backgroundSize = fit;
       box.style.backgroundPosition = "center";
@@ -72,11 +77,11 @@
       box.style.opacity = String(op);
     } else {
       box.style.background = "#0b0f14";
+      box.style.backgroundSize = ""; box.style.backgroundRepeat=""; box.style.backgroundPosition=""; box.style.opacity="";
     }
   }
-  function hex(h){ const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((h||"").trim()); return m?[parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)]:[0,0,0]; }
 
-  // --- messages / placement ---
+  // -------- Meldinger
   function renderMessages(c, tick){
     const showP = !!c.show_message_primary;
     const showS = !!c.show_message_secondary;
@@ -92,11 +97,10 @@
       else secondary = (secondary || "").trim() + (targetText || "");
     }
 
-    const pos = (c.messages_position || "below"); // above|below
+    const pos = (c.messages_position || "below");
     setHidden(msgAbove, pos!=="above");
     setHidden(msgBelow, pos!=="below");
 
-    // clear
     [pTop, pBottom, sTop, sBottom].forEach(el => { if(el) el.textContent = ""; });
 
     if (pos==="above"){
@@ -108,8 +112,13 @@
     }
   }
 
-  // --- screen (pause) layer ---
+  // -------- Stopp-skjerm
+  function clearScreenClock(){
+    if (screenClockTimerId){ clearInterval(screenClockTimerId); screenClockTimerId = null; }
+  }
   function renderScreen(c){
+    clearScreenClock();
+
     const sc = c?.screen || {};
     screenLay.style.position = "absolute";
     screenLay.style.inset = "0";
@@ -117,25 +126,28 @@
     screenLay.style.placeItems = "center";
     screenLay.style.padding = "4vh 4vw";
 
-    // background
+    // bakgrunn
     if (sc.use_theme_background){
-      // reuse theme background already applied to body → transparent layer
       screenLay.style.background = "transparent";
+      screenLay.style.backgroundSize=""; screenLay.style.backgroundRepeat=""; screenLay.style.backgroundPosition=""; screenLay.style.opacity="";
     } else {
       const bg = sc.background || {};
       if (bg.mode === "solid"){
         screenLay.style.background = bg.solid?.color || "#0b0f14";
+        screenLay.style.backgroundSize=""; screenLay.style.backgroundRepeat=""; screenLay.style.backgroundPosition=""; screenLay.style.opacity="";
       } else if (bg.mode === "gradient"){
         const ang = bg.gradient?.angle_deg ?? 180;
         screenLay.style.background = `linear-gradient(${ang}deg, ${bg.gradient?.from||"#142033"}, ${bg.gradient?.to||"#0b0f14"})`;
+        screenLay.style.backgroundSize=""; screenLay.style.backgroundRepeat=""; screenLay.style.backgroundPosition=""; screenLay.style.opacity="";
       } else if (bg.mode === "image"){
         const url = bg.image?.url || "";
         const fit = bg.image?.fit || "cover";
         const op  = Number(bg.image?.opacity ?? 1);
         const tint = bg.image?.tint?.color || "#000000";
         const to   = Number(bg.image?.tint?.opacity ?? 0);
+        const [r,g,b] = hex(tint);
         screenLay.style.background = (to>0)
-          ? `linear-gradient(rgba(${hex(tint).join(",")},${to}), rgba(${hex(tint).join(",")},${to})), url('${url}')`
+          ? `linear-gradient(rgba(${r},${g},${b},${to}), rgba(${r},${g},${b},${to})), url('${url}')`
           : `url('${url}')`;
         screenLay.style.backgroundSize = fit;
         screenLay.style.backgroundPosition = "center";
@@ -143,13 +155,15 @@
         screenLay.style.opacity = String(op);
       } else {
         screenLay.style.background = "#0b0f14";
+        screenLay.style.backgroundSize=""; screenLay.style.backgroundRepeat=""; screenLay.style.backgroundPosition=""; screenLay.style.opacity="";
       }
     }
 
-    // content
+    // innhold
     screenLay.innerHTML = "";
+
     if (sc.type === "blackout"){
-      /* bevisst tomt */
+      /* svart / kun bakgrunn */
     } else if (sc.type === "image"){
       const img = document.createElement("img");
       img.src = sc.image_url || "";
@@ -157,7 +171,7 @@
       img.style.objectFit = sc.image_fit || "cover";
       img.style.opacity = String((sc.image_opacity??100)/100);
       screenLay.appendChild(img);
-    } else { // text default
+    } else { // text
       const div = document.createElement("div");
       div.textContent = sc.text || "Pause";
       div.style.color = sc.text_color || "#ffffff";
@@ -166,7 +180,7 @@
       screenLay.appendChild(div);
     }
 
-    // optional clock
+    // klokke
     if (sc.clock?.show){
       const clk = document.createElement("div");
       clk.id = "screen_clock";
@@ -177,25 +191,35 @@
       clk.style.color = sc.clock.color || "#e6edf3";
       clk.style.fontSize = `${clamp(sc.clock.size_vh ?? 12, 6, 30)}vh`;
       screenLay.appendChild(clk);
-      // tick every sec
-      setInterval(()=>{
+
+      const tickClock = () => {
         const d = new Date();
         const HH = pad2(d.getHours()), MM = pad2(d.getMinutes()), SS = pad2(d.getSeconds());
         clk.textContent = sc.clock.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
-      }, 500);
+      };
+      tickClock();
+      screenClockTimerId = setInterval(tickClock, 500);
     }
   }
 
-  // --- digits / color / blink ---
+  // -------- Digits
+  function applyDigitFontSize(showHMS){
+    // vmin skalerer naturlig med ratio; H:MM:SS er bredere → litt mindre font
+    const base = clamp((CFG?.theme?.digits?.size_vw ?? 14), 8, 28);
+    const factor = showHMS ? 0.86 : 1.0; // hvorfor: mer plass til timer
+    digitsEl.style.fontSize = `${(base*factor).toFixed(2)}vmin`;
+    currentShowHMS = showHMS;
+  }
+
   function renderDigits(c, tick){
     const both = fmtBoth(tick.signed_display_ms);
     const thresholdMin = Number(c.hms_threshold_minutes ?? 60);
     const over = tick.signed_display_ms < 0;
 
     const showHMS = (Math.abs(tick.signed_display_ms) >= thresholdMin*60*1000);
+    if (showHMS !== currentShowHMS) applyDigitFontSize(showHMS);
     digitsEl.textContent = showHMS ? both.hms : both.mmss;
 
-    // color
     let color = c.color_normal || "#e6edf3";
     if (c.use_phase_colors){
       if (over) color = c.color_over || "#9ad0ff";
@@ -204,20 +228,21 @@
     }
     digitsEl.style.color = color;
 
-    // blink
     const doBlink = !!c.use_blink && !over && (Number(c.blink_seconds||0) > 0)
       && (Math.abs(tick.signed_display_ms) <= (Number(c.blink_seconds)*1000));
     digitsEl.classList.toggle("blink", doBlink);
   }
 
-  // --- fetchers ---
+  // -------- Henting
   async function fetchConfig(){
     const r = await fetch("/api/config");
     if (!r.ok) throw new Error(`config ${r.status}`);
     const js = await r.json();
-    CFG = js.config || js; // backend kan svare {config, tick}
+    CFG = js.config || js;
     lastCfgRev = CFG?._updated_at || 0;
     applyTheme(CFG);
+    applyDigitFontSize(false); // init
+    restartTickLoop();         // oppdater intervall ved ny config
   }
 
   async function tick(){
@@ -225,13 +250,11 @@
     if (!r.ok) throw new Error(`tick ${r.status}`);
     const t = await r.json();
 
-    // heartbeat best-effort
     try {
       fetch("/debug/heartbeat", {method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({ ts: Date.now(), rev: lastCfgRev, from: "view" })});
     } catch {}
 
-    // mode=screen ⇒ vis stoppskjerm; ellers digits+meldinger
     if ((t.mode||"") === "screen"){
       setHidden(screenLay, false);
       setHidden(digitsEl, true);
@@ -241,6 +264,7 @@
       showErr("");
       return;
     } else {
+      clearScreenClock();
       setHidden(screenLay, true);
       setHidden(digitsEl, false);
     }
@@ -250,24 +274,52 @@
     showErr("");
   }
 
-  // --- init ---
+  // -------- Tick-loop
+  function getTickInterval(){
+    const raw = Number(CFG?.view?.tick_interval_ms ?? CFG?.tick_interval_ms ?? 400);
+    return clamp(isFinite(raw) ? raw : 400, 100, 2000);
+  }
+  function restartTickLoop(){
+    if (tickTimerId) { clearInterval(tickTimerId); tickTimerId = null; }
+    const iv = getTickInterval();
+    tick(); // spark i gang raskt
+    tickTimerId = setInterval(()=>tick().catch(e=>showErr(String(e))), iv);
+  }
+
+  // -------- Fullskjerm
+  function toggleFullScreenBtn(){
+    const fs = !!document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+    setHidden(btnFS, fs);
+  }
+  btnFS?.addEventListener("click", async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await (document.documentElement.requestFullscreen?.() ||
+               document.documentElement.webkitRequestFullscreen?.() ||
+               document.documentElement.mozRequestFullScreen?.() ||
+               document.documentElement.msRequestFullscreen?.());
+      } else {
+        await (document.exitFullscreen?.() ||
+               document.webkitExitFullscreen?.() ||
+               document.mozCancelFullScreen?.() ||
+               document.msExitFullscreen?.());
+      }
+    } catch {}
+  });
+  ["fullscreenchange","webkitfullscreenchange","mozfullscreenchange","MSFullscreenChange"]
+    .forEach(ev => document.addEventListener(ev, toggleFullScreenBtn));
+
+  window.addEventListener("resize", ()=>{ applyDigitFontSize(currentShowHMS); });
+
+  // -------- Init
   async function boot(){
     try {
       await fetchConfig();
-      await tick(); // første paint raskt
-      setInterval(()=>tick().catch(e=>showErr(String(e))), 400);
+      await tick();
+      toggleFullScreenBtn(); // skjul knapp i fullscreen
     } catch (e) {
       showErr(String(e));
     }
   }
-
-  // fullscreen
-  btnFS?.addEventListener("click", async () => {
-    try {
-      if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
-      else await document.exitFullscreen();
-    } catch {}
-  });
-
   boot();
 })();

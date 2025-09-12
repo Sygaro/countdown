@@ -1,6 +1,6 @@
 {
   "_migrated_at": 1757592465,
-  "_updated_at": 1757684935,
+  "_updated_at": 1757685993,
   "admin_password": "",
   "alert_minutes": 2,
   "blink_seconds": 10,
@@ -8,11 +8,11 @@
   "color_normal": "#e6edf3",
   "color_over": "#9ad0ff",
   "color_warn": "#ffd166",
-  "daily_time": "15:35",
+  "daily_time": "16:35",
   "duration_minutes": 10,
   "duration_started_ms": 0,
   "hms_threshold_minutes": 60,
-  "message_primary": "",
+  "message_primary": "Velkommen!",
   "message_secondary": "Vi starter kl:",
   "messages_position": "below",
   "mode": "daily",
@@ -42,36 +42,36 @@
     "bg": "#000000",
     "clock": {
       "color": "#e6edf3",
-      "show": true,
+      "show": false,
       "size_vh": 12,
-      "with_seconds": true
+      "with_seconds": false
     },
-    "font_vh": 20,
-    "image_fit": "contain",
+    "font_vh": 10,
+    "image_fit": "cover",
     "image_opacity": 100,
     "image_url": "",
     "text": "Pause",
-    "text_color": "#f5f5f5",
-    "type": "image",
-    "use_theme_background": true
+    "text_color": "#ffffff",
+    "type": "text",
+    "use_theme_background": false
   },
   "show_message_primary": true,
   "show_message_secondary": true,
-  "show_target_time": true,
+  "show_target_time": false,
   "target_time_after": "secondary",
   "theme": {
     "background": {
       "gradient": {
-        "angle_deg": 160,
-        "from": "#334366",
+        "angle_deg": 180,
+        "from": "#142033",
         "to": "#0b0f14"
       },
       "image": {
-        "fit": "contain",
+        "fit": "cover",
         "opacity": 1.0,
         "tint": {
-          "color": "#001b3d",
-          "opacity": 0.25
+          "color": "#000000",
+          "opacity": 0.4
         },
         "url": "https://picsum.photos/1600/900"
       },
@@ -87,18 +87,18 @@
     },
     "messages": {
       "primary": {
-        "color": "#92afd9",
-        "size_rem": 3.0,
-        "weight": 700
+        "color": "#9aa4b2",
+        "size_rem": 1.0,
+        "weight": 600
       },
       "secondary": {
         "color": "#9aa4b2",
-        "size_rem": 3.0,
+        "size_rem": 1.0,
         "weight": 400
       }
     }
   },
   "use_blink": true,
-  "use_phase_colors": true,
+  "use_phase_colors": false,
   "warn_minutes": 4
 }

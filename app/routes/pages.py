@@ -1,6 +1,8 @@
 # app/routes/pages.py
 from __future__ import annotations
 from flask import Blueprint, current_app, make_response, jsonify
+from .api import _compute_tick, _read_config  # gjenbruk beregningen
+
 
 bp_pages = Blueprint("pages", __name__)  # én blueprint
 
@@ -57,3 +59,12 @@ def list_routes():
                       "rule": str(r)})
     rules.sort(key=lambda x: x["rule"])
     return jsonify({"routes": rules})
+
+@bp_pages.get("/tick")
+def root_tick_alias():
+    cfg = _read_config()
+    return current_app.response_class(
+        response=json.dumps(_compute_tick(cfg)),
+        status=200,
+        mimetype="application/json",
+    )
