@@ -53,24 +53,42 @@
         ["#msg_secondary_above","#msg_secondary_below"].forEach(sel=>set(sel,s));
       }
       function applyThemeBackground(rootEl, bg){
-        const mode = (bg?.mode||"solid").toLowerCase();
-        if (mode==="solid"){
-          rootEl.style.background = bg.solid?.color || "#0b0f14";
-        } else if (mode==="gradient"){
-          const g = bg.gradient||{};
-          rootEl.style.background = `linear-gradient(${Number(g.angle_deg||180)}deg, ${g.from||"#142033"}, ${g.to||"#0b0f14"})`;
-        } else if (mode==="image"){
-          const im = bg.image||{};
-          const tint = im.tint||{};
-          rootEl.style.background = (tint.opacity>0)
-            ? `linear-gradient(rgba(${hex2rgb(tint.color||"#000")}, ${tint.opacity||0}), rgba(${hex2rgb(tint.color||"#000")}, ${tint.opacity||0})), url('${im.url||""}')`
-            : `url('${im.url||""}')`;
-          rootEl.style.backgroundSize = im.fit||"cover";
-          rootEl.style.backgroundPosition = "center";
-          rootEl.style.backgroundRepeat = "no-repeat";
-          rootEl.style.opacity = String(im.opacity ?? 1);
-        }
-      }
+    const mode = String(bg?.mode || "solid").toLowerCase();
+
+    // Viktig: nullstill alle egenskaper som varierer per modus
+    rootEl.style.background = "";
+    rootEl.style.backgroundSize = "";
+    rootEl.style.backgroundPosition = "";
+    rootEl.style.backgroundRepeat = "";
+    rootEl.style.opacity = ""; // unngå at image-opacity "lekker" til andre moduser
+
+    if (mode === "solid"){
+      rootEl.style.background = bg.solid?.color || "#0b0f14";
+      return;
+    }
+
+    if (mode === "gradient"){
+      const g = bg.gradient || {};
+      const angle = Number(g.angle_deg ?? 180);
+      rootEl.style.background = `linear-gradient(${angle}deg, ${g.from || "#142033"}, ${g.to || "#0b0f14"})`;
+      return;
+    }
+
+    if (mode === "image"){
+      const im = bg.image || {};
+      const tint = im.tint || {};
+      const rgb = (c)=>`rgba(${hex2rgb(c)}, ${Number(tint.opacity ?? 0)})`;
+      const tintLayer = (Number(tint.opacity ?? 0) > 0) ? `linear-gradient(${rgb(tint.color || "#000")}), ` : "";
+      const url = im.url ? `url('${im.url}')` : "none";
+
+      rootEl.style.background = `${tintLayer}${url}`;
+      rootEl.style.backgroundSize = im.fit || "cover";
+      rootEl.style.backgroundPosition = "center";
+      rootEl.style.backgroundRepeat = "no-repeat";
+      rootEl.style.opacity = String(im.opacity ?? 1);
+      return;
+    }
+  }
 
       function applyCountdown(){
         $("#view_screen").style.display = "none";
@@ -128,42 +146,51 @@
     } else if (sc.background) {
       applyThemeBackground(root, sc.background);
     } else {
+      // fallback for veldig gamle config-felt
       root.style.background = sc.bg || "#000";
+      root.style.backgroundSize = "";
+      root.style.backgroundPosition = "";
+      root.style.backgroundRepeat = "";
+      root.style.opacity = "";
     }
 
     // Klokke
     const clk = sc.clock || {};
     const clkEl = $("#screen_clock");
     if (clk.show) {
-      clkEl.style.display="block";
-      // reset pos/transform
-      clkEl.style.top = clkEl.style.right = clkEl.style.bottom = clkEl.style.left = "";
-      clkEl.style.transform = "";
+      clkEl.style.display = "block";
+
+      // Hard reset før ny pos (hindrer speiling/forskyvning)
+      clkEl.style.top = "auto";
+      clkEl.style.right = "auto";
+      clkEl.style.bottom = "auto";
+      clkEl.style.left = "auto";
+      clkEl.style.transform = "none";
 
       const pos = String(clk.position || "top-right");
       if (pos === "top-left") {
-        clkEl.style.top="3vh";    clkEl.style.left="4vw";
+        clkEl.style.top = "3vh";     clkEl.style.left = "4vw";
       } else if (pos === "top-right") {
-        clkEl.style.top="3vh";    clkEl.style.right="4vw";
+        clkEl.style.top = "3vh";     clkEl.style.right = "4vw";
       } else if (pos === "bottom-left") {
-        clkEl.style.bottom="3vh"; clkEl.style.left="4vw";
+        clkEl.style.bottom = "3vh";  clkEl.style.left = "4vw";
       } else if (pos === "bottom-right") {
-        clkEl.style.bottom="3vh"; clkEl.style.right="4vw";
+        clkEl.style.bottom = "3vh";  clkEl.style.right = "4vw";
       } else if (pos === "top") {
-        clkEl.style.top="3vh";    clkEl.style.left="50%"; clkEl.style.transform="translateX(-50%)";
+        clkEl.style.top = "3vh";     clkEl.style.left = "50%"; clkEl.style.transform = "translateX(-50%)";
       } else if (pos === "bottom") {
-        clkEl.style.bottom="3vh"; clkEl.style.left="50%"; clkEl.style.transform="translateX(-50%)";
+        clkEl.style.bottom = "3vh";  clkEl.style.left = "50%"; clkEl.style.transform = "translateX(-50%)";
       } else if (pos === "center") {
-        clkEl.style.top="50%";    clkEl.style.left="50%"; clkEl.style.transform="translate(-50%,-50%)";
+        clkEl.style.top = "50%";     clkEl.style.left = "50%"; clkEl.style.transform = "translate(-50%,-50%)";
       } else {
         // fallback
-        clkEl.style.top="3vh";    clkEl.style.right="4vw";
+        clkEl.style.top = "3vh";     clkEl.style.right = "4vw";
       }
 
       clkEl.style.color = clk.color || "#e6edf3";
-      clkEl.style.fontSize = `${Math.max(6, Math.min(30, Number(clk.size_vh||12)))}vh`;
+      clkEl.style.fontSize = `${Math.max(6, Math.min(30, Number(clk.size_vh || 12)))}vh`;
 
-      if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer=null; }
+      if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
       const updateClock = () => {
         const d = new Date();
         const HH = String(d.getHours()).padStart(2,"0");
@@ -174,8 +201,8 @@
       updateClock();
       state.clockTimer = setInterval(updateClock, clk.with_seconds ? 1000 : 5000);
     } else {
-      clkEl.style.display="none";
-      if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer=null; }
+      clkEl.style.display = "none";
+      if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
     }
 
     // Innhold
@@ -185,16 +212,20 @@
 
     if (sc.type === "image") {
       const wrap = document.createElement("div");
-      wrap.style.position="relative"; wrap.style.width="100%"; wrap.style.height="100%";
+      wrap.style.position = "relative";
+      wrap.style.width = "100%";
+      wrap.style.height = "100%";
       const img = document.createElement("img");
       img.src = sc.image_url || "";
       img.style.objectFit = sc.image_fit || "cover";
-      img.style.width="100%"; img.style.height="100%";
+      img.style.width = "100%";
+      img.style.height = "100%";
       img.style.opacity = String((sc.image_opacity ?? 100)/100);
       wrap.appendChild(img);
       inner.appendChild(wrap);
       return;
     }
+
     // text
     const div = document.createElement("div");
     div.className = "text";
