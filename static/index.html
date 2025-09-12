@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Countdown · Visning</title>
   <link rel="stylesheet" href="/static/css/ui.css"/>
+  <style>
+    /* Viktig for stabil posisjonering og layout i stopp-skjerm */
+    #view_screen { position: relative; display:none; }
+    #screen_clock { position: absolute; display:none; font-weight:800; }
+    #screen_inner { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+    /* Debug */
+    #dbg { position:fixed; left:8px; bottom:8px; font:12px/1.3 system-ui, sans-serif; background:rgba(0,0,0,.55); color:#e6edf3; padding:6px 8px; border-radius:8px; border:1px solid rgba(255,255,255,.1); z-index:10; }
+    #dbg code{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace}
+  </style>
 </head>
 <body class="center fill">
   <button id="btn_fullscreen" class="fs-btn" title="Fullskjerm">⛶ Fullskjerm</button>
@@ -23,16 +32,10 @@
     </div>
   </div>
 
-  <div id="view_screen" class="screen" style="display:none; position:relative">
+  <div id="view_screen" class="screen">
     <div id="screen_inner"></div>
-    <div id="screen_clock" style="display:none; position:absolute; font-weight:800;"></div>
+    <div id="screen_clock"></div>
   </div>
-<style>
-  /* Sikrer at klokke posisjonerer seg relativt til hele stopp-skjermen */
-  #view_screen { position: relative; }
-  #screen_clock { position: absolute; }
-  #screen_inner { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
-</style>
 
   <script>
     (function(){
@@ -40,13 +43,13 @@
       const state = { cfg:null, tick:null, lastCfgRev:0, clockTimer:null };
       const qs = new URLSearchParams(location.search);
       const isKiosk = qs.get("kiosk")==="1";
+      const wantDebug = qs.get("debug")==="1";
 
       const fmtMMSS = ms => { const neg=ms<0?"-":""; ms=Math.abs(ms); const t=Math.floor(ms/1000), m=Math.floor(t/60), s=t%60; return `${neg}${m}:${String(s).padStart(2,"0")}`; };
       const fmtHMS  = ms => { const neg=ms<0?"-":""; ms=Math.abs(ms); const t=Math.floor(ms/1000), h=Math.floor(t/3600), r=t%3600, m=Math.floor(r/60), s=r%60; const pad=n=>String(n).padStart(2,"0"); return `${neg}${h}:${pad(m)}:${pad(s)}`; };
-      const hex2rgb = h => { const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h||""); if(!m) return "0,0,0"; return `${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)}`; };
+      const hex2rgb = h => { const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((h||"").trim()); if(!m) return "0,0,0"; return `${parseInt(m[1],16)}, ${parseInt(m[2],16)}, ${parseInt(m[3],16)}`; };
 
       function applyDigitsSize(useHMS){
-        // Hvorfor vmin: bedre tilpasning til ulike ratioer; H:MM:SS er bredere → litt nedskalering
         const base = Number(state.cfg?.theme?.digits?.size_vw ?? 14);
         const factor = useHMS ? 0.86 : 1.0;
         $("#digits").style.fontSize = `${(base*factor).toFixed(2)}vmin`;
@@ -58,43 +61,43 @@
         ["#msg_primary_above","#msg_primary_below"].forEach(sel=>set(sel,p));
         ["#msg_secondary_above","#msg_secondary_below"].forEach(sel=>set(sel,s));
       }
+
       function applyThemeBackground(rootEl, bg){
-    const mode = String(bg?.mode || "solid").toLowerCase();
+        const mode = String(bg?.mode || "solid").toLowerCase();
 
-    // Viktig: nullstill alle egenskaper som varierer per modus
-    rootEl.style.background = "";
-    rootEl.style.backgroundSize = "";
-    rootEl.style.backgroundPosition = "";
-    rootEl.style.backgroundRepeat = "";
-    rootEl.style.opacity = ""; // unngå at image-opacity "lekker" til andre moduser
+        // Full reset hver gang (hindrer "firkant"/lekk fra tidligere modus)
+        rootEl.style.background = "";
+        rootEl.style.backgroundSize = "";
+        rootEl.style.backgroundPosition = "";
+        rootEl.style.backgroundRepeat = "";
 
-    if (mode === "solid"){
-      rootEl.style.background = bg.solid?.color || "#0b0f14";
-      return;
-    }
+        if (mode === "solid"){
+          rootEl.style.background = bg.solid?.color || "#0b0f14";
+          return;
+        }
 
-    if (mode === "gradient"){
-      const g = bg.gradient || {};
-      const angle = Number(g.angle_deg ?? 180);
-      rootEl.style.background = `linear-gradient(${angle}deg, ${g.from || "#142033"}, ${g.to || "#0b0f14"})`;
-      return;
-    }
+        if (mode === "gradient"){
+          const g = bg.gradient || {};
+          const angle = Number(g.angle_deg ?? 180);
+          rootEl.style.background = `linear-gradient(${angle}deg, ${g.from || "#142033"}, ${g.to || "#0b0f14"})`;
+          return;
+        }
 
-    if (mode === "image"){
-      const im = bg.image || {};
-      const tint = im.tint || {};
-      const rgb = (c)=>`rgba(${hex2rgb(c)}, ${Number(tint.opacity ?? 0)})`;
-      const tintLayer = (Number(tint.opacity ?? 0) > 0) ? `linear-gradient(${rgb(tint.color || "#000")}), ` : "";
-      const url = im.url ? `url('${im.url}')` : "none";
+        if (mode === "image"){
+          const im = bg.image || {};
+          const tint = im.tint || {};
+          const hasTint = Number(tint.opacity ?? 0) > 0;
+          const tintLayer = hasTint ? `linear-gradient(rgba(${hex2rgb(tint.color || "#000")}, ${Number(tint.opacity)}), rgba(${hex2rgb(tint.color || "#000")}, ${Number(tint.opacity)})), ` : "";
+          const url = im.url ? `url("${im.url}")` : "none";
 
-      rootEl.style.background = `${tintLayer}${url}`;
-      rootEl.style.backgroundSize = im.fit || "cover";
-      rootEl.style.backgroundPosition = "center";
-      rootEl.style.backgroundRepeat = "no-repeat";
-      rootEl.style.opacity = String(im.opacity ?? 1);
-      return;
-    }
-  }
+          // NB: ingen rootEl.opacity — vi bevarer klokke/innhold lysstyrke
+          rootEl.style.background = `${tintLayer}${url}`;
+          rootEl.style.backgroundSize = im.fit || "cover";
+          rootEl.style.backgroundPosition = "center";
+          rootEl.style.backgroundRepeat = "no-repeat";
+          return;
+        }
+      }
 
       function applyCountdown(){
         $("#view_screen").style.display = "none";
@@ -141,105 +144,97 @@
       }
 
       function applyScreen(){
-    const sc = state.cfg.screen || {};
-    $("#view_countdown").style.display = "none";
-    const root = $("#view_screen");
-    root.style.display = "flex";
+        const sc = state.cfg.screen || {};
+        $("#view_countdown").style.display = "none";
 
-    // Bakgrunn
-    if (sc.use_theme_background) {
-      applyThemeBackground(root, state.cfg?.theme?.background);
-    } else if (sc.background) {
-      applyThemeBackground(root, sc.background);
-    } else {
-      // fallback for veldig gamle config-felt
-      root.style.background = sc.bg || "#000";
-      root.style.backgroundSize = "";
-      root.style.backgroundPosition = "";
-      root.style.backgroundRepeat = "";
-      root.style.opacity = "";
-    }
+        const root = $("#view_screen");
+        root.style.display = "flex";
+        root.style.alignItems = "center";
+        root.style.justifyContent = "center";
 
-    // Klokke
-    const clk = sc.clock || {};
-    const clkEl = $("#screen_clock");
-    if (clk.show) {
-      clkEl.style.display = "block";
+        // Velg bakgrunn (theme eller egen)
+        const activeBg = sc.use_theme_background ? (state.cfg?.theme?.background) : (sc.background || {mode:"solid",solid:{color:"#0b0f14"}});
+        applyThemeBackground(root, activeBg);
 
-      // Hard reset før ny pos (hindrer speiling/forskyvning)
-      clkEl.style.top = "auto";
-      clkEl.style.right = "auto";
-      clkEl.style.bottom = "auto";
-      clkEl.style.left = "auto";
-      clkEl.style.transform = "none";
+        // Klokke – forankret til root
+        const clk = sc.clock || {};
+        const clkEl = $("#screen_clock");
+        if (clkEl && clkEl.parentElement !== root) root.appendChild(clkEl);
 
-      const pos = String(clk.position || "top-right");
-      if (pos === "top-left") {
-        clkEl.style.top = "3vh";     clkEl.style.left = "4vw";
-      } else if (pos === "top-right") {
-        clkEl.style.top = "3vh";     clkEl.style.right = "4vw";
-      } else if (pos === "bottom-left") {
-        clkEl.style.bottom = "3vh";  clkEl.style.left = "4vw";
-      } else if (pos === "bottom-right") {
-        clkEl.style.bottom = "3vh";  clkEl.style.right = "4vw";
-      } else if (pos === "top") {
-        clkEl.style.top = "3vh";     clkEl.style.left = "50%"; clkEl.style.transform = "translateX(-50%)";
-      } else if (pos === "bottom") {
-        clkEl.style.bottom = "3vh";  clkEl.style.left = "50%"; clkEl.style.transform = "translateX(-50%)";
-      } else if (pos === "center") {
-        clkEl.style.top = "50%";     clkEl.style.left = "50%"; clkEl.style.transform = "translate(-50%,-50%)";
-      } else {
-        // fallback
-        clkEl.style.top = "3vh";     clkEl.style.right = "4vw";
+        if (clk.show) {
+          clkEl.style.display = "block";
+          // Reset posisjon – forhindrer “speilvendt”/forskyvning
+          clkEl.style.top = clkEl.style.right = clkEl.style.bottom = clkEl.style.left = "auto";
+          clkEl.style.transform = "none";
+
+          const pos = String(clk.position || "top-right");
+          if (pos === "top-left")         { clkEl.style.top = "3vh";    clkEl.style.left = "4vw"; }
+          else if (pos === "top-right")   { clkEl.style.top = "3vh";    clkEl.style.right = "4vw"; }
+          else if (pos === "bottom-left") { clkEl.style.bottom = "3vh"; clkEl.style.left = "4vw"; }
+          else if (pos === "bottom-right"){ clkEl.style.bottom = "3vh"; clkEl.style.right = "4vw"; }
+          else if (pos === "top")         { clkEl.style.top = "3vh";    clkEl.style.left = "50%"; clkEl.style.transform = "translateX(-50%)"; }
+          else if (pos === "bottom")      { clkEl.style.bottom = "3vh"; clkEl.style.left = "50%"; clkEl.style.transform = "translateX(-50%)"; }
+          else if (pos === "center")      { clkEl.style.top = "50%";    clkEl.style.left = "50%"; clkEl.style.transform = "translate(-50%,-50%)"; }
+          else                             { clkEl.style.top = "3vh";    clkEl.style.right = "4vw"; }
+
+          clkEl.style.color = clk.color || "#e6edf3";
+          clkEl.style.fontSize = `${Math.max(6, Math.min(30, Number(clk.size_vh || 12)))}vh`;
+
+          if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
+          const updateClock = () => {
+            const d = new Date();
+            const HH = String(d.getHours()).padStart(2,"0");
+            const MM = String(d.getMinutes()).padStart(2,"0");
+            const SS = String(d.getSeconds()).padStart(2,"0");
+            clkEl.textContent = clk.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
+          };
+          updateClock();
+          state.clockTimer = setInterval(updateClock, clk.with_seconds ? 1000 : 5000);
+        } else {
+          clkEl.style.display = "none";
+          if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
+        }
+
+        // Innhold
+        const inner = $("#screen_inner");
+        inner.innerHTML = "";
+
+        // Blackout = full sort skjerm
+        if (sc.type === "blackout") {
+          root.style.background = "#000";
+          return;
+        }
+
+        const activeBgMode = String(activeBg?.mode || "solid");
+
+        // Hindre dobbelt-bilde: tegn innhold=bilde bare hvis bakgrunn IKKE er image
+        if (sc.type === "image" && activeBgMode !== "image") {
+          const wrap = document.createElement("div");
+          wrap.style.position = "relative";
+          wrap.style.maxWidth = "90vw";
+          wrap.style.maxHeight = "80vh";
+
+          const img = document.createElement("img");
+          img.src = sc.image_url || "";
+          img.style.objectFit = sc.image_fit || "cover";
+          img.style.width = "100%";
+          img.style.height = "100%";
+          img.style.opacity = String((sc.image_opacity ?? 100)/100);
+
+          wrap.appendChild(img);
+          inner.appendChild(wrap);
+          return;
+        }
+
+        if (sc.type === "text") {
+          const div = document.createElement("div");
+          div.className = "text";
+          div.textContent = sc.text || "Pause";
+          div.style.color = sc.text_color || "#fff";
+          div.style.fontSize = `${Math.max(4, Math.min(30, Number(sc.font_vh ?? 10)))}vh`;
+          inner.appendChild(div);
+        }
       }
-
-      clkEl.style.color = clk.color || "#e6edf3";
-      clkEl.style.fontSize = `${Math.max(6, Math.min(30, Number(clk.size_vh || 12)))}vh`;
-
-      if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
-      const updateClock = () => {
-        const d = new Date();
-        const HH = String(d.getHours()).padStart(2,"0");
-        const MM = String(d.getMinutes()).padStart(2,"0");
-        const SS = String(d.getSeconds()).padStart(2,"0");
-        clkEl.textContent = clk.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
-      };
-      updateClock();
-      state.clockTimer = setInterval(updateClock, clk.with_seconds ? 1000 : 5000);
-    } else {
-      clkEl.style.display = "none";
-      if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
-    }
-
-    // Innhold
-    const inner = $("#screen_inner");
-    inner.innerHTML = "";
-    if (sc.type === "blackout") return;
-
-    if (sc.type === "image") {
-      const wrap = document.createElement("div");
-      wrap.style.position = "relative";
-      wrap.style.width = "100%";
-      wrap.style.height = "100%";
-      const img = document.createElement("img");
-      img.src = sc.image_url || "";
-      img.style.objectFit = sc.image_fit || "cover";
-      img.style.width = "100%";
-      img.style.height = "100%";
-      img.style.opacity = String((sc.image_opacity ?? 100)/100);
-      wrap.appendChild(img);
-      inner.appendChild(wrap);
-      return;
-    }
-
-    // text
-    const div = document.createElement("div");
-    div.className = "text";
-    div.textContent = sc.text || "Pause";
-    div.style.color = sc.text_color || "#fff";
-    div.style.fontSize = `${Math.max(4, Math.min(30, Number(sc.font_vh ?? 10)))}vh`;
-    inner.appendChild(div);
-  }
 
       async function fetchConfig(){
         const r = await fetch("/api/config"); const js = await r.json();
@@ -251,17 +246,31 @@
         const r = await fetch("/tick"); state.tick = await r.json();
         render();
         sendHeartbeat();
+        if (wantDebug) mountDebug();
       }
       async function pollTick(){
         const r = await fetch("/tick"); const t = await r.json();
         state.tick = t;
         if ((t.cfg_rev||0) !== state.lastCfgRev) await fetchConfig();
         render(true);
+        if (wantDebug) updateDebug();
       }
 
       function render(){
         const mode = (state.cfg?.mode) || "daily";
         if (mode === "screen") applyScreen(); else applyCountdown();
+      }
+
+      // Debug overlay
+      let dbgEl=null;
+      function mountDebug(){ dbgEl=document.createElement("div"); dbgEl.id="dbg"; document.body.appendChild(dbgEl); updateDebug(); }
+      function updateDebug(){
+        const sc = state.cfg?.screen||{};
+        const bg = sc.use_theme_background ? (state.cfg?.theme?.background) : (sc.background || {mode:"—"});
+        dbgEl.innerHTML =
+          `<div>mode=<code>${state.cfg?.mode}</code> · phase=<code>${state.tick?.mode}/${state.tick?.state}</code></div>`+
+          `<div>screen.type=<code>${sc.type}</code> use_theme_bg=<code>${!!sc.use_theme_background}</code> bg.mode=<code>${bg?.mode}</code></div>`+
+          `<div>clock: pos=<code>${sc.clock?.position}</code> secs=<code>${!!sc.clock?.with_seconds}</code> size_vh=<code>${sc.clock?.size_vh}</code></div>`;
       }
 
       // Heartbeat
@@ -279,172 +288,15 @@
       // Fullskjerm-knapp: kun synlig når IKKE kiosk og IKKE i fullscreen
       const fsBtn = $("#btn_fullscreen");
       function inFullscreen(){ return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement); }
-      function updateFsBtn(){
-        if (isKiosk || inFullscreen()) {
-          fsBtn.style.display = "none";
-        } else {
-          fsBtn.style.display = "inline-block";
-          fsBtn.style.opacity = "1";
-        }
-      }
+      function updateFsBtn(){ fsBtn.style.display = (isKiosk || inFullscreen()) ? "none" : "inline-block"; fsBtn.style.opacity = "1"; }
       ["fullscreenchange","webkitfullscreenchange","MSFullscreenChange"].forEach(ev=>document.addEventListener(ev, updateFsBtn));
-      fsBtn.addEventListener("click", async () => {
-        try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
-              else await document.exitFullscreen(); } catch (e) {}
-      });
+      fsBtn.addEventListener("click", async () => { try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen(); } catch (e) {} });
 
       // Init
-      updateFsBtn();         // ← ingen visning ved musebevegelse
+      updateFsBtn();
       firstLoad().catch(console.error);
       setInterval(pollTick, 1000);
     })();
-    // Hjelper for farge → rgb
-  function hex2rgb(hex){
-    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((hex||"").trim());
-    return m ? `${parseInt(m[1],16)}, ${parseInt(m[2],16)}, ${parseInt(m[3],16)}` : `0,0,0`;
-  }
-
-  function applyThemeBackground(rootEl, bg){
-    const mode = String(bg?.mode || "solid").toLowerCase();
-
-    // Full reset hver gang (hindrer "firkant"/lekk fra tidligere modus)
-    rootEl.style.background = "";
-    rootEl.style.backgroundSize = "";
-    rootEl.style.backgroundPosition = "";
-    rootEl.style.backgroundRepeat = "";
-
-    if (mode === "solid"){
-      rootEl.style.background = bg.solid?.color || "#0b0f14";
-      return;
-    }
-
-    if (mode === "gradient"){
-      const g = bg.gradient || {};
-      const angle = Number(g.angle_deg ?? 180);
-      rootEl.style.background = `linear-gradient(${angle}deg, ${g.from || "#142033"}, ${g.to || "#0b0f14"})`;
-      return;
-    }
-
-    if (mode === "image"){
-      const im = bg.image || {};
-      const tint = im.tint || {};
-      const hasTint = Number(tint.opacity ?? 0) > 0;
-      const tintLayer = hasTint ? `linear-gradient(rgba(${hex2rgb(tint.color || "#000")}, ${Number(tint.opacity)}), rgba(${hex2rgb(tint.color || "#000")}, ${Number(tint.opacity)})), ` : "";
-      const url = im.url ? `url("${im.url}")` : "none";
-
-      // NB: ingen rootEl.opacity — vi bevarer klokke/innhold lysstyrke
-      rootEl.style.background = `${tintLayer}${url}`;
-      rootEl.style.backgroundSize = im.fit || "cover";
-      rootEl.style.backgroundPosition = "center";
-      rootEl.style.backgroundRepeat = "no-repeat";
-      return;
-    }
-  }
-
-  function applyScreen(){
-    const sc = state.cfg.screen || {};
-    $("#view_countdown").style.display = "none";
-
-    const root = $("#view_screen");
-    root.style.display = "flex";  // beholder flex for å sentrere innhold
-    root.style.alignItems = "center";
-    root.style.justifyContent = "center";
-
-    // Bakgrunn: theme vs screen
-    const activeBg = sc.use_theme_background ? (state.cfg?.theme?.background) : (sc.background || null);
-    applyThemeBackground(root, activeBg || {mode:"solid", solid:{color:"#0b0f14"}});
-
-    // Klokke – sørg for riktig forankring til root
-    const clk = sc.clock || {};
-    const clkEl = $("#screen_clock");
-    if (clkEl && clkEl.parentElement !== root) { root.appendChild(clkEl); }
-
-    if (clk.show) {
-      clkEl.style.display = "block";
-
-      // Hard reset – forhindrer “speilvendt”/forskyvning
-      clkEl.style.top = "auto";
-      clkEl.style.right = "auto";
-      clkEl.style.bottom = "auto";
-      clkEl.style.left = "auto";
-      clkEl.style.transform = "none";
-
-      const pos = String(clk.position || "top-right");
-      if (pos === "top-left") {
-        clkEl.style.top = "3vh";     clkEl.style.left = "4vw";
-      } else if (pos === "top-right") {
-        clkEl.style.top = "3vh";     clkEl.style.right = "4vw";
-      } else if (pos === "bottom-left") {
-        clkEl.style.bottom = "3vh";  clkEl.style.left = "4vw";
-      } else if (pos === "bottom-right") {
-        clkEl.style.bottom = "3vh";  clkEl.style.right = "4vw";
-      } else if (pos === "top") {
-        clkEl.style.top = "3vh";     clkEl.style.left = "50%"; clkEl.style.transform = "translateX(-50%)";
-      } else if (pos === "bottom") {
-        clkEl.style.bottom = "3vh";  clkEl.style.left = "50%"; clkEl.style.transform = "translateX(-50%)";
-      } else if (pos === "center") {
-        clkEl.style.top = "50%";     clkEl.style.left = "50%"; clkEl.style.transform = "translate(-50%,-50%)";
-      } else {
-        clkEl.style.top = "3vh";     clkEl.style.right = "4vw";
-      }
-
-      clkEl.style.color = clk.color || "#e6edf3";
-      clkEl.style.fontSize = `${Math.max(6, Math.min(30, Number(clk.size_vh || 12)))}vh`;
-
-      if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
-      const updateClock = () => {
-        const d = new Date();
-        const HH = String(d.getHours()).padStart(2,"0");
-        const MM = String(d.getMinutes()).padStart(2,"0");
-        const SS = String(d.getSeconds()).padStart(2,"0");
-        clkEl.textContent = clk.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
-      };
-      updateClock();
-      state.clockTimer = setInterval(updateClock, clk.with_seconds ? 1000 : 5000);
-    } else {
-      clkEl.style.display = "none";
-      if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
-    }
-
-    // Innhold
-    const inner = $("#screen_inner");
-    inner.innerHTML = "";
-
-    if (sc.type === "blackout") {
-      // Behold bakgrunnen slik den er; ikke tegn innhold
-      return;
-    }
-
-    // Hindre dobbelt-bilde: hvis aktiv bakgrunn allerede er 'image', hopp over innhold=bilde
-    const activeBgMode = String((activeBg && activeBg.mode) || "solid");
-    if (sc.type === "image" && activeBgMode !== "image") {
-      const wrap = document.createElement("div");
-      wrap.style.position = "relative";
-      wrap.style.maxWidth = "90vw";
-      wrap.style.maxHeight = "80vh";
-
-      const img = document.createElement("img");
-      img.src = sc.image_url || "";
-      img.style.objectFit = sc.image_fit || "cover";
-      img.style.width = "100%";
-      img.style.height = "100%";
-      img.style.opacity = String((sc.image_opacity ?? 100)/100);
-
-      wrap.appendChild(img);
-      inner.appendChild(wrap);
-      return;
-    }
-
-    // Tekst-innhold
-    if (sc.type === "text") {
-      const div = document.createElement("div");
-      div.className = "text";
-      div.textContent = sc.text || "Pause";
-      div.style.color = sc.text_color || "#fff";
-      div.style.fontSize = `${Math.max(4, Math.min(30, Number(sc.font_vh ?? 10)))}vh`;
-      inner.appendChild(div);
-    }
-  }
   </script>
 </body>
 </html>

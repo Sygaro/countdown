@@ -1,3 +1,4 @@
+<!-- path: static/admin.html -->
 <!doctype html>
 <html lang="no">
 <head>
@@ -13,10 +14,13 @@
     .off { color:#e6edf3; background:#374151; }
     .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center }
     .hint-inline { font-size:.85rem; opacity:.9; margin-left:6px }
-    .preview { background:#0b0f14;border:1px solid var(--border); border-radius:12px; padding:14px; min-height:200px; display:flex; align-items:center; justify-content:center }
-    .pv-box { width:100%; max-width:800px; aspect-ratio: 16/8; border:1px solid var(--border); border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:10px; }
-    .pv-digits { font-weight:800; letter-spacing:.06em; font-size: clamp(4vw, 8vw, 10vw); }
+    .preview { background:#0b0f14;border:1px solid var(--border); border-radius:12px; padding:14px; min-height:220px; display:flex; align-items:center; justify-content:center }
+    .pv-root { width:100%; max-width:800px; aspect-ratio: 16/8; border:1px solid var(--border); border-radius:10px; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+    .pv-clock { position:absolute; font-weight:800; }
+    .pv-text { font-weight:800; }
     .tag { font-size:.8rem; color:var(--muted); border:1px dashed var(--border); padding:2px 6px; border-radius:6px }
+    .muted-sm { font-size:.85rem; color:var(--muted) }
+    .disabled-note { font-size:.85rem; color:#ffd166 }
   </style>
 </head>
 <body>
@@ -93,7 +97,7 @@
     <!-- Visning / oppførsel -->
     <section class="card">
       <h2>Visning / oppførsel</h2>
-      <div class="help">Terskel: ved ≥ verdi vises <strong>H:MM:SS</strong>, ellers <strong>MM:SS</strong> (70→2:00:00, 300→120:00).</div>
+      <div class="help">Terskel: ved ≥ verdi vises <strong>H:MM:SS</strong>, ellers <strong>MM:SS</strong>.</div>
       <label><input id="use_phase_colors" type="checkbox"/> Fargelegg ved gult/rødt</label>
       <label><input id="use_blink" type="checkbox"/> Blink de siste sekundene</label>
 
@@ -194,8 +198,9 @@
     <section class="card">
       <h2>Stopp-skjerm – Innhold</h2>
       <label><input type="radio" name="screen_type" value="text"/> Tekst</label>
-      <label><input type="radio" name="screen_type" value="image"/> Bilde</label>
+      <label><input id="screen_type_img" type="radio" name="screen_type" value="image"/> Bilde</label>
       <label><input type="radio" name="screen_type" value="blackout"/> Blackout</label>
+      <p id="screen_image_hint" class="disabled-note" style="display:none">“Bilde” er deaktivert når bakgrunn er satt til <em>Bilde</em>.</p>
 
       <div id="screen_text_cfg">
         <label>Tekst <input id="screen_text" type="text" placeholder="Pause"/></label>
@@ -212,52 +217,61 @@
     </section>
 
     <!-- Stopp-skjerm – Bakgrunn & Klokke -->
-   <!-- Utdrag: seksjonen “Stopp-skjerm – Bakgrunn & Klokke” – bytt ut denne blokken -->
-<section class="card">
-  <h2>Stopp-skjerm – Bakgrunn & Klokke</h2>
-  <label><input id="sc_use_theme_bg" type="checkbox"/> Bruk samme bakgrunn som visningen</label>
+    <section class="card">
+      <h2>Stopp-skjerm – Bakgrunn & Klokke</h2>
+      <label><input id="sc_use_theme_bg" type="checkbox"/> Bruk samme bakgrunn som visningen</label>
 
-  <div id="sc_bg_cfg">
-    <label><input type="radio" name="sc_bg_mode" value="solid"/> Ensfarget</label>
-    <label><input type="radio" name="sc_bg_mode" value="gradient"/> Gradient</label>
-    <label><input type="radio" name="sc_bg_mode" value="image"/> Bilde</label>
-    <div id="sc_bg_solid"><label>Farge <input id="sc_bg_solid_color" type="color" value="#0b0f14"/></label></div>
-    <div id="sc_bg_grad">
-      <label>Fra <input id="sc_bg_grad_from" type="color" value="#142033"/></label>
-      <label>Til <input id="sc_bg_grad_to" type="color" value="#0b0f14"/></label>
-      <label>Vinkel (°) <input id="sc_bg_grad_angle" type="number" min="0" max="360" step="1" value="180"/></label>
-    </div>
-    <div id="sc_bg_img">
-      <label>Bilde-URL <input id="sc_bg_img_url" type="url" placeholder="https://..."/></label>
-      <label>Fit
-        <select id="sc_bg_img_fit"><option>cover</option><option>contain</option></select>
+      <div id="sc_bg_cfg">
+        <label><input type="radio" name="sc_bg_mode" value="solid"/> Ensfarget</label>
+        <label><input type="radio" name="sc_bg_mode" value="gradient"/> Gradient</label>
+        <label><input type="radio" name="sc_bg_mode" value="image"/> Bilde</label>
+        <div id="sc_bg_solid"><label>Farge <input id="sc_bg_solid_color" type="color" value="#0b0f14"/></label></div>
+        <div id="sc_bg_grad">
+          <label>Fra <input id="sc_bg_grad_from" type="color" value="#142033"/></label>
+          <label>Til <input id="sc_bg_grad_to" type="color" value="#0b0f14"/></label>
+          <label>Vinkel (°) <input id="sc_bg_grad_angle" type="number" min="0" max="360" step="1" value="180"/></label>
+        </div>
+        <div id="sc_bg_img">
+          <label>Bilde-URL <input id="sc_bg_img_url" type="url" placeholder="https://..."/></label>
+          <label>Fit
+            <select id="sc_bg_img_fit"><option>cover</option><option>contain</option></select>
+          </label>
+          <label>Opacity (0–1) <input id="sc_bg_img_op" type="number" min="0" max="1" step="0.05" value="1"/></label>
+          <label>Tint-farge <input id="sc_bg_img_tint" type="color" value="#000000"/></label>
+          <label>Tint-opacity (0–1) <input id="sc_bg_img_tint_op" type="number" min="0" max="1" step="0.05" value="0"/></label>
+        </div>
+      </div>
+
+      <hr/>
+      <label><input id="sc_clock_show" type="checkbox"/> Vis klokke</label>
+      <label><input id="sc_clock_secs" type="checkbox"/> Vis sekunder</label>
+      <label>Klokke-farge <input id="sc_clock_color" type="color" value="#e6edf3"/></label>
+      <label>Klokke-størrelse (vh) <input id="sc_clock_size" type="number" min="6" max="30" step="1" value="12"/></label>
+
+      <label>Klokke-posisjon
+        <select id="sc_clock_pos">
+          <option value="top-left">oppe/venstre</option>
+          <option value="top-right" selected>oppe/høyre</option>
+          <option value="bottom-left">nede/venstre</option>
+          <option value="bottom-right">nede/høyre</option>
+          <option value="top">oppe (midt)</option>
+          <option value="bottom">nede (midt)</option>
+          <option value="center">midt på skjermen</option>
+        </select>
       </label>
-      <label>Opacity (0–1) <input id="sc_bg_img_op" type="number" min="0" max="1" step="0.05" value="1"/></label>
-      <label>Tint-farge <input id="sc_bg_img_tint" type="color" value="#000000"/></label>
-      <label>Tint-opacity (0–1) <input id="sc_bg_img_tint_op" type="number" min="0" max="1" step="0.05" value="0"/></label>
-    </div>
-  </div>
+    </section>
 
-  <hr/>
-  <label><input id="sc_clock_show" type="checkbox"/> Vis klokke</label>
-  <label><input id="sc_clock_secs" type="checkbox"/> Vis sekunder</label>
-  <label>Klokke-farge <input id="sc_clock_color" type="color" value="#e6edf3"/></label>
-  <label>Klokke-størrelse (vh) <input id="sc_clock_size" type="number" min="6" max="30" step="1" value="12"/></label>
-  <!-- Klokke-posisjon (i Stopp-skjerm – Bakgrunn & Klokke) -->
-<label>Klokke-posisjon
-  <select id="sc_clock_pos">
-    <option value="top-left">oppe/venstre</option>
-    <option value="top-right" selected>oppe/høyre</option>
-    <option value="bottom-left">nede/venstre</option>
-    <option value="bottom-right">nede/høyre</option>
-    <option value="top">oppe (midt)</option>
-    <option value="bottom">nede (midt)</option>
-    <option value="center">midt på skjermen</option>
-  </select>
-</label>
-
-</section>
-
+    <!-- Forhåndsvisning Stopp-skjerm -->
+    <section class="card">
+      <h2>Forhåndsvisning Stopp-skjerm</h2>
+      <div class="preview">
+        <div id="pv_root" class="pv-root">
+          <div id="pv_inner"></div>
+          <div id="pv_clock" class="pv-clock"></div>
+        </div>
+      </div>
+      <p class="muted-sm">Forhåndsvisningen er lokal og påvirker ikke lagret konfig før du trykker <em>Lagre</em>.</p>
+    </section>
   </main>
 
   <script>
@@ -269,6 +283,7 @@
       const val = (sel, def="") => (document.querySelector(sel)?.value ?? def);
       const checked = (sel) => !!document.querySelector(sel)?.checked;
       const num = (sel, def=0) => { const v = parseFloat(val(sel,"")); return Number.isFinite(v) ? v : def; };
+      const hex2rgb = h => { const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((h||"").trim()); return m? [parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)] : [0,0,0]; };
 
       async function fetchDefaults(){ if (defaultsCache) return defaultsCache; const r=await fetch("/api/defaults"); const js=await r.json(); defaultsCache=js.defaults; return defaultsCache; }
       function headers(){ const pwd=($("#admin_password")?.value||"").trim(); const h={"Content-Type":"application/json"}; if(pwd) h["X-Admin-Password"]=pwd; return h; }
@@ -292,12 +307,24 @@
 
         const bg=selBgMode(); $("#bg_solid_cfg").style.display = bg==="solid"?"block":"none"; $("#bg_grad_cfg").style.display = bg==="gradient"?"block":"none"; $("#bg_img_cfg").style.display = bg==="image"?"block":"none";
         const bg2=selScBgMode(); $("#sc_bg_solid").style.display = bg2==="solid"?"block":"none"; $("#sc_bg_grad").style.display = bg2==="gradient"?"block":"none"; $("#sc_bg_img").style.display = bg2==="image"?"block":"none";
+
+        // Deaktiver “innhold=bilde” når aktiv bakgrunn er bilde (theme eller local)
+        const themeBgMode = lastCfg?.theme?.background?.mode || "solid";
+        const activeBgMode = scUseTheme ? themeBgMode : bg2;
+        const disableImageContent = (activeBgMode === "image");
+        $("#screen_type_img").disabled = disableImageContent;
+        $("#screen_image_hint").style.display = disableImageContent ? "block" : "none";
+        if (disableImageContent && selScreenType()==="image"){
+          // tving til tekst for å unngå dobbelt-bilde
+          ($$("input[name=screen_type]")[0]).checked = true;
+          $("#screen_text_cfg").style.display = "block";
+          $("#screen_image_cfg").style.display = "none";
+        }
       }
 
       // kontrast (hint)
-      const hexToRgb = h => { const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((h||"").trim()); return m? [parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)] : [230,237,243]; };
       const luminance = ([r,g,b]) => { const a=[r,g,b].map(v=>{v/=255; return (v<=0.03928)? v/12.92 : Math.pow((v+0.055)/1.055,2.4)}); return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2]; };
-      const contrast = (c1,c2) => { const L1=luminance(hexToRgb(c1)), L2=luminance(hexToRgb(c2)); const [hi,lo]=L1>L2?[L1,L2]:[L2,L1]; return (hi+0.05)/(lo+0.05); };
+      const contrast = (c1,c2) => { const [r1,g1,b1]=hex2rgb(c1), [r2,g2,b2]=hex2rgb(c2); const L1=luminance([r1,g1,b1]), L2=luminance([r2,g2,b2]); const [hi,lo]=L1>L2?[L1,L2]:[L2,L1]; return (hi+0.05)/(lo+0.05); };
       function currentPreviewBgColor(){ const bg=selBgMode(); if(bg==="solid") return val("#bg_solid_color","#0b0f14"); if(bg==="gradient") return val("#bg_grad_to","#0b0f14"); return val("#bg_img_tint","#000000"); }
       function updateDigitContrastHints(){
         const bg=currentPreviewBgColor();
@@ -321,7 +348,7 @@
         $("#daily_time").value=cfg.daily_time||""; $("#once_at").value=(cfg.once_at||"").replace("Z","");
         $("#active_mode").textContent=`Aktiv modus: ${cfg.mode} · Fase: ${tick?.mode||"—"} (${tick?.state||"—"})`;
 
-        // Meldinger innhold
+        // Meldinger
         $("#show_message_primary").checked=!!cfg.show_message_primary;
         $("#show_message_secondary").checked=!!cfg.show_message_secondary;
         $("#message_primary").value=cfg.message_primary||"";
@@ -336,13 +363,13 @@
         // H:MM:SS-terskel
         $("#hms_threshold_minutes").value = cfg.hms_threshold_minutes ?? 60;
 
-        // Farger/kontrast (digits/varsler/over)
+        // Farger
         $("#color_normal").value = cfg.color_normal || "#e6edf3";
         $("#color_warn").value   = cfg.color_warn   || "#ffd166";
         $("#color_alert").value  = cfg.color_alert  || "#ff6b6b";
         $("#color_over").value   = cfg.color_over   || "#9ad0ff";
 
-        // Vis/posisjon mål-klokkeslett og meldinger
+        // Vis/posisjon
         $("#show_target_time").checked = !!cfg.show_target_time;
         $("#target_time_after").value  = cfg.target_time_after || "secondary";
         $("#messages_position").value  = cfg.messages_position || "below";
@@ -369,7 +396,7 @@
         $("#bg_img_tint").value    = bg.image?.tint?.color || "#000000";
         $("#bg_img_tint_op").value = bg.image?.tint?.opacity ?? 0;
 
-        // Stopp-skjerm innhold
+        // Stopp-skjerm
         const sc=cfg?.screen||{};
         ($(`input[name=screen_type][value=${sc.type||"text"}]`)||{}).checked=true;
         $("#screen_text").value        = sc.text || "Pause";
@@ -392,7 +419,7 @@
         $("#sc_bg_img_tint").value    = sbg.image?.tint?.color || "#000000";
         $("#sc_bg_img_tint_op").value = sbg.image?.tint?.opacity ?? 0;
 
-        // Klokke (inkl. posisjon — fix)
+        // Klokke
         $("#sc_clock_show").checked = !!(sc.clock?.show);
         $("#sc_clock_secs").checked = !!(sc.clock?.with_seconds);
         $("#sc_clock_color").value  = sc.clock?.color || "#e6edf3";
@@ -400,9 +427,17 @@
         $("#sc_clock_pos").value    = String((sc.clock?.position) || "top-right");
 
         lock(); updateDigitContrastHints(); updateMessageContrastHints();
-  }
+        renderPreview(); // vis nåværende config
+      }
 
-      async function loadAll(){ const r=await fetch("/api/config"); const js=await r.json(); js.config.tick=js.tick; apply(js.config,js.tick); hint.textContent="Status oppdatert"; setTimeout(()=>hint.textContent="",1200); }
+      async function loadAll(){
+        const r=await fetch("/api/config");
+        const js=await r.json();
+        js.config.tick=js.tick;
+        apply(js.config,js.tick);
+        hint.textContent="Status oppdatert";
+        setTimeout(()=>hint.textContent="",1200);
+      }
 
       async function saveAll(){
         const m=selMode();
@@ -453,7 +488,7 @@
             }
           },
 
-          // stopp-skjerm (innhold+bakgrunn+klokke)
+          // stopp-skjerm
           screen: {
             type: selScreenType(),
             text: val("#screen_text","Pause"),
@@ -476,38 +511,137 @@
               with_seconds: checked("#sc_clock_secs"),
               color: val("#sc_clock_color","#e6edf3"),
               size_vh: Number(val("#sc_clock_size","12")),
-              position: String(val("#sc_clock_pos","top-right"))  /* ← FIX */
+              position: String(val("#sc_clock_pos","top-right"))
             }
           }
         };
 
         const r=await fetch("/api/config",{method:"POST",headers:headers(),body:JSON.stringify(body)});
         if(!r.ok) throw new Error(await r.text());
-        const js=await r.json(); apply(js.config, js.tick); hint.textContent="Lagret"; setTimeout(()=>hint.textContent="",1200);
-  }
+        const js=await r.json();
+        apply(js.config, js.tick);
+        hint.textContent="Lagret";
+        setTimeout(()=>hint.textContent="",1200);
+      }
+
+      // Forhåndsvisning (lokal)
+      function pvApplyBg(root, bg){
+        const mode=String(bg?.mode||"solid");
+        root.style.background="";
+        root.style.backgroundSize="";
+        root.style.backgroundPosition="";
+        root.style.backgroundRepeat="";
+        if(mode==="solid"){ root.style.background=bg.solid?.color||"#0b0f14"; return; }
+        if(mode==="gradient"){ const g=bg.gradient||{}; const a=Number(g.angle_deg??180); root.style.background=`linear-gradient(${a}deg, ${g.from||"#142033"}, ${g.to||"#0b0f14"})`; return; }
+        if(mode==="image"){
+          const im=bg.image||{}, tint=im.tint||{}; const hasTint=Number(tint.opacity??0)>0;
+          const tintLayer = hasTint ? `linear-gradient(rgba(${hex2rgb(tint.color||"#000").join(",")}, ${Number(tint.opacity)}), rgba(${hex2rgb(tint.color||"#000").join(",")}, ${Number(tint.opacity)})), ` : "";
+          const url = im.url ? `url("${im.url}")` : "none";
+          root.style.background=`${tintLayer}${url}`; root.style.backgroundSize=im.fit||"cover"; root.style.backgroundPosition="center"; root.style.backgroundRepeat="no-repeat";
+        }
+      }
+      function readDraft(){
+        const scUseTheme = checked("#sc_use_theme_bg");
+        return {
+          type: selScreenType(),
+          text: val("#screen_text","Pause"),
+          text_color: val("#screen_text_color","#fff"),
+          font_vh: num("#screen_font_vh",10),
+          image_url: val("#screen_image_url",""),
+          image_fit: val("#screen_image_fit","cover"),
+          image_opacity: num("#screen_image_opacity",100),
+          use_theme_background: scUseTheme,
+          background: {
+            mode: selScBgMode(),
+            solid: { color: val("#sc_bg_solid_color","#0b0f14") },
+            gradient: { from: val("#sc_bg_grad_from","#142033"), to: val("#sc_bg_grad_to","#0b0f14"), angle_deg: num("#sc_bg_grad_angle",180) },
+            image: { url: val("#sc_bg_img_url",""), fit: val("#sc_bg_img_fit","cover"),
+                     opacity: num("#sc_bg_img_op",1), tint: { color: val("#sc_bg_img_tint","#000000"), opacity: num("#sc_bg_img_tint_op",0) } }
+          },
+          clock: {
+            show: checked("#sc_clock_show"),
+            with_seconds: checked("#sc_clock_secs"),
+            color: val("#sc_clock_color","#e6edf3"),
+            size_vh: num("#sc_clock_size",12),
+            position: val("#sc_clock_pos","top-right")
+          }
         };
+      }
+      let pvTimer=null;
+      function renderPreview(){
+        const sc = readDraft();
+        const root = $("#pv_root"), inner=$("#pv_inner"), clk=$("#pv_clock");
+        inner.innerHTML=""; clk.textContent="";
 
-        const r=await fetch("/api/config",{method:"POST",headers:headers(),body:JSON.stringify(body)});
-        if(!r.ok) throw new Error(await r.text());
-        const js=await r.json(); apply(js.config, js.tick); hint.textContent="Lagret"; setTimeout(()=>hint.textContent="",1200);
+        const themeBg = lastCfg?.theme?.background;
+        pvApplyBg(root, sc.use_theme_background ? themeBg : sc.background);
+
+        if (sc.type==="blackout"){ root.style.background="#000"; }
+
+        // Innhold (ingen dobbelt-bilde)
+        const activeBgMode = (sc.use_theme_background ? (themeBg?.mode||"solid") : sc.background?.mode||"solid");
+        if (sc.type==="image" && activeBgMode!=="image"){
+          const img=document.createElement("img");
+          img.src=sc.image_url||""; img.style.objectFit=sc.image_fit||"cover";
+          img.style.maxWidth="90%"; img.style.maxHeight="80%"; img.style.opacity=String((sc.image_opacity??100)/100);
+          inner.appendChild(img);
+        } else if (sc.type==="text"){
+          const t=document.createElement("div");
+          t.className="pv-text"; t.textContent=sc.text||"Pause"; t.style.color=sc.text_color||"#fff"; t.style.fontSize=`${Math.max(4,Math.min(30,Number(sc.font_vh||10)))}vh`;
+          inner.appendChild(t);
+        }
+
+        // Klokke
+        if (sc.clock.show){
+          const d=new Date(), HH=String(d.getHours()).padStart(2,"0"), MM=String(d.getMinutes()).padStart(2,"0"), SS=String(d.getSeconds()).padStart(2,"0");
+          clk.style.display="block"; clk.style.color=sc.clock.color||"#e6edf3"; clk.style.fontSize=`${Math.max(6,Math.min(30,Number(sc.clock.size_vh||12)))}vh`;
+          clk.style.top=clk.style.right=clk.style.bottom=clk.style.left="auto"; clk.style.transform="none";
+          const pos=String(sc.clock.position||"top-right");
+          if(pos==="top-left"){ clk.style.top="2%"; clk.style.left="3%"; }
+          else if(pos==="top-right"){ clk.style.top="2%"; clk.style.right="3%"; }
+          else if(pos==="bottom-left"){ clk.style.bottom="2%"; clk.style.left="3%"; }
+          else if(pos==="bottom-right"){ clk.style.bottom="2%"; clk.style.right="3%"; }
+          else if(pos==="top"){ clk.style.top="2%"; clk.style.left="50%"; clk.style.transform="translateX(-50%)"; }
+          else if(pos==="bottom"){ clk.style.bottom="2%"; clk.style.left="50%"; clk.style.transform="translateX(-50%)"; }
+          else if(pos==="center"){ clk.style.top="50%"; clk.style.left="50%"; clk.style.transform="translate(-50%,-50%)"; }
+          clk.textContent = sc.clock.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
+          if(pvTimer) clearInterval(pvTimer);
+          pvTimer=setInterval(()=>{ const d=new Date(), HH=String(d.getHours()).padStart(2,"0"), MM=String(d.getMinutes()).padStart(2,"0"), SS=String(d.getSeconds()).padStart(2,"0"); clk.textContent=sc.clock.with_seconds?`${HH}:${MM}:${SS}`:`${HH}:${MM}`; }, sc.clock.with_seconds?1000:5000);
+        } else {
+          clk.style.display="none"; if(pvTimer) { clearInterval(pvTimer); pvTimer=null; }
+        }
       }
 
-      // start/stopp varighet
-      async function startDuration(){
-        const minutes = parseInt(val("#start_minutes","0"), 10);
-        if (!Number.isFinite(minutes) || minutes <= 0) { alert("Ugyldig varighet"); return; }
-        const r = await fetch("/api/start-duration",{method:"POST",headers:headers(),body:JSON.stringify({minutes})});
-        if(!r.ok){ alert(await r.text()); return; }
-        await loadAll();
-      }
-      async function stopDurationSwitchDaily(){
-        // enkel: bytt til daily (backend rydder varighet via replace_config)
-        const r = await fetch("/api/config",{method:"POST",headers:headers(),body:JSON.stringify({mode:"daily"})});
-        if(!r.ok){ alert(await r.text()); return; }
-        await loadAll();
-      }
+      // events
+      $$("input[name=mode]").forEach(el=>el.addEventListener("change",()=>{lock(); renderPreview();}));
+      $$("input[name=screen_type]").forEach(el=>el.addEventListener("change",()=>{lock(); renderPreview();}));
+      $$("input[name=bg_mode]").forEach(el=>el.addEventListener("change",()=>{lock(); updateDigitContrastHints(); updateMessageContrastHints();}));
+      $$("input[name=sc_bg_mode]").forEach(el=>el.addEventListener("change",()=>{lock(); renderPreview();}));
+      $("#sc_use_theme_bg").addEventListener("change",()=>{lock(); renderPreview();});
+      ["color_normal","color_warn","color_alert","color_over","theme_p_color","theme_s_color","screen_text_color"].forEach(id=>{
+        document.getElementById(id).addEventListener("input", ()=>{ updateDigitContrastHints(); updateMessageContrastHints(); renderPreview(); });
+      });
+      ["screen_text","screen_font_vh","screen_image_url","screen_image_opacity","screen_image_fit","sc_clock_color","sc_clock_size","sc_clock_pos"].forEach(id=>{
+        document.getElementById(id).addEventListener("input", renderPreview);
+        document.getElementById(id).addEventListener("change", renderPreview);
+      });
+      $$(".preset").forEach(b=>b.addEventListener("click",()=>{$("#start_minutes").value=b.dataset.min;}));
+      $("#btn_apply_preset").addEventListener("click",()=>{applyPreset(); renderPreview();});
+      $("#btn_save").addEventListener("click",()=>saveAll().catch(e=>alert(e.message)));
+      $("#btn_refresh").addEventListener("click",()=>loadAll().catch(e=>alert(e.message)));
+      $("#btn_reset_view").addEventListener("click",()=>fetchDefaults().then(d=>{
+        $("#digits_size_preset").value=String(d.theme.digits.size_vw);
+        $("#theme_p_size").value=String(d.theme.messages.primary.size_rem); $("#theme_p_weight").value=String(d.theme.messages.primary.weight); $("#theme_p_color").value=d.theme.messages.primary.color;
+        $("#theme_s_size").value=String(d.theme.messages.secondary.size_rem); $("#theme_s_weight").value=String(d.theme.messages.secondary.weight); $("#theme_s_color").value=d.theme.messages.secondary.color;
+        ($(`input[name=bg_mode][value=${d.theme.background.mode}]`)).checked=true;
+        $("#bg_solid_color").value=d.theme.background.solid.color;
+        $("#bg_grad_from").value=d.theme.background.gradient.from; $("#bg_grad_to").value=d.theme.background.gradient.to; $("#bg_grad_angle").value=d.theme.background.gradient.angle_deg;
+        $("#bg_img_url").value=d.theme.background.image.url; $("#bg_img_fit").value=d.theme.background.image.fit; $("#bg_img_op").value=d.theme.background.image.opacity; $("#bg_img_tint").value=d.theme.background.image.tint.color; $("#bg_img_tint_op").value=d.theme.background.image.tint.opacity;
+        lock(); updateDigitContrastHints(); updateMessageContrastHints(); renderPreview();
+      }));
+      $("#sc_clock_show").addEventListener("change", renderPreview);
+      $("#sc_clock_secs").addEventListener("change", renderPreview);
 
-      // presets
       function applyPreset(){
         const p = val("#bg_preset","none");
         if (p==="dark-solid"){
@@ -536,32 +670,6 @@
           else { pill.textContent=`Synk: venter (view ${viewRev} < cfg ${cfgRev})`; pill.className="pill warn"; }
         } catch { pill.textContent="Synk: —"; pill.className="pill off"; }
       }
-
-      // events
-      $$("input[name=mode]").forEach(el=>el.addEventListener("change",lock));
-      $$("input[name=screen_type]").forEach(el=>el.addEventListener("change",lock));
-      $$("input[name=bg_mode]").forEach(el=>el.addEventListener("change",()=>{lock(); updateDigitContrastHints(); updateMessageContrastHints();}));
-      $$("input[name=sc_bg_mode]").forEach(el=>el.addEventListener("change",lock));
-      $("#sc_use_theme_bg").addEventListener("change",lock);
-      ["color_normal","color_warn","color_alert","color_over","theme_p_color","theme_s_color"].forEach(id=>{
-        document.getElementById(id).addEventListener("input", ()=>{ updateDigitContrastHints(); updateMessageContrastHints(); });
-      });
-      $$(".preset").forEach(b=>b.addEventListener("click",()=>{$("#start_minutes").value=b.dataset.min;}));
-      $("#btn_apply_preset").addEventListener("click",applyPreset);
-      $("#btn_save").addEventListener("click",()=>saveAll().catch(e=>alert(e.message)));
-      $("#btn_refresh").addEventListener("click",()=>loadAll().catch(e=>alert(e.message)));
-      $("#btn_reset_view").addEventListener("click",()=>fetchDefaults().then(d=>{ /* bare visningsrelaterte ting til defaults – ikke alt */ 
-        $("#digits_size_preset").value=String(d.theme.digits.size_vw);
-        $("#theme_p_size").value=String(d.theme.messages.primary.size_rem); $("#theme_p_weight").value=String(d.theme.messages.primary.weight); $("#theme_p_color").value=d.theme.messages.primary.color;
-        $("#theme_s_size").value=String(d.theme.messages.secondary.size_rem); $("#theme_s_weight").value=String(d.theme.messages.secondary.weight); $("#theme_s_color").value=d.theme.messages.secondary.color;
-        ($(`input[name=bg_mode][value=${d.theme.background.mode}]`)).checked=true;
-        $("#bg_solid_color").value=d.theme.background.solid.color;
-        $("#bg_grad_from").value=d.theme.background.gradient.from; $("#bg_grad_to").value=d.theme.background.gradient.to; $("#bg_grad_angle").value=d.theme.background.gradient.angle_deg;
-        $("#bg_img_url").value=d.theme.background.image.url; $("#bg_img_fit").value=d.theme.background.image.fit; $("#bg_img_op").value=d.theme.background.image.opacity; $("#bg_img_tint").value=d.theme.background.image.tint.color; $("#bg_img_tint_op").value=d.theme.background.image.tint.opacity;
-        lock(); updateDigitContrastHints(); updateMessageContrastHints();
-      }));
-      $("#btn_start").addEventListener("click",()=>startDuration().catch(e=>alert(e.message)));
-      $("#btn_stop").addEventListener("click",()=>stopDurationSwitchDaily().catch(e=>alert(e.message)));
 
       // init
       loadAll().catch(console.error);
