@@ -4,53 +4,88 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Countdown • Diagnose</title>
-  <link rel="stylesheet" href="/static/css/ui.css">
-  <script type="module" src="/static/js/diag.js"></script>
+  <title>Countdown · Diagnose</title>
+  <link rel="stylesheet" href="/static/css/ui.css" />
+  <style>
+    /* Kun for diagnose: gjøre nedtelling mer synlig */
+    .big { font-size: 8vh; line-height: 1.1; font-weight: 700; }
+    .muted { opacity: .75; }
+    .ok { color: #6dd96d; }
+    .fail { color: #ff6b6b; }
+    .grid { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+    @media (min-width: 960px) { .grid { grid-template-columns: 1fr 1fr; } }
+    pre { max-height: 40vh; overflow: auto; }
+  </style>
 </head>
 <body>
-  <div class="nav">
-    <div class="nav-inner">
-      <div class="brand">⏱ Countdown</div>
-      <a class="link" href="/">Visning</a>
-      <a class="link" href="/admin">Admin</a>
-      <a class="link active" href="/diag">Diagnose</a>
-      <a class="link" href="/about">Om</a>
-    </div>
-  </div>
+  <header>
+    <h1>Diagnose</h1>
+    <nav>
+      <a href="/">Visning</a>
+      <a href="/admin">Admin</a>
+      <a class="active" href="/diag">Diagnose</a>
+      <a href="/about">Om</a>
+    </nav>
+  </header>
 
-  <div class="container">
-    <div class="grid cols-2">
-      <div class="card">
-        <h3>Tilkobling</h3>
-        <div class="row">
-          <span>RTT:</span> <span class="badge" id="rtt">–</span>
-          <span>Drift (client − server):</span> <span class="badge" id="drift">–</span>
-          <label>Intervall (ms)</label><input id="interval" type="number" min="200" step="100" value="1000">
-          <button id="toggle" class="btn">Pause</button>
-        </div>
-        <hr class="sep">
-        <div class="kv">
-          <label>Server now_ms</label><div id="now" class="mono">–</div>
-          <label>Client now_ms</label><div id="cnow" class="mono">–</div>
-          <label>Target ms</label><div id="tms" class="mono">–</div>
-          <label>Target HH:MM</label><div id="thhmm" class="mono">–</div>
-          <label>Display mm:ss</label><div id="disp" class="mono">–</div>
-          <label>Mode / State</label><div id="mode" class="mono">–</div>
-          <label>warn / alert / overrun</label><div id="wao" class="mono">–</div>
-          <label>Config path</label><div id="cfgp" class="mono">–</div>
-        </div>
+  <main class="grid">
+    <section class="card">
+      <h2>Nedtelling (live)</h2>
+      <div id="countdown" class="big">00:00</div>
+      <div id="phase" class="muted">fase: — · state: —</div>
+      <div id="meta" class="muted">mål: — · nå: —</div>
+      <div style="margin-top:.5rem">
+        <button id="refresh">Oppdater</button>
       </div>
+    </section>
 
-      <div class="card">
-        <h3>Rådata</h3>
-        <pre id="raw" class="mono" style="white-space:pre-wrap;background:#0b1020;padding:12px;border-radius:12px; border:1px solid var(--line); max-height:360px; overflow:auto;">(tom)</pre>
+    <section class="card">
+      <h2>Selvtest</h2>
+      <p>Rask sanitetssjekk av kjerne-logikk (ikke pytest).</p>
+      <ul id="selftest"></ul>
+      <div style="margin-top:.5rem">
+        <button id="run_selftest">Kjør selvtest</button>
       </div>
-    </div>
+    </section>
 
-    <div class="footer-links">
-      Snarveier: <a href="/">Visning</a> · <a href="/admin">Admin</a> · <a href="/diag">Diagnose</a> · <a href="/about">Om</a>
-    </div>
-  </div>
+    <section class="card">
+      <h2>Rådata</h2>
+      <pre id="raw">(tom)</pre>
+    </section>
+  </main>
+
+  <script>
+    (function(){
+      const fmt = (ms) => {
+        const sgn = ms < 0 ? "-" : "";
+        ms = Math.abs(ms);
+        let s = Math.floor(ms/1000);
+        const h = Math.floor(s/3600); s%=3600;
+        const m = Math.floor(s/60); s%=60;
+        const pad = (n) => String(n).padStart(2,"0");
+        return h>0 ? `${sgn}${h}:${pad(m)}:${pad(s)}` : `${sgn}${m}:${pad(s)}`;
+      };
+      async function poll() {
+        const r = await fetch("/tick"); const t = await r.json();
+        document.getElementById("countdown").textContent = fmt(t.signed_display_ms);
+        document.getElementById("phase").textContent = `fase: ${t.mode} · state: ${t.state}`;
+        document.getElementById("meta").textContent = `mål: ${t.target_hhmm || t.target_ms} · nå: ${new Date(t.now_ms).toLocaleTimeString()}`;
+        document.getElementById("raw").textContent = JSON.stringify(t, null, 2);
+      }
+      async function selftest() {
+        const r = await fetch("/debug/selftest"); const js = await r.json();
+        const ul = document.getElementById("selftest"); ul.innerHTML = "";
+        js.tests.forEach(t => {
+          const li = document.createElement("li");
+          li.textContent = `${t.ok ? "✔" : "✖"} ${t.name}${t.info ? " — "+t.info : ""}`;
+          li.className = t.ok ? "ok" : "fail"; ul.appendChild(li);
+        });
+      }
+      document.getElementById("refresh").addEventListener("click", () => poll().catch(console.error));
+      document.getElementById("run_selftest").addEventListener("click", () => selftest().catch(console.error));
+      poll().catch(console.error);
+      setInterval(poll, 1000);
+    })();
+  </script>
 </body>
 </html>

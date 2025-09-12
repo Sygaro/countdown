@@ -1,239 +1,227 @@
 # app/storage.py
+"""
+Config I/O med eksplisitt mode, inkl. 'screen' (stopp-skjerm).
+Atomisk skriving og validering.
+"""
 from __future__ import annotations
-import json, os, time, fcntl, shutil
-from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Optional, Union, Tuple
-from pathlib import Path
-from datetime import datetime, timezone
+
+import json
+import os
+import tempfile
+import time
+from typing import Any, Dict, Tuple
+from datetime import datetime
 from .settings import CONFIG_PATH, TZ
 
-_CONFIG_PATH: Path = Path(CONFIG_PATH).resolve()
-
-_DEFAULT: Dict[str, Any] = {
+_DEFAULTS: Dict[str, Any] = {
+    "mode": "daily",                 # daily | once | duration | screen
+    "daily_time": "20:00",
+    "once_at": "",
+    "duration_minutes": 10,
+    "duration_started_ms": 0,
+    # Stopp-skjerm
+    "screen": {
+        "type": "text",              # text | image | blackout
+        "text": "Pause",
+        "text_color": "#ffffff",
+        "bg": "#000000",
+        "font_vh": 10,
+        "image_url": "",
+        "image_opacity": 100,        # 0..100
+        "image_fit": "cover",        # cover | contain
+    },
+    # Meldinger
+    "message_primary": "",
+    "message_secondary": "",
     "show_message_primary": True,
-    "show_message_secondary": True,
-    "message_primary": "Velkommen!",
-    "message_secondary": "Vi starter igjen kl:",
+    "show_message_secondary": False,
+    # Varsler/blink
     "warn_minutes": 4,
     "alert_minutes": 2,
     "blink_seconds": 10,
     "overrun_minutes": 1,
-    "admin_password": "",
-    "target_ms": 0,
-    "target_iso": "",
-    "target_datetime": "",
-    "daily_time": "19:00"
+    # Admin
+    "admin_password": None,
 }
+_LEGACY = {"target_ms", "target_iso", "target_datetime"}
 
-def get_config_path() -> Path:
-    return _CONFIG_PATH
-
-# ---------------- IO (atomisk + eksklusiv lås kun ved write) ----------------
-
-def _lock_file_for_write(path: Path) -> int:
-    fd = os.open(str(path), os.O_RDWR | os.O_CREAT, 0o600)
-    fcntl.flock(fd, fcntl.LOCK_EX)
-    return fd
-
-def _unlock_file(fd: int) -> None:
-    try: fcntl.flock(fd, fcntl.LOCK_UN)
-    finally: os.close(fd)
-
-def _atomic_write_json(path: Path, data: Dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists() and path.is_file():
-        try: shutil.copy2(path, path.with_suffix(path.suffix + ".bak"))
-        except Exception: pass
-    with NamedTemporaryFile(mode="w", encoding="utf-8", dir=str(path.parent), delete=False) as tmp:
-        json.dump(data, tmp, ensure_ascii=False, indent=2)
-        tmp.write("\n"); tmp.flush(); os.fsync(tmp.fileno())
-        tmp_name = tmp.name
-    os.replace(tmp_name, path)
+def _atomic_write(path: str, data: Dict[str, Any]) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=".config.", dir=os.path.dirname(path))
     try:
-        dfd = os.open(str(path.parent), os.O_DIRECTORY)
-        try: os.fsync(dfd)
-        finally: os.close(dfd)
-    except Exception:
-        pass
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2, sort_keys=True)
+            f.write("\n")
+        os.replace(tmp, path)
+    finally:
+        try:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+        except Exception:
+            pass
 
-# ---------------- helpers: merge, sanitize, normalize ------------------------
-
-def _deep_merge_skip_empty(dst: Dict[str, Any], patch: Dict[str, Any]) -> Dict[str, Any]:
-    for k, v in (patch or {}).items():
-        if v is None or (isinstance(v, str) and v == ""):
-            continue
+def _deep_merge(dst: Dict[str, Any], src: Dict[str, Any]) -> Dict[str, Any]:
+    for k, v in (src or {}).items():
         if isinstance(v, dict) and isinstance(dst.get(k), dict):
-            dst[k] = _deep_merge_skip_empty(dst[k], v)  # type: ignore[assignment]
+            _deep_merge(dst[k], v)
         else:
             dst[k] = v
     return dst
 
-def _strip_internal_keys(d: Dict[str, Any]) -> Dict[str, Any]:
-    return {k: v for k, v in (d or {}).items() if not (isinstance(k, str) and k.startswith("__"))}
+def _merge_defaults(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    merged = json.loads(json.dumps(_DEFAULTS))  # deep copy
+    return _deep_merge(merged, cfg or {})
 
-def _to_int(v: Any, default: int = 0, minv: int = 0) -> Tuple[int, bool]:
-    orig = v
-    try:
-        if v in ("", None):  # <- viktig: tom streng blir 0
-            x = default
-        else:
-            x = int(v)
-    except Exception:
-        x = default
-    if x < minv: x = minv
-    return x, (x != orig)
+def _strip_legacy(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    for k in list(cfg.keys()):
+        if k in _LEGACY:
+            cfg.pop(k, None)
+    return cfg
 
-def _to_bool(v: Any, default: bool = False) -> Tuple[bool, bool]:
-    orig = v
-    if isinstance(v, bool): return v, False
-    if v in ("", None): return default, (default != orig)
-    if isinstance(v, (int, float)): return (v != 0), (bool(v) != orig)
-    if isinstance(v, str): return (v.strip().lower() in ("1","true","yes","on")), (True != orig and False != orig)
-    return default, (default != orig)
+def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    def _i(v, d=None):
+        if v in (None, ""): return d
+        try: return int(v)
+        except Exception: return d
 
-def _to_str(v: Any, default: str = "") -> Tuple[str, bool]:
-    orig = v
-    if v is None: return default, (default != orig)
-    s = str(v)
-    return s, (s != orig)
+    for k in ("warn_minutes","alert_minutes","blink_seconds","overrun_minutes","duration_minutes","duration_started_ms"):
+        if k in cfg: cfg[k] = _i(cfg[k], _DEFAULTS.get(k, 0))
 
-def _sanitize_target_patch(patch: Dict[str, Any]) -> Dict[str, Any]:
-    p = dict(patch or {})
-    explicit_clear = p.get("__clear_target") is True or (
-        isinstance(p.get("target_datetime"), str) and p["target_datetime"].strip() == "__clear__"
-    )
+    # Meldinger / tider
+    for k in ("message_primary","message_secondary","daily_time","once_at"):
+        if cfg.get(k) is None: cfg[k] = ""
 
-    td = p.get("target_datetime")
-    if isinstance(td, str) and td and td != "__clear__":
-        try:
-            dt = datetime.fromisoformat(td)
-            if dt.tzinfo is None: dt = dt.replace(tzinfo=TZ)
-            utc = dt.astimezone(timezone.utc)
-            p["target_ms"] = int(utc.timestamp() * 1000)
-            p["target_iso"] = utc.isoformat()
-        except Exception:
-            p.pop("target_datetime", None)
+    # Booleans
+    for k in ("show_message_primary","show_message_secondary"):
+        v = cfg.get(k)
+        if isinstance(v, str):
+            cfg[k] = v.strip().lower() in ("1","true","yes","y","on")
 
-    if not explicit_clear:
-        if p.get("target_ms") in (0, "", None): p.pop("target_ms", None)
-        if isinstance(p.get("target_iso"), str) and not p["target_iso"].strip(): p.pop("target_iso", None)
-        if isinstance(p.get("target_datetime"), str) and p["target_datetime"].strip() in ("", "__clear__"): p.pop("target_datetime", None)
-    else:
-        p.update({"target_ms": 0, "target_iso": "", "target_datetime": ""})
+    # Screen
+    sc = cfg.get("screen") or {}
+    sc.setdefault("type", "text")
+    sc.setdefault("text", "Pause")
+    sc.setdefault("text_color", "#ffffff")
+    sc.setdefault("bg", "#000000")
+    sc["font_vh"] = _i(sc.get("font_vh"), 10)
+    sc.setdefault("image_url", "")
+    sc["image_opacity"] = max(0, min(100, _i(sc.get("image_opacity"), 100)))
+    sc.setdefault("image_fit", "cover")
+    cfg["screen"] = sc
 
-    p.pop("__clear_target", None)
-    return p
+    return cfg
 
-def _normalize_types(cfg: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
-    """
-    Sørg for at alle felt har korrekt type. Viktig for å unngå 500 i /api/config POST.
-    """
-    changed = False
-    out = dict(cfg)
+def _validate(cfg: Dict[str, Any]) -> Tuple[bool, str]:
+    m = cfg.get("mode")
+    if m not in ("daily","once","duration","screen"):
+        return False, "mode må være daily|once|duration|screen"
+    if m == "daily":
+        s = (cfg.get("daily_time") or "").strip()
+        if len(s) != 5 or ":" not in s:
+            return False, "daily_time må være HH:MM"
+    if m == "once":
+        s = (cfg.get("once_at") or "").strip()
+        if s:
+            try:
+                dt = datetime.fromisoformat(s)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=TZ)
+            except Exception:
+                return False, "once_at må være ISO (YYYY-MM-DDTHH:MM)"
+    if m == "duration":
+        if int(cfg.get("duration_minutes") or 0) <= 0:
+            return False, "duration_minutes må være > 0"
+    if m == "screen":
+        sc = cfg.get("screen") or {}
+        if sc.get("type") not in ("text","image","blackout"):
+            return False, "screen.type må være text|image|blackout"
+        if sc.get("type") == "image" and not (sc.get("image_url") or "").strip():
+            return False, "screen.image_url må settes for image"
+    return True, ""
 
-    for k in ("warn_minutes", "alert_minutes", "blink_seconds", "overrun_minutes"):
-        out[k], ch = _to_int(out.get(k, _DEFAULT[k]), _DEFAULT[k], 0); changed = changed or ch
-
-    out["target_ms"], ch = _to_int(out.get("target_ms", 0), 0, 0); changed = changed or ch
-
-    for k in ("show_message_primary", "show_message_secondary"):
-        out[k], ch = _to_bool(out.get(k, _DEFAULT[k]), _DEFAULT[k]); changed = changed or ch
-
-    for k in ("message_primary", "message_secondary", "admin_password", "target_iso", "target_datetime", "daily_time"):
-        default = _DEFAULT.get(k, "")
-        out[k], ch = _to_str(out.get(k, default), default); changed = changed or ch
-
-    return out, changed
-
-def _migrate(cfg: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
-    changed = False
-    # Gamle nøkler -> nye
-    if "warn_seconds" in cfg and "warn_minutes" not in cfg:
-        try: cfg["warn_minutes"] = max(0, int(cfg["warn_seconds"])) // 60; changed = True
-        except Exception: pass
-        cfg.pop("warn_seconds", None)
-    if "blink_under_seconds" in cfg and "blink_seconds" not in cfg:
-        try: cfg["blink_seconds"] = max(0, int(cfg["blink_under_seconds"])); changed = True
-        except Exception: pass
-        cfg.pop("blink_under_seconds", None)
-    if "message" in cfg and "message_primary" not in cfg:
-        try: cfg["message_primary"] = str(cfg["message"]); changed = True
-        except Exception: pass
-        cfg.pop("message", None)
-
-    # Defaults for manglende felt
-    for k, v in _DEFAULT.items():
-        if k not in cfg:
-            cfg[k] = v; changed = True
-
-    # Type-normalisering (f.eks. "" -> 0 for target_ms)
-    cfg, ch2 = _normalize_types(cfg); changed = changed or ch2
-
-    if changed:
-        cfg["_migrated_at"] = int(time.time())
-    return cfg, changed
-
-# --------------------------- Public API --------------------------------------
+def _clean_by_mode(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    # Hold irrelevant data tomt for valgt modus
+    m = cfg.get("mode")
+    if m == "daily":
+        cfg["once_at"] = ""
+        cfg["duration_started_ms"] = 0
+    elif m == "once":
+        cfg["duration_started_ms"] = 0
+    elif m == "duration":
+        cfg["once_at"] = ""
+    elif m == "screen":
+        cfg["once_at"] = ""
+        cfg["duration_started_ms"] = 0
+    return cfg
 
 def load_config() -> Dict[str, Any]:
-    path = get_config_path()
-
-    if not path.exists():
-        cfg = _DEFAULT.copy()
-        fd = _lock_file_for_write(path)
-        try: _atomic_write_json(path, cfg)
-        finally: _unlock_file(fd)
+    path = str(CONFIG_PATH)
+    if not os.path.exists(path):
+        cfg = _merge_defaults({})
+        _atomic_write(path, cfg)
         return cfg
-
     try:
         with open(path, "r", encoding="utf-8") as f:
             cfg = json.load(f)
-    except json.JSONDecodeError:
-        bak = path.with_suffix(path.suffix + ".bak")
-        if bak.exists():
-            with open(bak, "r", encoding="utf-8") as f:
-                cfg = json.load(f)
-            cfg, _ = _migrate(dict(cfg))
-            return cfg
-        cfg, _ = _migrate(_DEFAULT.copy())
-        return cfg
-
-    migrated, changed = _migrate(dict(cfg))
-    if changed:
-        fd = _lock_file_for_write(path)
-        try: _atomic_write_json(path, migrated)
-        finally: _unlock_file(fd)
-    return migrated
+    except Exception:
+        cfg = {}
+    cfg = _merge_defaults(_strip_legacy(cfg))
+    cfg = _coerce(cfg)
+    ok, _ = _validate(cfg)
+    if not ok:
+        cfg = _merge_defaults(cfg)
+    return _clean_by_mode(cfg)
 
 def replace_config(new_cfg: Dict[str, Any]) -> Dict[str, Any]:
-    if not isinstance(new_cfg, dict): raise TypeError("Config must be a dict")
-    safe = _migrate(_sanitize_target_patch(_strip_internal_keys(new_cfg)))[0]
-    safe["_updated_at"] = int(time.time())
-    path = get_config_path()
-    fd = _lock_file_for_write(path)
-    try: _atomic_write_json(path, safe)
-    finally: _unlock_file(fd)
-    return safe
+    cfg = _merge_defaults(_strip_legacy(new_cfg))
+    cfg = _coerce(cfg)
+    ok, msg = _validate(cfg)
+    if not ok:
+        raise ValueError(msg)
+    cfg["_updated_at"] = int(time.time())
+    cfg = _clean_by_mode(cfg)
+    _atomic_write(str(CONFIG_PATH), cfg)
+    return cfg
 
 def save_config_patch(patch: Dict[str, Any]) -> Dict[str, Any]:
     current = load_config()
-    safe_patch = _sanitize_target_patch(_strip_internal_keys(patch))
-    merged = _deep_merge_skip_empty(current, safe_patch)
-    merged, _ = _migrate(merged)
-    merged["_updated_at"] = int(time.time())
-    path = get_config_path()
-    fd = _lock_file_for_write(path)
-    try: _atomic_write_json(path, merged)
-    finally: _unlock_file(fd)
-    return merged
+    merged = _merge_defaults(current)
+    _deep_merge(merged, patch or {})
+    return replace_config(merged)
 
-def save_target_datetime(target: Union[datetime, int], *, __source: Optional[str] = None) -> Dict[str, Any]:
-    if isinstance(target, datetime):
-        dt = target if target.tzinfo else target.replace(tzinfo=TZ)
-        utc = dt.astimezone(timezone.utc)
-        ms = int(utc.timestamp() * 1000); iso = utc.isoformat()
-    elif isinstance(target, int):
-        ms = int(target); iso = datetime.fromtimestamp(ms/1000, tz=timezone.utc).isoformat()
+def set_mode(mode: str, *, daily_time: str = "", once_at: str = "", duration_minutes: int | None = None, screen: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    cfg = load_config()
+    cfg["mode"] = mode
+    if mode == "daily":
+        if daily_time: cfg["daily_time"] = daily_time
+        cfg["duration_started_ms"] = 0; cfg["once_at"] = ""
+    elif mode == "once":
+        cfg["once_at"] = once_at or ""
+        cfg["duration_started_ms"] = 0
+    elif mode == "duration":
+        if duration_minutes:
+            cfg["duration_minutes"] = int(duration_minutes)
+    elif mode == "screen":
+        if screen:
+            cfg["screen"] = _merge_defaults({"screen": {}})["screen"]  # baseline
+            _deep_merge(cfg["screen"], screen)
     else:
-        raise TypeError("target must be datetime or epoch-ms int")
-    return save_config_patch({"target_ms": ms, "target_iso": iso, "target_datetime": iso, "__source": __source or "save_target_datetime"})
+        raise ValueError("Ugyldig mode")
+    return replace_config(cfg)
+
+def start_duration(minutes: int) -> Dict[str, Any]:
+    if minutes <= 0:
+        raise ValueError("minutes må være > 0")
+    now_ms = int(time.time() * 1000)
+    cfg = load_config()
+    cfg["mode"] = "duration"
+    cfg["duration_minutes"] = int(minutes)
+    cfg["duration_started_ms"] = now_ms
+    cfg["once_at"] = ""
+    return replace_config(cfg)
+
+def clear_duration_and_switch_to_daily() -> Dict[str, Any]:
+    cfg = load_config()
+    cfg["duration_started_ms"] = 0
+    cfg["mode"] = "daily"
+    return replace_config(cfg)

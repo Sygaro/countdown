@@ -1,23 +1,107 @@
+<!-- static/index.html -->
 <!doctype html>
-<html lang="nb">
+<html lang="no">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Countdown</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Countdown · Visning</title>
+  <link rel="stylesheet" href="/static/css/ui.css"/>
 </head>
-<body>
-  <main id="app">
-    <div id="texts">
-      <div id="msg1" class="msg"></div>
-      <div id="msg2" class="msg sub"></div>
-    </div>
-    <div id="clock" aria-live="polite">00:00</div>
-  </main>
-<script src="/static/app.js?v=9"></script>
-<script defer src="/static/js/fullscreen.js"></script>
+<body class="center fill">
+  <!-- Countdown view -->
+  <div id="view_countdown" class="center fill" style="flex-direction:column;gap:2vh;display:none">
+    <div id="digits" class="big">00:00</div>
+    <div id="msg_primary" class="muted"></div>
+    <div id="msg_secondary" class="muted"></div>
+  </div>
+
+  <!-- Screen mode view -->
+  <div id="view_screen" class="screen" style="display:none">
+    <div id="screen_inner"></div>
+  </div>
+
+  <script>
+    (function(){
+      const $ = (s) => document.querySelector(s);
+      const state = { cfg:null, tick:null };
+
+      const fmt = (ms) => {
+        const neg = ms < 0 ? "-" : ""; ms = Math.abs(ms);
+        let s = Math.floor(ms/1000), h=Math.floor(s/3600); s%=3600; const m=Math.floor(s/60); s%=60;
+        const pad = n=>String(n).padStart(2,"0");
+        return h>0 ? `${neg}${h}:${pad(m)}:${pad(s)}` : `${neg}${m}:${pad(s)}`;
+      };
+
+      function applyCountdown(){
+        const t = state.tick, c = state.cfg;
+        $("#view_screen").style.display = "none";
+        $("#view_countdown").style.display = "flex";
+        $("#digits").textContent = fmt(t.signed_display_ms);
+        $("#digits").classList.toggle("blink", !!t.blink);
+        $("#msg_primary").textContent = (c.show_message_primary ? (c.message_primary || "") : "");
+        $("#msg_secondary").textContent = (c.show_message_secondary ? (c.message_secondary || "") : "");
+      }
+
+      function applyScreen(){
+        const sc = state.cfg.screen || {};
+        $("#view_countdown").style.display = "none";
+        $("#view_screen").style.display = "flex";
+        const root = $("#view_screen");
+        root.style.background = sc.bg || "#000";
+
+        const inner = $("#screen_inner");
+        inner.innerHTML = "";
+
+        if (sc.type === "blackout") return;
+
+        if (sc.type === "image") {
+          const wrap = document.createElement("div");
+          wrap.style.position = "relative"; wrap.style.width="100%"; wrap.style.height="100%";
+          const img = document.createElement("img");
+          img.src = sc.image_url || "";
+          img.style.objectFit = sc.image_fit || "cover";
+          img.style.width = "100%"; img.style.height = "100%";
+          img.style.opacity = String((sc.image_opacity ?? 100)/100);
+          wrap.appendChild(img);
+          inner.appendChild(wrap);
+          return;
+        }
+
+        // text
+        const div = document.createElement("div");
+        div.className = "text";
+        div.textContent = sc.text || "Pause";
+        div.style.color = sc.text_color || "#fff";
+        const vh = Number(sc.font_vh ?? 10);
+        div.style.fontSize = `${Math.max(4, Math.min(30, vh))}vh`;
+        inner.appendChild(div);
+      }
+
+      async function loadConfig(){
+        const r = await fetch("/api/config"); const js = await r.json();
+        state.cfg = js.config; state.tick = js.tick;
+        render();
+      }
+
+      async function pollTick(){
+        const r = await fetch("/tick"); const t = await r.json();
+        state.tick = t;
+        render(true);
+      }
+
+      function render(onlyTick=false){
+        const mode = (state.cfg?.mode) || "daily";
+        if (mode === "screen") {
+          applyScreen();
+        } else {
+          applyCountdown();
+        }
+      }
+
+      // boot
+      loadConfig().catch(console.error);
+      setInterval(pollTick, 1000);
+    })();
+  </script>
 </body>
 </html>

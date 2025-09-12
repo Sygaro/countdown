@@ -1,0 +1,28 @@
+{
+  "_migrated_at": 1757592465,
+  "_updated_at": 1757662508,
+  "admin_password": "",
+  "alert_minutes": 3,
+  "blink_seconds": 50,
+  "daily_time": "10:00",
+  "duration_minutes": 1,
+  "duration_started_ms": 0,
+  "message_primary": "Velkommen!!!",
+  "message_secondary": "Vi starter igjen kl:",
+  "mode": "daily",
+  "once_at": "",
+  "overrun_minutes": 60,
+  "screen": {
+    "bg": "#0f0f0f",
+    "font_vh": 20,
+    "image_fit": "contain",
+    "image_opacity": 100,
+    "image_url": "",
+    "text": "Pause!",
+    "text_color": "#f5f5f5",
+    "type": "text"
+  },
+  "show_message_primary": true,
+  "show_message_secondary": true,
+  "warn_minutes": 5
+}

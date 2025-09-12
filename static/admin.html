@@ -2,122 +2,231 @@
 <!doctype html>
 <html lang="no">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Countdown • Admin</title>
-  <link rel="stylesheet" href="/static/css/ui.css">
-<script type="module" src="/static/js/admin.js?v=20250911a"></script>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Countdown · Admin</title>
+  <link rel="stylesheet" href="/static/css/ui.css"/>
 </head>
 <body>
-  <div class="nav">
-    <div class="nav-inner">
-      <div class="brand">⏱ Countdown</div>
-      <a class="link" href="/">Visning</a>
-      <a class="link active" href="/admin">Admin</a>
-      <a class="link" href="/diag">Diagnose</a>
-      <a class="link" href="/about">Om</a>
-    </div>
-  </div>
+  <header>
+    <h1>Countdown · Admin</h1>
+    <nav>
+      <a href="/">Visning</a>
+      <a class="active" href="/admin">Admin</a>
+      <a href="/diag">Diagnose</a>
+      <a href="/about">Om</a>
+    </nav>
+  </header>
 
-  <div class="container">
-    <div class="grid cols-2">
-      <div class="card">
-        <h3>Modus</h3>
-        <div class="row">
-          <label><input type="radio" name="mode" value="daily" id="mode-daily"> Daglig klokkeslett</label>
-          <label><input type="radio" name="mode" value="single" id="mode-single"> Engangs-tidspunkt</label>
-        </div>
-        <hr class="sep">
-        <div class="kv">
-          <label for="daily_time">Daglig tid (HH:MM)</label>
-          <input id="daily_time" type="time" inputmode="numeric" placeholder="--:--">
-          <label for="single_dt">Ett-tidspunkt</label>
-          <input id="single_dt" type="datetime-local">
-        </div>
-        <p class="help">Velg én modus. Lagre for at endring skal gjelde.</p>
+  <main class="grid">
+    <section class="card">
+      <h2>Modus</h2>
+      <label><input type="radio" name="mode" value="daily"/> Daglig klokkeslett</label>
+      <input id="daily_time" type="time" step="60"/>
+      <br/>
+      <label><input type="radio" name="mode" value="once"/> Engangs-tidspunkt</label>
+      <input id="once_at" type="datetime-local"/>
+      <br/>
+      <label><input type="radio" name="mode" value="duration"/> Varighet (manuell start)</label>
+      <br/>
+      <label><input type="radio" name="mode" value="screen"/> Stopp-skjerm</label>
+      <p class="hint">Velg én modus. Lagre for at endring skal gjelde.</p>
+      <p id="active_mode" class="muted">Aktiv modus: — · Fase: —</p>
+    </section>
+
+    <section class="card">
+      <h2>Start med varighet</h2>
+      <div>
+        <button class="preset" data-min="5">+5 min</button>
+        <button class="preset" data-min="10">+10 min</button>
+        <button class="preset" data-min="15">+15 min</button>
+        <button class="preset" data-min="30">+30 min</button>
       </div>
-
-      <div class="card">
-        <h3>Start med varighet</h3>
-        <div class="row pill">
-          <button class="btn" data-qs="5">+5 min</button>
-          <button class="btn" data-qs="10">+10 min</button>
-          <button class="btn" data-qs="15">+15 min</button>
-          <button class="btn" data-qs="30">+30 min</button>
-        </div>
-        <div class="row">
-          <label for="start_minutes">Varighet (minutter)</label>
-          <input id="start_minutes" type="number" min="1" step="1" value="10">
-          <button id="start_now" class="btn primary">Start nedtelling nå</button>
-        </div>
-        <p class="help">Krever admin-passord dersom satt.</p>
+      <label>Varighet (minutter) <input id="start_minutes" type="number" min="1" step="1" value="10"/></label>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="btn_start" class="primary">Start nedtelling nå</button>
+        <button id="btn_stop">Stopp varighet nå</button>
       </div>
+      <p class="hint">Krever admin-passord dersom satt.</p>
+    </section>
 
-      <div class="card">
-        <h3>Meldinger</h3>
-        <div class="row">
-          <label><input type="checkbox" id="show_primary"> Vis hovedmelding</label>
-        </div>
-        <textarea id="msg_primary" placeholder="Velkommen!"></textarea>
-        <hr class="sep">
-        <div class="row">
-          <label><input type="checkbox" id="show_secondary"> Vis sekundær melding</label>
-        </div>
-        <input id="msg_secondary" type="text" placeholder="Vi starter igjen kl:">
+    <section class="card">
+      <h2>Stopp-skjerm</h2>
+      <label><input type="radio" name="screen_type" value="text"/> Tekst</label>
+      <label><input type="radio" name="screen_type" value="image"/> Bilde</label>
+      <label><input type="radio" name="screen_type" value="blackout"/> Blackout</label>
+      <div id="screen_text_cfg">
+        <label>Tekst <input id="screen_text" type="text" placeholder="Pause"/></label>
+        <label>Tekstfarge <input id="screen_text_color" type="color" value="#ffffff"/></label>
+        <label>Bakgrunn <input id="screen_bg" type="color" value="#000000"/></label>
+        <label>Skriftstørrelse (vh) <input id="screen_font_vh" type="number" min="4" max="30" step="1" value="10"/></label>
       </div>
-
-      <div class="card">
-        <h3>Varsler / blink</h3>
-        <div class="kv">
-          <label for="warn_minutes">Gult ved (minutter igjen)</label>
-          <input id="warn_minutes" type="number" min="0" step="1" value="4">
-          <label for="alert_minutes">Rødt ved (minutter igjen)</label>
-          <input id="alert_minutes" type="number" min="0" step="1" value="2">
-          <label for="blink_seconds">Blink de siste (sekunder)</label>
-          <input id="blink_seconds" type="number" min="0" step="1" value="10">
-          <label for="overrun_minutes">Vis minus-tid (minutter etterpå)</label>
-          <input id="overrun_minutes" type="number" min="0" step="1" value="1">
-        </div>
+      <div id="screen_image_cfg">
+        <label>Bilde-URL <input id="screen_image_url" type="url" placeholder="https://..."/></label>
+        <label>Opacity (0–100) <input id="screen_image_opacity" type="number" min="0" max="100" step="1" value="100"/></label>
+        <label>Tilpasning
+          <select id="screen_image_fit">
+            <option value="cover">cover</option>
+            <option value="contain">contain</option>
+          </select>
+        </label>
+        <label>Bakgrunn <input id="screen_bg_img" type="color" value="#000000"/></label>
       </div>
+      <p class="hint">Gjelder når modus = Stopp-skjerm.</p>
+    </section>
 
-      <div class="card">
-        <h3>Sikkerhet</h3>
-        <form onsubmit="return false">
-          <div class="row">
-            <label for="admin_password">Admin-passord</label>
-            <input id="admin_password" type="password" autocomplete="current-password" placeholder="(valgfritt)">
-          </div>
-        </form>
-        <p class="help">Sendes som <code>X-Admin-Password</code> ved lagring/start (hvis utfylt).</p>
-      </div>
-      <div class="card">
-      <h3>Debug</h3>
-      <div class="row pill">
-        <button id="btn-debug-refresh" class="btn">Oppdater status</button>
-        <button id="btn-debug-write" class="btn ok">Skrivetest</button>
-        <a class="btn ghost" href="/debug/whoami" target="_blank" rel="noopener">Åpne /debug/whoami</a>
-        <a class="btn ghost" href="/debug/config" target="_blank" rel="noopener">Åpne /debug/config</a>
-      </div>
-      <pre id="debug-status" class="mono" style="white-space:pre-wrap;background:#0b1020;padding:12px;border-radius:12px;border:1px solid var(--line);max-height:200px;overflow:auto;">(tom)</pre>
-    </div>
-      <div class="card">
-        <h3>Handlinger</h3>
-        <div class="row pill">
-          <button id="btn-load" class="btn">Last fra server</button>
-          <button id="btn-save" class="btn ok">Lagre endringer</button>
-        </div>
-        <div class="row">
-          <span class="badge" id="cfg-path">—</span>
-        </div>
-      </div>
-    </div>
+    <section class="card">
+      <h2>Meldinger</h2>
+      <label><input id="show_message_primary" type="checkbox"/> Vis hovedmelding</label>
+      <textarea id="message_primary" rows="2" placeholder="Velkommen !"></textarea>
+      <label><input id="show_message_secondary" type="checkbox"/> Vis sekundær melding</label>
+      <input id="message_secondary" type="text" placeholder="Vi starter igjen kl:"/>
+    </section>
 
-    
+    <section class="card">
+      <h2>Varsler / blink</h2>
+      <label>Gult ved (min igjen) <input id="warn_minutes" type="number" min="0" step="1"/></label>
+      <label>Rødt ved (min igjen) <input id="alert_minutes" type="number" min="0" step="1"/></label>
+      <label>Blink de siste (sek) <input id="blink_seconds" type="number" min="0" step="1"/></label>
+      <label>Vis minus-tid (min etterpå) <input id="overrun_minutes" type="number" min="0" step="1"/></label>
+    </section>
 
+    <section class="card">
+      <h2>Sikkerhet</h2>
+      <input id="admin_password" type="password" placeholder="Admin-passord (valgfritt)"/>
+      <p class="hint">Sendes som X-Admin-Password ved lagring/start/stop.</p>
+    </section>
 
-    <div class="footer-links">
-      Snarveier: <a href="/">Visning</a> · <a href="/admin">Admin</a> · <a href="/diag">Diagnose</a> · <a href="/about">Om</a>
-    </div>
-  </div>
+    <section class="card">
+      <h2>Handlinger</h2>
+      <button id="btn_load">Last fra server</button>
+      <button id="btn_save" class="primary">Lagre endringer</button>
+      <button id="btn_refresh">Oppdater status</button>
+    </section>
+
+    <section class="card">
+      <h2>Debug</h2>
+      <pre id="debug">( tom )</pre>
+    </section>
+  </main>
+
+  <script>
+    (function(){
+      const $ = s => document.querySelector(s);
+      const $$ = s => Array.from(document.querySelectorAll(s));
+      const debug = $("#debug");
+
+      function headers(){
+        const pwd = ($("#admin_password").value||"").trim();
+        const h = {"Content-Type":"application/json"}; if (pwd) h["X-Admin-Password"]=pwd; return h;
+      }
+      function selMode(){ const r = $$("input[name=mode]:checked")[0]; return r? r.value : "daily"; }
+      function selScreenType(){ const r = $$("input[name=screen_type]:checked")[0]; return r? r.value : "text"; }
+
+      function lock(){
+        const m = selMode();
+        $("#daily_time").disabled = (m!=="daily");
+        $("#once_at").disabled    = (m!=="once");
+        const st = (m==="screen");
+        $("#screen_text_cfg").style.display = st ? "block" : "none";
+        $("#screen_image_cfg").style.display = st ? "block" : "none";
+      }
+
+      function apply(cfg, tick){
+        // Modus
+        const r = $(`input[name=mode][value=${cfg.mode||"daily"}]`); if (r) r.checked = true;
+        $("#daily_time").value = cfg.daily_time || "";
+        $("#once_at").value = (cfg.once_at || "").replace("Z","");
+
+        // Screen
+        const sc = cfg.screen || {};
+        const sr = $(`input[name=screen_type][value=${sc.type||"text"}]`); if (sr) sr.checked = true;
+        $("#screen_text").value = sc.text || "Pause";
+        $("#screen_text_color").value = sc.text_color || "#ffffff";
+        $("#screen_bg").value = sc.bg || "#000000";
+        $("#screen_font_vh").value = sc.font_vh ?? 10;
+        $("#screen_image_url").value = sc.image_url || "";
+        $("#screen_image_opacity").value = sc.image_opacity ?? 100;
+        $("#screen_image_fit").value = sc.image_fit || "cover";
+        $("#screen_bg_img").value = sc.bg || "#000000";
+
+        // Meldinger/varsler
+        $("#message_primary").value = cfg.message_primary || "";
+        $("#message_secondary").value = cfg.message_secondary || "";
+        $("#show_message_primary").checked = !!cfg.show_message_primary;
+        $("#show_message_secondary").checked = !!cfg.show_message_secondary;
+        $("#warn_minutes").value = cfg.warn_minutes ?? 4;
+        $("#alert_minutes").value = cfg.alert_minutes ?? 2;
+        $("#blink_seconds").value = cfg.blink_seconds ?? 10;
+        $("#overrun_minutes").value = cfg.overrun_minutes ?? 1;
+
+        $("#active_mode").textContent = `Aktiv modus: ${cfg.mode} · Fase: ${tick?.mode||"—"} (${tick?.state||"—"})`;
+        if (debug) debug.textContent = JSON.stringify({cfg, tick}, null, 2);
+        lock();
+      }
+
+      async function loadAll(){
+        const r = await fetch("/api/config"); const js = await r.json(); apply(js.config, js.tick);
+      }
+      async function saveAll(){
+        const m = selMode();
+        const body = {
+          mode: m,
+          daily_time: $("#daily_time").value,
+          once_at: $("#once_at").value,
+          message_primary: $("#message_primary").value,
+          message_secondary: $("#message_secondary").value,
+          show_message_primary: $("#show_message_primary").checked,
+          show_message_secondary: $("#show_message_secondary").checked,
+          warn_minutes: parseInt($("#warn_minutes").value||"0",10),
+          alert_minutes: parseInt($("#alert_minutes").value||"0",10),
+          blink_seconds: parseInt($("#blink_seconds").value||"0",10),
+          overrun_minutes: parseInt($("#overrun_minutes").value||"0",10)
+        };
+        if (m==="screen"){
+          const st = selScreenType();
+          body.screen = {
+            type: st,
+            text: $("#screen_text").value,
+            text_color: $("#screen_text_color").value,
+            bg: (st==="image") ? $("#screen_bg_img").value : $("#screen_bg").value,
+            font_vh: parseInt($("#screen_font_vh").value||"10",10),
+            image_url: $("#screen_image_url").value,
+            image_opacity: parseInt($("#screen_image_opacity").value||"100",10),
+            image_fit: $("#screen_image_fit").value
+          };
+        }
+        const r = await fetch("/api/config",{method:"POST",headers:headers(),body:JSON.stringify(body)});
+        if(!r.ok){throw new Error(await r.text())}
+        const js = await r.json(); apply(js.config, js.tick);
+      }
+      async function startDuration(){
+        const minutes = parseInt($("#start_minutes").value||"0",10);
+        if(!minutes || minutes<=0) return alert("Ugyldig varighet");
+        const r = await fetch("/api/start",{method:"POST",headers:headers(),body:JSON.stringify({minutes})});
+        if(!r.ok){throw new Error(await r.text())}
+        const js = await r.json(); apply(js.config, js.tick);
+      }
+      async function stopDuration(){
+        const r = await fetch("/api/stop",{method:"POST",headers:headers(),body:"{}"});
+        if(!r.ok){throw new Error(await r.text())}
+        const js = await r.json(); apply(js.config, js.tick);
+      }
+      async function refresh(){
+        const r = await fetch("/api/config"); const js = await r.json(); apply(js.config, js.tick);
+      }
+
+      $$("input[name=mode]").forEach(el=>el.addEventListener("change",lock));
+      $$("input[name=screen_type]").forEach(el=>el.addEventListener("change",lock));
+      $$(".preset").forEach(b=>b.addEventListener("click",()=>{$("#start_minutes").value=b.dataset.min;}));
+      $("#btn_load").addEventListener("click",()=>loadAll().catch(e=>alert(e.message)));
+      $("#btn_save").addEventListener("click",()=>saveAll().catch(e=>alert(e.message)));
+      $("#btn_start").addEventListener("click",()=>startDuration().catch(e=>alert(e.message)));
+      $("#btn_stop").addEventListener("click",()=>stopDuration().catch(e=>alert(e.message)));
+      $("#btn_refresh").addEventListener("click",()=>refresh().catch(e=>alert(e.message)));
+
+      loadAll().catch(e=>{ if (debug) debug.textContent=String(e); });
+    })();
+  </script>
 </body>
 </html>

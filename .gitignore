@@ -2,6 +2,8 @@
 __pycache__/
 *.py[codz]
 *$py.class
+._*
+._.*
 
 # C extensions
 *.so
@@ -210,4 +212,3 @@ __pycache__/
 *.pyc
 .DS_Store
 .env
-config.json
