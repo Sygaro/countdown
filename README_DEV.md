@@ -6,6 +6,21 @@ Denne veilederen beskriver hvordan vi jobber, kvalitetskrav, branching, DoD og r
 
 ---
 
+## Kvalitetskrav
+
+- Lesbarhet & struktur: klar navngivning, små funksjoner, ingen duplisering. Kommentarer forklarer hvorfor, ikke hva.
+
+- Stabilitet: defensiv koding; tåler manglende felter/eldre config; bakoverkomp med alias + Deprecation/Sunset-headere ved behov.
+
+- Feilhåndtering: meningsfulle feilmeldinger, ingen stille feilsvelging på kritiske kall.
+
+- Ytelse: UI oppdaterer effektivt (kontrollert tick), ingen unødvendige reflow/interval-lekkasjer.
+
+- Sikkerhet: X-Admin-Password respekteres der det er aktuelt; ingen logging av hemmeligheter.
+
+- Konsistens: mørkt tema; mobilvennlig; samme stil på alle sider.
+---
+
 ## 1) Mål & kilde til sannhet
 
 - **Mål:** Robust funksjonalitet uten snarveier. Små, avgrensede endringer.
@@ -119,26 +134,42 @@ curl -sX POST http://<host>:5000/api/mode -H 'Content-Type: application/json' -d
 
 ## 9) Definition of Done (DoD)
 
--
+**Endringen skal ikke merges før alle punkter er grønne.**
+
+ - Endringen er implementert i avtalte filer, uten sideeffekter.
+ - Alle berørte ruter fungerer (/api/config, /tick, relevante POST-ruter).
+ - Frontend oppdaterer riktig (visuelt verifisert).
+ - Kort testoppskrift (curl/Postman) levert og grønn.
+ - PR-tekst + kort changelog skrevet.
+ - Rollback-sti klar (branch/tag).
 
 ---
 
 ## 10) Konvensjoner (commit & PR)
 
-- **Commit:**
-  - `feat: …` ny funksjon
-  - `fix: …` feilfiks
-  - `chore: …` ikke-funksjonelle endringer
-- **PR:** Én PR = én endring. Svar på sjekkpunkter i PR-malen.
+**Commit-mønster**
+
+- `feat: …` – ny funksjon
+- `fix: …` – feilfiks
+- `chore: …` – rydding/devops/ikke-funksjonelt
+- `docs: …` – dokumentasjon
+- `refactor: …` – intern omstrukturering uten funksjonsendring
+
+**PR-praksis**
+
+- Én PR = én endring.
+- Beskriv *hva* og *hvorfor*, ikke bare *hvordan*.
+- Link til issue/oppgave om relevant.
+- Legg ved korte test-snutter og skjermbilder når UI endres.
 
 ---
 
 ## 11) Spesifikke prosjektregler (UI)
 
-- **Fullskjerm-knapp:** vises kun når *ikke* `?kiosk=1` og *ikke* i fullscreen; ingen “vekking” på musebevegelse.
-- **Digits:** tabulære tall (lik bredde) med gode fallback-fonter. Størrelse skaleres med `vmin` og nedskaleres for `H:MM:SS`.
-- **Stopp-skjerm:** bakgrunnspresets, egendefinert tekst/bilde, klokke-overlay med posisjoner (hjørner, top/bottom, center).
-- **Diag:** debug-output overskrives ikke av polling; vis MM\:SS og H\:MM\:SS.
+- **Fullskjerm-knapp**: vises kun når *ikke* `?kiosk=1` og *ikke* i fullscreen; ingen "vekking" på musebevegelse.
+- **Digits**: Tabulære tall (lik bredde) og gode fallback-fonter. Størrelse skaleres med `vmin` og nedskaleres for `H:MM:SS` over terskel.
+- **Stopp-skjerm**: Bakgrunnspresets, egendefinert tekst/bilde, klokke-overlay med posisjoner (hjørner, top/bottom, center). Klokke-størrelse og -sekunder konfigurerbare.
+- **Diag**: Debug-output overskrives ikke av polling; vis både `MM:SS` og `H:MM:SS`.
 
 ---
 
@@ -152,13 +183,13 @@ Kort beskrivelse av hva som er endret og hvorfor.
 
 -
 
-## Endringer
+## Endringer (punktvis)
 
 - …
 
 ## Skjermbilder / GIF (valgfritt)
 
-Legg ved hvis UI.
+(Legg ved ved UI-endringer.)
 
 ## API/konfig-endringer
 
@@ -166,7 +197,7 @@ Legg ved hvis UI.
 
 ## Risiko & rollback
 
-- Påvirker kun: [frontend | backend | begge]
+- Påvirker: [frontend | backend | begge]
 - Rollback-kommandoer:
   ```bash
   git checkout stable/YYYY-MM-DD && git reset --hard origin/stable/YYYY-MM-DD
@@ -177,12 +208,13 @@ Legg ved hvis UI.
 
 -
 
-**CLI-snutter:**
+**CLI-snutter**
 
 ```bash
 curl -s http://<host>:5000/api/config | jq .
 curl -s http://<host>:5000/tick | jq .
-curl -sX POST http://<host>:5000/api/start-duration -H 'Content-Type: application/json' -d '{"minutes":2}' | jq .
+curl -sX POST http://<host>:5000/api/start-duration \
+  -H 'Content-Type: application/json' -d '{"minutes":2}' | jq .
 ```
 
 ## Sikkerhet & ytelse
@@ -195,5 +227,5 @@ curl -sX POST http://<host>:5000/api/start-duration -H 'Content-Type: applicatio
 
 ## Sjekkliste (DoD)
 
--
+Bekreft at alle punkter i **README\_DEV §9** er oppfylt.
 
