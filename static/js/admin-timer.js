@@ -58,6 +58,7 @@
     $("#daily_time").value = c.daily_time || "";
     $("#once_at").value = (c.once_at||"").replace("Z","");
     $("#active_mode").textContent = `Aktiv modus: ${c.mode} · Fase: ${TICK?.mode||"—"} (${TICK?.state||"—"})`;
+    
 
     // meldinger
     $("#show_message_primary").checked   = !!c.show_message_primary;
@@ -120,19 +121,32 @@
   }
 
   async function startDuration(){
-    const minutes = parseInt($("#start_minutes")?.value || "0", 10);
-    if (!Number.isFinite(minutes) || minutes <= 0) { alert("Ugyldig varighet"); return; }
-    const r = await fetch("/api/start-duration",{method:"POST",headers:headers(),body:JSON.stringify({minutes})});
-    if (!r.ok) { alert(await r.text()); return; }
-    await fetchConfig(); applyToUI();
+  const minutes = parseInt($("#start_minutes")?.value || "0", 10);
+  if (!Number.isFinite(minutes) || minutes <= 0) { alert("Ugyldig varighet"); return; }
+
+  // robust: prøv bindestrek, fallback til underscore
+  const body = JSON.stringify({minutes});
+  let r = await fetch("/api/start-duration",{method:"POST",headers:headers(),body});
+  if (r.status === 404) {
+    r = await fetch("/api/start_duration",{method:"POST",headers:headers(),body});
   }
-  async function stopSwitchDaily(){
-    // skift til daily; backend rydder varighetsflagg i replace_config
-    await fetchConfig();
-    CFG.mode = "daily";
-    await pushFullConfig();
-    applyToUI();
-  }
+  if (!r.ok) { alert(await r.text()); return; }
+  await fetchConfig(); applyToUI();
+}
+
+async function stopSwitchDaily(){
+  await fetchConfig();
+  CFG.mode = "daily";
+  await pushFullConfig();
+  applyToUI();
+}
+async function activateStopScreenNow(){
+  await fetchConfig();
+  CFG.mode = "screen";               // beholder dagens screen-innstillinger
+  await pushFullConfig();
+  applyToUI();
+  alert("Stopp-skjerm aktivert");
+}
 
   async function saveAll(){
     await fetchConfig(); // defensive: baser endringer på siste cfg

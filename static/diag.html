@@ -53,15 +53,18 @@
     </section>
 
     <section class="card">
-      <h2>Debug</h2>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem">
-        <button id="btn_who">/debug/whoami</button>
-        <button id="btn_cfg">/api/config</button>
-        <button id="btn_self">/debug/selftest</button>
-        <button id="btn_hb">/debug/view-heartbeat</button>
-      </div>
-      <pre id="raw" class="mono">(tom)</pre>
-    </section>
+  <h2>Debug</h2>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem">
+    <button id="btn_who">/debug/whoami</button>
+    <button id="btn_cfg">/api/config</button>
+    <button id="btn_self">/debug/selftest</button>
+    <button id="btn_hb">/debug/view-heartbeat</button>
+  </div>
+  <h3>Resultat</h3>
+  <pre id="raw" class="mono">(tom)</pre>
+  <h3 style="margin-top:1rem">Siste /tick</h3>
+  <pre id="raw_tick" class="mono">(tom)</pre>
+</section>
   </main>
 
   <script>
@@ -89,6 +92,8 @@
         document.getElementById("both").textContent = `format: ${both.hms} / ${both.mmss}`;
         document.getElementById("lat").textContent = `latency: ${dt.toFixed(0)} ms`;
         document.getElementById("raw").textContent = JSON.stringify(t, null, 2);
+            $("#raw_tick").textContent = JSON.stringify(t, null, 2); // <- ikke 'raw'
+
       }
       async function selftest() {
         const r = await fetch("/debug/selftest"); const js = await r.json();

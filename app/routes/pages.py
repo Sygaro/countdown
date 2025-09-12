@@ -1,137 +1,59 @@
 # app/routes/pages.py
-"""
-Sider + kompat-endepunkter + debug/selftest + view-heartbeat.
-"""
 from __future__ import annotations
-from datetime import datetime, timedelta, timezone
-from flask import Blueprint, send_from_directory, jsonify, request
-from ..settings import PROJECT_ROOT, TZ
-from ..storage import load_config, clear_duration_and_switch_to_daily, replace_config
-from ..countdown import compute_tick, compute_target_ms
+from flask import Blueprint, current_app, make_response, jsonify
 
-bp = Blueprint("pages", __name__)
+bp_pages = Blueprint("pages", __name__)  # én blueprint
 
-_STATIC = (PROJECT_ROOT / "static").resolve()
+def _no_cache(resp):
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
-# --- Enkelt in-memory heartbeat fra visningen (for Admin-synk) ---
-_LAST_VIEW_HEARTBEAT = {"rev": 0, "ts": None, "page": "view"}  # ts = aware datetime
-
-@bp.post("/debug/view-heartbeat")
-def view_hb_post():
-    try:
-        data = request.get_json(silent=True) or {}
-        rev = int(data.get("rev") or 0)
-        page = str(data.get("page") or "view")
-    except Exception:
-        rev = 0
-        page = "view"
-    _LAST_VIEW_HEARTBEAT["rev"] = rev
-    _LAST_VIEW_HEARTBEAT["page"] = page
-    _LAST_VIEW_HEARTBEAT["ts"] = datetime.now(timezone.utc)
-    return jsonify({"ok": True})
-
-@bp.get("/debug/view-heartbeat")
-def view_hb_get():
-    hb = dict(_LAST_VIEW_HEARTBEAT)
-    ts = hb.get("ts")
-    hb["ts_iso"] = ts.isoformat() if ts else None
-    hb["age_seconds"] = (datetime.now(timezone.utc) - ts).total_seconds() if ts else None
-    return jsonify({"ok": True, "heartbeat": hb})
-
-
-@bp.get("/")
-def index():
-    return send_from_directory(_STATIC, "index.html")
-
-@bp.get("/admin")
-def admin():
-    return send_from_directory(_STATIC, "admin.html")
-
-@bp.get("/diag")
-def diag():
-    return send_from_directory(_STATIC, "diag.html")
-
-@bp.get("/about")
-def about():
-    return send_from_directory(_STATIC, "about.html")
-
-@bp.get("/health")
-def health():
-    return {"ok": True}
-
-@bp.get("/tick")
-def tick():
-    cfg = load_config()
-    t = compute_tick(cfg)
-    if t["state"] == "ended" and cfg.get("mode") == "duration":
-        clear_duration_and_switch_to_daily()
-    t["cfg_rev"] = int(cfg.get("_updated_at", 0))
-    return jsonify(t), 200
-
-@bp.get("/state")
-def state_snapshot():
-    cfg = load_config()
-    t = compute_tick(cfg)
-    return jsonify({
-        "now_ms": t["now_ms"],
-        "target_ms": t["target_ms"],
-        "display_ms": t["display_ms"],
-        "signed_display_ms": t["signed_display_ms"],
-        "state": t["state"],
-        "mode": t["mode"],
-    }), 200
-
-@bp.get("/debug/whoami")
-def dbg_whoami():
-    return jsonify({
-        "cwd": str(PROJECT_ROOT),
-        "static": str(_STATIC),
-        "config_path": str((PROJECT_ROOT / "config.json").resolve()),
-        "server_time": datetime.now(TZ).isoformat()
-    }), 200
-
-@bp.get("/debug/config")
-def dbg_config():
-    write_test = request.args.get("write_test") == "1"
-    cfg = load_config()
-    result = {"ok": True, "__config_path": str((PROJECT_ROOT / "config.json").resolve())}
-    if write_test:
+def _send_first(*candidates: str):
+    """Prøver flere statiske kandidater – viktig hvis filnavn varierer mellom brancher."""
+    for name in candidates:
         try:
-            cfg["_debug_touch"] = True
-            replace_config(cfg)
-            cfg.pop("_debug_touch", None)
-            replace_config(cfg)
-            result["write_test_ok"] = True
-        except Exception as e:
-            result["write_test_ok"] = False
-            result["error"] = str(e)
-    result["config"] = cfg
-    return jsonify(result), 200
+            return make_response(current_app.send_static_file(name))
+        except Exception:
+            continue
+    return make_response(("Missing static page", 404))
 
-@bp.get("/debug/selftest")
-def dbg_selftest():
-    tests = []
-    ok_all = True
-    def add(name: str, ok: bool, info: str = ""):
-        nonlocal ok_all
-        tests.append({"name": name, "ok": bool(ok), "info": info})
-        ok_all = ok_all and ok
+@bp_pages.get("/")
+def home():
+    # Vis “visning” – prøv index.html først
+    return _no_cache(_send_first("index.html", "view.html", "visning.html", "display.html"))
 
-    cfg = {"mode": "daily", "daily_time": "09:00", "overrun_minutes": 2}
-    now = datetime.now(TZ).replace(hour=9, minute=1, second=0, microsecond=0)
-    target1 = compute_target_ms(cfg, now_ms=int(now.timestamp()*1000))
-    from datetime import datetime as _dt
-    add("daily_overrun_window", _dt.fromtimestamp(target1/1000, tz=TZ).hour == 9)
+@bp_pages.get("/view")
+def view_alias():
+    # Nyttig alias
+    return _no_cache(_send_first("index.html", "view.html", "visning.html", "display.html"))
 
-    now2 = datetime.now(TZ)
-    future = (now2 + timedelta(minutes=30)).replace(second=0, microsecond=0)
-    cfg2 = {"mode": "once", "once_at": future.isoformat()}
-    target2 = compute_target_ms(cfg2, now_ms=int(now2.timestamp()*1000))
-    add("once_future", target2 == int(future.timestamp()*1000))
+@bp_pages.get("/admin")
+def admin_timer():
+    return _no_cache(make_response(current_app.send_static_file("admin-timer.html")))
 
-    start_ms = int(now2.timestamp()*1000)
-    cfg3 = {"mode": "duration", "duration_minutes": 10, "duration_started_ms": start_ms}
-    target3 = compute_target_ms(cfg3, now_ms=start_ms)
-    add("duration_10min", target3 == start_ms + 10*60_000)
+@bp_pages.get("/admin/style")
+def admin_style():
+    return _no_cache(make_response(current_app.send_static_file("admin-style.html")))
 
-    return jsonify({"ok": ok_all, "tests": tests}), 200
+@bp_pages.get("/diag")
+def diag():
+    return _no_cache(make_response(current_app.send_static_file("diag.html")))
+
+@bp_pages.get("/about")
+def about():
+    try:
+        return _no_cache(make_response(current_app.send_static_file("about.html")))
+    except Exception:
+        return _no_cache(make_response(current_app.send_static_file("index.html")))
+
+@bp_pages.get("/debug/routes")
+def list_routes():
+    rules = []
+    for r in current_app.url_map.iter_rules():
+        rules.append({"endpoint": r.endpoint,
+                      "methods": sorted(m for m in r.methods if m not in {"HEAD", "OPTIONS"}),
+                      "rule": str(r)})
+    rules.sort(key=lambda x: x["rule"])
+    return jsonify({"routes": rules})

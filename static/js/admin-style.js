@@ -274,3 +274,85 @@
   fetchConfig().then(()=>{ applyToUI(); }).catch(console.error);
   setInterval(updateSyncPill, 3000);
 })();
+
+// ... topp uendret
+
+function applyScPreset(){
+  const p = val("#sc_bg_preset","none");
+  if (p==="dark-solid"){
+    ($(`input[name=sc_bg_mode][value=solid]`)).checked=true;
+    $("#sc_bg_solid_color").value="#0b0f14";
+  } else if (p==="dark-grad"){
+    ($(`input[name=sc_bg_mode][value=gradient]`)).checked=true;
+    $("#sc_bg_grad_from").value="#111827"; $("#sc_bg_grad_to").value="#0b0f14"; $("#sc_bg_grad_angle").value=180;
+  } else if (p==="photo-tint"){
+    ($(`input[name=sc_bg_mode][value=image]`)).checked=true;
+    $("#sc_bg_img_url").value="https://picsum.photos/1200/800";
+    $("#sc_bg_img_fit").value="cover"; $("#sc_bg_img_op").value=1;
+    $("#sc_bg_img_tint").value="#000000"; $("#sc_bg_img_tint_op").value=0.4;
+  }
+  lock(); renderScreenPreview();
+}
+
+function applyScreenPreviewBackground(){
+  const box = $("#sc_pv_box");
+  if (checked("#sc_use_theme_bg")) {
+    // bruk visningsbakgrunnen for preview
+    const mode = ($$("input[name=bg_mode]:checked")[0]?.value)||"solid";
+    if (mode==="solid"){
+      box.style.background = val("#bg_solid_color","#0b0f14");
+    } else if (mode==="gradient"){
+      box.style.background = `linear-gradient(${Number(val("#bg_grad_angle","180"))}deg, ${val("#bg_grad_from","#142033")}, ${val("#bg_grad_to","#0b0f14")})`;
+    } else {
+      const url = val("#bg_img_url",""); const fit = val("#bg_img_fit","cover");
+      const op = Number(val("#bg_img_op","1")); const tint=val("#bg_img_tint","#000"); const to=Number(val("#bg_img_tint_op","0"));
+      box.style.background = (to>0)? `linear-gradient(${hexToRgba(tint,to)},${hexToRgba(tint,to)}), url('${url}')` : `url('${url}')`;
+      box.style.backgroundSize=fit; box.style.backgroundPosition="center"; box.style.backgroundRepeat="no-repeat"; box.style.opacity=String(op);
+    }
+    return;
+  }
+  // egen screen.background
+  const mode = ($$("input[name=sc_bg_mode]:checked")[0]?.value)||"solid";
+  if (mode==="solid"){
+    box.style.background = val("#sc_bg_solid_color","#0b0f14");
+  } else if (mode==="gradient"){
+    box.style.background = `linear-gradient(${Number(val("#sc_bg_grad_angle","180"))}deg, ${val("#sc_bg_grad_from","#142033")}, ${val("#sc_bg_grad_to","#0b0f14")})`;
+  } else {
+    const url = val("#sc_bg_img_url",""); const fit=val("#sc_bg_img_fit","cover");
+    const op = Number(val("#sc_bg_img_op","1")); const tint=val("#sc_bg_img_tint","#000"); const to=Number(val("#sc_bg_img_tint_op","0"));
+    box.style.background = (to>0)? `linear-gradient(${hexToRgba(tint,to)},${hexToRgba(tint,to)}), url('${url}')` : `url('${url}')`;
+    box.style.backgroundSize=fit; box.style.backgroundPosition="center"; box.style.backgroundRepeat="no-repeat"; box.style.opacity=String(op);
+  }
+}
+
+function renderScreenPreview(){
+  applyScreenPreviewBackground();
+  const st = selScreenType();
+  const txt = $("#sc_pv_text"), clk=$("#sc_pv_clock");
+  if (st==="text"){
+    txt.style.display="block";
+    txt.textContent = val("#screen_text","Pause");
+    txt.style.color  = val("#screen_text_color","#fff");
+    txt.style.fontSize = `${Number(val("#screen_font_vh","10"))}vh`;
+  } else {
+    txt.style.display="none";
+  }
+  const sh = checked("#sc_clock_show");
+  clk.style.display = sh ? "block" : "none";
+  if (sh){
+    clk.style.color = val("#sc_clock_color","#e6edf3");
+    clk.style.fontSize = `${Number(val("#sc_clock_size","12"))}vh`;
+    const d = new Date(); const HH=String(d.getHours()).padStart(2,"0"), MM=String(d.getMinutes()).padStart(2,"0"), SS=String(d.getSeconds()).padStart(2,"0");
+    clk.textContent = checked("#sc_clock_secs") ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
+  }
+}
+
+// oppdater bindinger og init:
+$("#btn_sc_preset")?.addEventListener("click", applyScPreset);
+["sc_bg_solid_color","sc_bg_grad_from","sc_bg_grad_to","sc_bg_grad_angle","sc_bg_img_url","sc_bg_img_fit","sc_bg_img_op","sc_bg_img_tint","sc_bg_img_tint_op",
+ "sc_clock_show","sc_clock_secs","sc_clock_color","sc_clock_size","screen_text","screen_text_color","screen_font_vh"].forEach(id=>{
+    const el = document.getElementById(id); if (el) el.addEventListener("input", renderScreenPreview);
+});
+setInterval(()=>{ renderScreenPreview(); }, 1000); // lett “tick” for klokken
+// ... i applyToUI() helt på slutten:
+renderScreenPreview();

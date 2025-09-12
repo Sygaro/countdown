@@ -133,7 +133,17 @@
     <section class="card">
       <h2>Stopp-skjerm – Bakgrunn & Klokke</h2>
       <label><input id="sc_use_theme_bg" type="checkbox"/> Bruk samme bakgrunn som visningen</label>
-
+<div class="row">
+  <label>Preset
+    <select id="sc_bg_preset">
+      <option value="none">(ingen)</option>
+      <option value="dark-solid">Mørk ensfarget</option>
+      <option value="dark-grad">Mørk gradient</option>
+      <option value="photo-tint">Foto m/tint</option>
+    </select>
+  </label>
+  <button id="btn_sc_preset">Bruk preset</button>
+</div>
       <div id="sc_bg_cfg">
         <label><input type="radio" name="sc_bg_mode" value="solid"/> Ensfarget</label>
         <label><input type="radio" name="sc_bg_mode" value="gradient"/> Gradient</label>
@@ -185,6 +195,15 @@
         </div>
       </div>
     </section>
+    <section class="card">
+  <h2>Forhåndsvisning · Stopp-skjerm</h2>
+  <div id="sc_preview" class="preview">
+    <div id="sc_pv_box" class="pv-box" style="background:#0b0f14; position:relative;">
+      <div id="sc_pv_text" style="font-size:10vh; color:#fff;">Pause</div>
+      <div id="sc_pv_clock" style="position:absolute; right:3vw; top:2vh; font-weight:800; display:none;">12:34</div>
+    </div>
+  </div>
+</section>
   </main>
 
   <script src="/static/js/admin-style.js"></script>
