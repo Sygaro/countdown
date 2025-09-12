@@ -2,32 +2,40 @@
 <!doctype html>
 <html lang="no">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Countdown • Om</title>
-  <link rel="stylesheet" href="/static/css/ui.css">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Countdown · Om</title>
+  <link rel="stylesheet" href="/static/css/ui.css"/>
 </head>
 <body>
-  <div class="nav">
-    <div class="nav-inner">
-      <div class="brand">⏱ Countdown</div>
-      <a class="link" href="/">Visning</a>
-      <a class="link" href="/admin">Admin</a>
-      <a class="link" href="/diag">Diagnose</a>
-      <a class="link active" href="/about">Om</a>
-    </div>
-  </div>
-  <div class="container">
-    <div class="card">
-      <h3>Om denne installasjonen</h3>
-      <p class="muted">Enkel kiosk-app for nedtelling. Admin for endringer, Diagnose for feilsøking.</p>
+  <header>
+    <h1>Om Countdown</h1>
+    <nav>
+      <a href="/">Visning</a>
+      <a href="/admin">Admin</a>
+      <a href="/diag">Diagnose</a>
+      <a class="active" href="/about">Om</a>
+    </nav>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <h2>Hva er dette?</h2>
+      <p>En enkel, robust nedteller for Raspberry Pi-kiosk. Støtter daglig tidspunkt, engangs-tidspunkt, varighet og stopp-skjerm (tekst/bilde/blackout).</p>
+      <p>Appen kjører Flask (Gunicorn) og renderes i Cog/WPE WebKit. Konfig lagres i <code>config.json</code> med atomiske skriv.</p>
+    </section>
+
+    <section class="card">
+      <h2>API (utdrag)</h2>
       <ul>
-        <li>Visning: <a href="/">/</a></li>
-        <li>Admin: <a href="/admin">/admin</a></li>
-        <li>Diagnose: <a href="/diag">/diag</a></li>
+        <li><code>GET /api/config</code> → {config, tick}</li>
+        <li><code>POST /api/config</code> → lagre + bytte modus (se <em>admin</em>)</li>
+        <li><code>POST /api/start</code> → start varighet {"minutes": N}</li>
+        <li><code>POST /api/stop</code> → stopp varighet (→ daily)</li>
+        <li><code>GET /tick</code> → status (inkl. <code>cfg_rev</code>)</li>
+        <li><code>GET /health</code> → 200 ok</li>
       </ul>
-    </div>
-    <div class="footer-links">Snarveier: <a href="/">Visning</a> · <a href="/admin">Admin</a> · <a href="/diag">Diagnose</a></div>
-  </div>
+    </section>
+  </main>
 </body>
 </html>
