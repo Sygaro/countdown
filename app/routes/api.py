@@ -4,8 +4,8 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify
 from ..settings import TZ
 from ..storage import (
-    load_config, save_config_patch, set_mode,
-    start_duration, clear_duration_and_switch_to_daily,
+    load_config, save_config_patch, set_mode, start_duration,
+    clear_duration_and_switch_to_daily, get_defaults
 )
 from ..countdown import compute_tick
 from ..auth import require_password
@@ -17,6 +17,11 @@ def get_config():
     cfg = load_config()
     t = compute_tick(cfg)
     return jsonify({"ok": True, "config": cfg, "tick": t, "server_time": datetime.now(TZ).isoformat()}), 200
+
+@bp.get("/defaults")
+def get_defaults_api():
+    # Kun de relevante delene for UI-reset; hele defaults er ok å eksponere.
+    return jsonify({"ok": True, "defaults": get_defaults()}), 200
 
 @bp.post("/config")
 @require_password
@@ -39,16 +44,17 @@ def post_config():
     passthrough = (
         # meldinger
         "message_primary","message_secondary","show_message_primary","show_message_secondary",
-        # varsler/blink (logikk)
+        # varsler
         "warn_minutes","alert_minutes","blink_seconds","overrun_minutes",
         # visning / oppførsel
         "use_blink","use_phase_colors",
         "color_normal","color_warn","color_alert","color_over",
-        "show_target_time","target_time_after","messages_position",
-        "hms_threshold_minutes",
+        "show_target_time","target_time_after","messages_position","hms_threshold_minutes",
+        # theme (minimal)
+        "theme",
         # admin
         "admin_password",
-        # tider og screen-objekt
+        # tider og screen
         "daily_time","once_at","duration_minutes","screen"
     )
     patch = {k: data[k] for k in passthrough if k in data}

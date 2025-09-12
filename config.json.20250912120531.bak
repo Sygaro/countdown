@@ -1,6 +1,6 @@
 {
   "_migrated_at": 1757592465,
-  "_updated_at": 1757675231,
+  "_updated_at": 1757670833,
   "admin_password": "",
   "alert_minutes": 3,
   "blink_seconds": 50,
@@ -32,25 +32,6 @@
   "show_message_secondary": true,
   "show_target_time": true,
   "target_time_after": "secondary",
-  "theme": {
-    "digits": {
-      "font_weight": 800,
-      "letter_spacing_em": 0.06,
-      "size_vw": 14
-    },
-    "messages": {
-      "primary": {
-        "color": "#9aa4b2",
-        "size_rem": 1.0,
-        "weight": 600
-      },
-      "secondary": {
-        "color": "#9aa4b2",
-        "size_rem": 1.0,
-        "weight": 400
-      }
-    }
-  },
   "use_blink": true,
   "use_phase_colors": true,
   "warn_minutes": 5
