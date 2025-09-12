@@ -1,132 +1,230 @@
-<!-- static/index.html -->
 <!doctype html>
-<html lang="no"><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Countdown · Visning</title>
-<link rel="stylesheet" href="/static/css/ui.css"/>
+<html lang="no">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Countdown · Visning</title>
+  <link rel="stylesheet" href="/static/css/ui.css"/>
 </head>
 <body class="center fill">
   <button id="btn_fullscreen" class="fs-btn" title="Fullskjerm">⛶ Fullskjerm</button>
 
   <div id="view_countdown" class="center fill" style="flex-direction:column;gap:2vh;display:none">
     <div id="msgs_above" class="muted" style="display:none;text-align:center">
-      <div id="msg_primary_above"></div><div id="msg_secondary_above"></div>
+      <div id="msg_primary_above"></div>
+      <div id="msg_secondary_above"></div>
     </div>
+
     <div id="digits" class="big">00:00</div>
+
     <div id="msgs_below" class="muted" style="display:none;text-align:center">
-      <div id="msg_primary_below"></div><div id="msg_secondary_below"></div>
+      <div id="msg_primary_below"></div>
+      <div id="msg_secondary_below"></div>
     </div>
   </div>
 
-  <div id="view_screen" class="screen" style="display:none"><div id="screen_inner"></div></div>
+  <div id="view_screen" class="screen" style="display:none; position:relative">
+    <div id="screen_inner"></div>
+    <div id="screen_clock" style="display:none; position:absolute; right:4vw; top:3vh; font-weight:800;"></div>
+  </div>
 
-<script>
-(function(){
-  const $ = s=>document.querySelector(s);
-  const state = { cfg:null, tick:null, lastCfgRev:0 };
-  let lastActivityTs = Date.now();
+  <script>
+    (function(){
+      const $ = (s)=>document.querySelector(s);
+      const state = { cfg:null, tick:null, lastCfgRev:0, clockTimer:null };
+      let lastActivityTs = Date.now();
 
-  const fmtMMSS = ms => { const neg=ms<0?"-":""; ms=Math.abs(ms); const t=Math.floor(ms/1000), m=Math.floor(t/60), s=t%60; return `${neg}${m}:${String(s).padStart(2,"0")}`; };
-  const fmtHMS  = ms => { const neg=ms<0?"-":""; ms=Math.abs(ms); const t=Math.floor(ms/1000), h=Math.floor(t/3600), r=t%3600, m=Math.floor(r/60), s=r%60; const pad=n=>String(n).padStart(2,"0"); return `${neg}${h}:${pad(m)}:${pad(s)}`; };
+      const fmtMMSS = ms => { const neg=ms<0?"-":""; ms=Math.abs(ms); const t=Math.floor(ms/1000), m=Math.floor(t/60), s=t%60; return `${neg}${m}:${String(s).padStart(2,"0")}`; };
+      const fmtHMS  = ms => { const neg=ms<0?"-":""; ms=Math.abs(ms); const t=Math.floor(ms/1000), h=Math.floor(t/3600), r=t%3600, m=Math.floor(r/60), s=r%60; const pad=n=>String(n).padStart(2,"0"); return `${neg}${h}:${pad(m)}:${pad(s)}`; };
+      const hex2rgb = h => { const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h||""); if(!m) return "0,0,0"; return `${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)}`; };
 
-  function applyDigitsSize(){
-    const vw = Number(state.cfg?.theme?.digits?.size_vw ?? 14);
-    $("#digits").style.fontSize = `${vw}vw`;
-  }
-  function applyMessageStyles(){
-    const p = state.cfg?.theme?.messages?.primary   || {};
-    const s = state.cfg?.theme?.messages?.secondary || {};
-    const set = (sel, m)=>{ const el=$(sel); if(!el) return; el.style.fontSize=`${Number(m.size_rem??1)}rem`; el.style.fontWeight=String(Number(m.weight??400)); el.style.color=String(m.color??'#9aa4b2'); };
-    ["#msg_primary_above","#msg_primary_below"].forEach(sel=>set(sel,p));
-    ["#msg_secondary_above","#msg_secondary_below"].forEach(sel=>set(sel,s));
-  }
-  function applyBackground(rootEl){
-    const bg = state.cfg?.theme?.background || {};
-    const mode = (bg.mode||"solid").toLowerCase();
-    if (mode==="solid"){
-      rootEl.style.background = bg.solid?.color || "#0b0f14";
-    } else if (mode==="gradient"){
-      const g = bg.gradient||{};
-      rootEl.style.background = `linear-gradient(${Number(g.angle_deg||180)}deg, ${g.from||"#142033"}, ${g.to||"#0b0f14"})`;
-    } else if (mode==="image"){
-      const img = bg.image||{};
-      rootEl.style.background = (img.tint?.opacity>0)
-        ? `linear-gradient(rgba(${hex2rgb(img.tint.color||"#000")}, ${img.tint.opacity||0}), rgba(${hex2rgb(img.tint.color||"#000")}, ${img.tint.opacity||0})), url('${img.url||""}')`
-        : `url('${img.url||""}')`;
-      rootEl.style.backgroundSize = img.fit||"cover";
-      rootEl.style.backgroundPosition = "center";
-      rootEl.style.backgroundRepeat = "no-repeat";
-      rootEl.style.opacity = String(img.opacity ?? 1);
-    }
-  }
-  function hex2rgb(h){ const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h||""); if(!m) return "0,0,0"; return `${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)}`; }
+      function applyDigitsSize(){
+        const vw = Number(state.cfg?.theme?.digits?.size_vw ?? 14);
+        $("#digits").style.fontSize = `${vw}vw`;
+      }
+      function applyMessageStyles(){
+        const p = state.cfg?.theme?.messages?.primary   || {};
+        const s = state.cfg?.theme?.messages?.secondary || {};
+        const set = (sel, m)=> { const el=$(sel); if(!el) return; el.style.fontSize   = `${Number(m.size_rem ?? 1.0)}rem`; el.style.fontWeight = String(Number(m.weight ?? 400)); el.style.color = String(m.color ?? '#9aa4b2'); };
+        ["#msg_primary_above","#msg_primary_below"].forEach(sel=>set(sel,p));
+        ["#msg_secondary_above","#msg_secondary_below"].forEach(sel=>set(sel,s));
+      }
+      function applyThemeBackground(rootEl, bg){
+        const mode = (bg?.mode||"solid").toLowerCase();
+        if (mode==="solid"){
+          rootEl.style.background = bg.solid?.color || "#0b0f14";
+        } else if (mode==="gradient"){
+          const g = bg.gradient||{};
+          rootEl.style.background = `linear-gradient(${Number(g.angle_deg||180)}deg, ${g.from||"#142033"}, ${g.to||"#0b0f14"})`;
+        } else if (mode==="image"){
+          const im = bg.image||{};
+          const tint = im.tint||{};
+          rootEl.style.background = (tint.opacity>0)
+            ? `linear-gradient(rgba(${hex2rgb(tint.color||"#000")}, ${tint.opacity||0}), rgba(${hex2rgb(tint.color||"#000")}, ${tint.opacity||0})), url('${im.url||""}')`
+            : `url('${im.url||""}')`;
+          rootEl.style.backgroundSize = im.fit||"cover";
+          rootEl.style.backgroundPosition = "center";
+          rootEl.style.backgroundRepeat = "no-repeat";
+          rootEl.style.opacity = String(im.opacity ?? 1);
+        }
+      }
 
-  function applyCountdown(){
-    $("#view_screen").style.display="none";
-    const root=$("#view_countdown"); root.style.display="flex";
-    applyBackground(document.body); // legg tema-bakgrunn på body
-    applyDigitsSize(); applyMessageStyles();
+      function applyCountdown(){
+        $("#view_screen").style.display = "none";
+        const root = $("#view_countdown");
+        root.style.display = "flex";
+        // legg tema-bakgrunn på BODY
+        applyThemeBackground(document.body, state.cfg?.theme?.background);
+        // cleanup clock timer hvis aktiv
+        if (state.clockTimer){ clearInterval(state.clockTimer); state.clockTimer=null; }
+        $("#screen_clock").style.display="none";
 
-    const c=state.cfg, t=state.tick;
-    const thresholdMs=(c.hms_threshold_minutes??60)*60*1000;
-    const msActive=(t.state==="countdown"||t.state==="overrun");
-    const ms = msActive? t.signed_display_ms : 0;
-    const useHMS = Math.abs(ms) >= thresholdMs;
-    const digits=$("#digits");
-    digits.textContent = useHMS? fmtHMS(ms) : fmtMMSS(ms);
+        applyDigitsSize(); applyMessageStyles();
 
-    let color=c.color_normal;
-    if(c.use_phase_colors){
-      if(t.state==="overrun"||t.signed_display_ms<0) color=c.color_over||c.color_alert;
-      else if(t.mode==="alert") color=c.color_alert;
-      else if(t.mode==="warn")  color=c.color_warn;
-    }
-    digits.style.color=color;
-    digits.classList.toggle("blink", !!(c.use_blink && t.blink));
+        const c=state.cfg, t=state.tick;
+        const thresholdMs=(c.hms_threshold_minutes??60)*60*1000;
+        const msActive=(t.state==="countdown"||t.state==="overrun");
+        const ms = msActive ? t.signed_display_ms : 0;
 
-    const targetText = (c.show_target_time && t.target_hhmm) ? ` ${t.target_hhmm}` : "";
-    const prim=(c.show_message_primary?(c.message_primary||""):"")+((c.target_time_after==="primary")?targetText:"");
-    const sec =(c.show_message_secondary?(c.message_secondary||""):"")+((c.target_time_after==="secondary")?targetText:"");
-    const above=c.messages_position==="above";
-    $("#msgs_above").style.display=above?"block":"none";
-    $("#msgs_below").style.display=above?"none":"block";
-    $("#msg_primary_above").textContent = above ? prim : "";
-    $("#msg_secondary_above").textContent= above ? sec  : "";
-    $("#msg_primary_below").textContent = !above ? prim : "";
-    $("#msg_secondary_below").textContent= !above ? sec  : "";
-  }
+        const useHMS = Math.abs(ms) >= thresholdMs;
+        const digits = $("#digits");
+        digits.textContent = useHMS ? fmtHMS(ms) : fmtMMSS(ms);
 
-  function applyScreen(){
-    const sc=state.cfg.screen||{};
-    $("#view_countdown").style.display="none";
-    const root=$("#view_screen"); root.style.display="flex";
-    root.style.background = sc.bg||"#000";
-    const inner=$("#screen_inner"); inner.innerHTML="";
-    if(sc.type==="blackout") return;
-    if(sc.type==="image"){
-      const wrap=document.createElement("div"); wrap.style.position="relative"; wrap.style.width="100%"; wrap.style.height="100%";
-      const img=document.createElement("img"); img.src=sc.image_url||""; img.style.objectFit=sc.image_fit||"cover"; img.style.width="100%"; img.style.height="100%"; img.style.opacity=String((sc.image_opacity??100)/100);
-      wrap.appendChild(img); inner.appendChild(wrap); return;
-    }
-    const div=document.createElement("div");
-    div.className="text"; div.textContent=sc.text||"Pause"; div.style.color=sc.text_color||"#fff"; div.style.fontSize=`${Math.max(4,Math.min(30,Number(sc.font_vh??10)))}vh`;
-    inner.appendChild(div);
-  }
+        let color = c.color_normal;
+        if (c.use_phase_colors) {
+          if (t.state === "overrun" || t.signed_display_ms < 0) color = c.color_over || c.color_alert;
+          else if (t.mode === "alert") color = c.color_alert;
+          else if (t.mode === "warn")  color = c.color_warn;
+        }
+        digits.style.color = color;
+        digits.classList.toggle("blink", !!(c.use_blink && t.blink));
 
-  async function fetchConfig(){ const r=await fetch("/api/config"); const js=await r.json(); state.cfg=js.config; state.lastCfgRev=js.config._updated_at||0; sendHeartbeat(); }
-  async function firstLoad(){ await fetchConfig(); const r=await fetch("/tick"); state.tick=await r.json(); render(); sendHeartbeat(); }
-  async function pollTick(){ const r=await fetch("/tick"); const t=await r.json(); state.tick=t; if((t.cfg_rev||0)!==state.lastCfgRev) await fetchConfig(); render(true); }
-  function render(){ const mode=(state.cfg?.mode)||"daily"; if(mode==="screen") applyScreen(); else applyCountdown(); }
+        const targetText = (c.show_target_time && t.target_hhmm) ? ` ${t.target_hhmm}` : "";
+        const prim = (c.show_message_primary ? (c.message_primary||"") : "") + ((c.target_time_after==="primary") ? targetText : "");
+        const sec  = (c.show_message_secondary ? (c.message_secondary||"") : "") + ((c.target_time_after==="secondary") ? targetText : "");
 
-  // heartbeat + FS auto-skjul
-  function sendHeartbeat(){ const payload=JSON.stringify({rev:state.lastCfgRev,page:"view"}); if(navigator.sendBeacon){ const blob=new Blob([payload],{type:"application/json"}); navigator.sendBeacon("/debug/view-heartbeat",blob);} else { fetch("/debug/view-heartbeat",{method:"POST",headers:{"Content-Type":"application/json"},body:payload}).catch(()=>{});} }
-  setInterval(sendHeartbeat, 10000);
-  const fsBtn=$("#btn_fullscreen"); function showFs(){ fsBtn.style.display=(document.fullscreenEnabled?"inline-block":"none"); fsBtn.style.opacity="1"; } function hideFs(){ if(document.fullscreenEnabled) fsBtn.style.opacity="0"; }
-  ["mousemove","mousedown","keydown","touchstart"].forEach(ev=>document.addEventListener(ev,()=>{lastActivityTs=Date.now(); showFs();},{passive:true}));
-  setInterval(()=>{ if(Date.now()-lastActivityTs>5000) hideFs(); },1000);
-  fsBtn.addEventListener("click",async()=>{ try{ if(!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen(); }catch(e){} });
+        const above = c.messages_position === "above";
+        $("#msgs_above").style.display = above ? "block" : "none";
+        $("#msgs_below").style.display = above ? "none"  : "block";
+        $("#msg_primary_above").textContent   = above ? prim : "";
+        $("#msg_secondary_above").textContent = above ? sec  : "";
+        $("#msg_primary_below").textContent   = !above ? prim : "";
+        $("#msg_secondary_below").textContent = !above ? sec  : "";
+      }
 
-  showFs(); firstLoad().catch(console.error); setInterval(pollTick,1000);
-})();
-</script>
-</body></html>
+      function applyScreen(){
+        const sc = state.cfg.screen || {};
+        $("#view_countdown").style.display = "none";
+        const root = $("#view_screen");
+        root.style.display = "flex";
+
+        // bakgrunn: bruk theme dersom valgt, ellers screen.background, fallback legacy
+        if (sc.use_theme_background) {
+          applyThemeBackground(root, state.cfg?.theme?.background);
+        } else if (sc.background) {
+          applyThemeBackground(root, sc.background);
+        } else {
+          // legacy fallback
+          root.style.background = sc.bg || "#000";
+        }
+
+        // clock overlay
+        const clk = sc.clock || {};
+        const clkEl = $("#screen_clock");
+        if (clk.show) {
+          clkEl.style.display="block";
+          clkEl.style.color = clk.color || "#e6edf3";
+          clkEl.style.fontSize = `${Math.max(6, Math.min(30, Number(clk.size_vh||12)))}vh`;
+          if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer=null; }
+          const updateClock = () => {
+            const d = new Date();
+            const HH = String(d.getHours()).padStart(2,"0");
+            const MM = String(d.getMinutes()).padStart(2,"0");
+            const SS = String(d.getSeconds()).padStart(2,"0");
+            clkEl.textContent = clk.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
+          };
+          updateClock();
+          state.clockTimer = setInterval(updateClock, clk.with_seconds ? 1000 : 5000);
+        } else {
+          clkEl.style.display="none";
+          if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer=null; }
+        }
+
+        const inner = $("#screen_inner");
+        inner.innerHTML = "";
+        if (sc.type === "blackout") return;
+
+        if (sc.type === "image") {
+          const wrap = document.createElement("div");
+          wrap.style.position="relative"; wrap.style.width="100%"; wrap.style.height="100%";
+          const img = document.createElement("img");
+          img.src = sc.image_url || "";
+          img.style.objectFit = sc.image_fit || "cover";
+          img.style.width="100%"; img.style.height="100%";
+          img.style.opacity = String((sc.image_opacity ?? 100)/100);
+          wrap.appendChild(img);
+          inner.appendChild(wrap);
+          return;
+        }
+        // text
+        const div = document.createElement("div");
+        div.className = "text";
+        div.textContent = sc.text || "Pause";
+        div.style.color = sc.text_color || "#fff";
+        div.style.fontSize = `${Math.max(4, Math.min(30, Number(sc.font_vh ?? 10)))}vh`;
+        inner.appendChild(div);
+      }
+
+      async function fetchConfig(){
+        const r = await fetch("/api/config"); const js = await r.json();
+        state.cfg = js.config; state.lastCfgRev = js.config._updated_at || 0;
+        sendHeartbeat();
+      }
+      async function firstLoad(){
+        await fetchConfig();
+        const r = await fetch("/tick"); state.tick = await r.json();
+        render();
+        sendHeartbeat();
+      }
+      async function pollTick(){
+        const r = await fetch("/tick"); const t = await r.json();
+        state.tick = t;
+        if ((t.cfg_rev||0) !== state.lastCfgRev) await fetchConfig();
+        render(true);
+      }
+
+      function render(){
+        const mode = (state.cfg?.mode) || "daily";
+        if (mode === "screen") applyScreen(); else applyCountdown();
+      }
+
+      // Heartbeat + fullskjerm auto-skjul
+      function sendHeartbeat(){
+        const payload = JSON.stringify({ rev: state.lastCfgRev, page: "view" });
+        if (navigator.sendBeacon) {
+          const blob = new Blob([payload], {type: "application/json"});
+          navigator.sendBeacon("/debug/view-heartbeat", blob);
+        } else {
+          fetch("/debug/view-heartbeat",{method:"POST",headers:{"Content-Type":"application/json"},body:payload}).catch(()=>{});
+        }
+      }
+      setInterval(sendHeartbeat, 10000);
+
+      const fsBtn = $("#btn_fullscreen");
+      function showFsBtn(){ fsBtn.style.display = (document.fullscreenEnabled ? "inline-block" : "none"); fsBtn.style.opacity = "1"; }
+      function hideFsBtn(){ if (document.fullscreenEnabled) fsBtn.style.opacity = "0"; }
+      function bumpActivity(){ lastActivityTs = Date.now(); showFsBtn(); }
+      ["mousemove","mousedown","keydown","touchstart"].forEach(ev => document.addEventListener(ev, bumpActivity, {passive:true}));
+      setInterval(()=>{ if (Date.now()-lastActivityTs > 5000) hideFsBtn(); }, 1000);
+      fsBtn.addEventListener("click", async () => {
+        try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+              else await document.exitFullscreen(); } catch (e) {}
+      });
+
+      showFsBtn();
+      firstLoad().catch(console.error);
+      setInterval(pollTick, 1000);
+    })();
+  </script>
+</body>
+</html>

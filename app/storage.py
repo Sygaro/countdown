@@ -1,4 +1,9 @@
 # app/storage.py
+"""
+Konfig I/O + defaults. Inkluderer theme.background, screen.background, screen.clock.
+- Defaults er kilden til sannhet for Admin "Tilbakestill".
+- Bakoverkomp: screen.bg/image_* brukes dersom screen.background ikke er definert.
+"""
 from __future__ import annotations
 import json, os, tempfile, time
 from typing import Any, Dict, Tuple
@@ -12,47 +17,70 @@ _DEFAULTS: Dict[str, Any] = {
     "duration_minutes": 10,
     "duration_started_ms": 0,
 
+    # Stopp-skjerm (innhold + legacy bakgrunnsfelt)
     "screen": {
-        "type": "text",
+        "type": "text",               # text|image|blackout
         "text": "Pause",
         "text_color": "#ffffff",
-        "bg": "#000000",
+        "bg": "#000000",              # legacy (fallback når background mangler)
         "font_vh": 10,
         "image_url": "",
-        "image_opacity": 100,
+        "image_opacity": 100,         # 0..100 (legacy)
         "image_fit": "cover",
+
+        # NY: bakgrunnvalg for stopp-skjerm
+        "use_theme_background": False,
+        "background": {
+            "mode": "solid",          # solid|gradient|image
+            "solid":    { "color": "#0b0f14" },
+            "gradient": { "from": "#142033", "to": "#0b0f14", "angle_deg": 180 },
+            "image":    {
+                "url": "", "fit": "cover", "opacity": 1.0,
+                "tint": { "color": "#000000", "opacity": 0.0 }
+            }
+        },
+        # NY: klokke-overlay
+        "clock": {
+            "show": False,
+            "with_seconds": False,
+            "color": "#e6edf3",
+            "size_vh": 12              # 6..30
+        }
     },
 
+    # Meldinger (innhold)
     "message_primary": "",
     "message_secondary": "",
     "show_message_primary": True,
     "show_message_secondary": False,
 
+    # Varsler/blink (logikk)
     "warn_minutes": 4,
     "alert_minutes": 2,
     "blink_seconds": 10,
     "overrun_minutes": 1,
 
+    # Visning / oppførsel
     "show_target_time": False,
-    "target_time_after": "secondary",
-    "messages_position": "below",
+    "target_time_after": "secondary",   # primary|secondary
+    "messages_position": "below",       # above|below
     "use_blink": True,
     "use_phase_colors": False,
     "color_normal": "#e6edf3",
     "color_warn":   "#ffd166",
     "color_alert":  "#ff6b6b",
     "color_over":   "#9ad0ff",
-    "hms_threshold_minutes": 60,
+    "hms_threshold_minutes": 60,        # clamp [0,720]
 
+    # Theme for selve visningen
     "theme": {
         "digits": { "size_vw": 14, "font_weight": 800, "letter_spacing_em": 0.06 },
         "messages": {
             "primary":   { "size_rem": 1.0, "weight": 600, "color": "#9aa4b2" },
             "secondary": { "size_rem": 1.0, "weight": 400, "color": "#9aa4b2" }
         },
-        # NY: bakgrunn for nedtellingsvisningen
         "background": {
-            "mode": "solid",  # solid|gradient|image
+            "mode": "solid",
             "solid":    { "color": "#0b0f14" },
             "gradient": { "from": "#142033", "to": "#0b0f14", "angle_deg": 180 },
             "image":    { "url": "", "fit": "cover", "opacity": 1.0,
@@ -106,6 +134,11 @@ def _coerce_bool(v, default: bool) -> bool:
         if s in ("0","false","no","n","off"): return False
     return default
 
+def _clamp01(x, d=1.0) -> float:
+    try: v = float(x)
+    except Exception: v = d
+    return max(0.0, min(1.0, v))
+
 def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     def _i(v, d=None):
         if v in (None, ""): return d
@@ -131,13 +164,14 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     for k in ("target_time_after","messages_position","color_normal","color_warn","color_alert","color_over"):
         if cfg.get(k) is None: cfg[k] = _DEFAULTS[k]
 
-    # Theme
+    # Theme (digits/messages/background)
     th = cfg.get("theme") or {}
     base_th = get_defaults()["theme"]
     _deep_merge(base_th, th)
 
     dg = base_th.get("digits", {})
-    dg["size_vw"] = max(8, min(40, int(dg.get("size_vw", 14) or 14)))
+    try: dg["size_vw"] = max(8, min(40, int(dg.get("size_vw", 14) or 14)))
+    except Exception: dg["size_vw"] = 14
     base_th["digits"] = dg
 
     msg = base_th.get("messages", {})
@@ -159,27 +193,61 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     mode = (bg.get("mode") or "solid").lower()
     if mode not in ("solid","gradient","image"): mode = "solid"
     bg["mode"] = mode
-    # gradient
-    try:
-        ang = int(bg.get("gradient", {}).get("angle_deg", 180))
-    except Exception:
-        ang = 180
-    bg.setdefault("gradient", {})
-    bg["gradient"]["angle_deg"] = max(0, min(360, ang))
-    # image opacity + tint opacity (0..1)
-    def _clamp01(x, d=1.0):
-        try: v = float(x)
-        except Exception: v = d
-        return max(0.0, min(1.0, v))
+    try: ang = int(bg.get("gradient", {}).get("angle_deg", 180))
+    except Exception: ang = 180
+    bg.setdefault("gradient", {}); bg["gradient"]["angle_deg"] = max(0, min(360, ang))
     bg.setdefault("image", {})
     bg["image"]["opacity"] = _clamp01(bg["image"].get("opacity", 1.0), 1.0)
     bg["image"]["fit"] = (bg["image"].get("fit") or "cover")
     bg["image"].setdefault("tint", {})
     bg["image"]["tint"]["opacity"] = _clamp01(bg["image"]["tint"].get("opacity", 0.0), 0.0)
-
     base_th["background"] = bg
     cfg["theme"] = base_th
 
+    # Screen background/clock (ny modell + legacy fallback)
+    sc = cfg.get("screen") or {}
+    sc["use_theme_background"] = _coerce_bool(sc.get("use_theme_background", False), False)
+    # background
+    sc_bg = sc.get("background") or {}
+    sc_bg = _deep_merge(get_defaults()["screen"]["background"], sc_bg)
+    mode2 = (sc_bg.get("mode") or "solid").lower()
+    if mode2 not in ("solid","gradient","image"): mode2 = "solid"
+    sc_bg["mode"] = mode2
+    try: ang2 = int(sc_bg.get("gradient", {}).get("angle_deg", 180))
+    except Exception: ang2 = 180
+    sc_bg.setdefault("gradient", {}); sc_bg["gradient"]["angle_deg"] = max(0, min(360, ang2))
+    sc_bg.setdefault("image", {})
+    sc_bg["image"]["opacity"] = _clamp01(sc_bg["image"].get("opacity", 1.0), 1.0)
+    sc_bg["image"]["fit"] = (sc_bg["image"].get("fit") or "cover")
+    sc_bg["image"].setdefault("tint", {})
+    sc_bg["image"]["tint"]["opacity"] = _clamp01(sc_bg["image"]["tint"].get("opacity", 0.0), 0.0)
+
+    # legacy → hvis background ikke satt spesifikt, mapp fra gamle felt
+    if not sc.get("background_set_explicitly") and (sc.get("image_url") or sc.get("bg")):
+        if sc.get("image_url"):
+            sc_bg["mode"] = "image"
+            sc_bg["image"]["url"] = sc.get("image_url")
+            sc_bg["image"]["fit"] = sc.get("image_fit") or "cover"
+            sc_bg["image"]["opacity"] = (float(sc.get("image_opacity", 100))/100.0)
+        else:
+            sc_bg["mode"] = "solid"
+            sc_bg.setdefault("solid", {})["color"] = sc.get("bg") or "#000000"
+
+    sc["background"] = sc_bg
+
+    # clock
+    clk = sc.get("clock") or {}
+    clk["show"] = _coerce_bool(clk.get("show", False), False)
+    clk["with_seconds"] = _coerce_bool(clk.get("with_seconds", False), False)
+    try: clk["size_vh"] = max(6, min(30, int(clk.get("size_vh", 12) or 12)))
+    except Exception: clk["size_vh"] = 12
+    if not isinstance(clk.get("color"), str) or not clk.get("color"):
+        clk["color"] = "#e6edf3"
+    sc["clock"] = clk
+
+    cfg["screen"] = sc
+
+    # terskel
     hm = cfg.get("hms_threshold_minutes", _DEFAULTS["hms_threshold_minutes"])
     cfg["hms_threshold_minutes"] = max(0, min(720, hm))
     return cfg
@@ -190,13 +258,13 @@ def _validate(cfg: Dict[str, Any]) -> Tuple[bool, str]:
         return False, "mode må være daily|once|duration|screen"
     if m == "daily":
         s = (cfg.get("daily_time") or "").strip()
-        if len(s) != 5 or ":" not in s: return False, "daily_time må være HH:MM"
+        if len(s) != 5 or ":" not in s:
+            return False, "daily_time må være HH:MM"
     if m == "once":
         s = (cfg.get("once_at") or "").strip()
         if s:
             try:
-                dt = datetime.fromisoformat(s)
-                if dt.tzinfo is None: dt = dt.replace(tzinfo=TZ)
+                datetime.fromisoformat(s)
             except Exception:
                 return False, "once_at må være ISO (YYYY-MM-DDTHH:MM)"
     if m == "duration" and int(cfg.get("duration_minutes") or 0) <= 0:
@@ -205,7 +273,7 @@ def _validate(cfg: Dict[str, Any]) -> Tuple[bool, str]:
         sc = cfg.get("screen") or {}
         if sc.get("type") not in ("text","image","blackout"):
             return False, "screen.type må være text|image|blackout"
-        if sc.get("type") == "image" and not (sc.get("image_url") or "").strip():
+        if sc.get("type") == "image" and not (sc.get("image_url") or sc.get("background", {}).get("image", {}).get("url")):
             return False, "screen.image_url må settes for image"
     return True, ""
 
@@ -256,7 +324,8 @@ def set_mode(mode: str, *, daily_time: str = "", once_at: str = "", duration_min
         if duration_minutes: cfg["duration_minutes"] = int(duration_minutes)
     elif mode == "screen":
         if screen:
-            base = _merge_defaults({"screen": {}})["screen"]; cfg["screen"] = base; _deep_merge(cfg["screen"], screen)
+            base = _merge_defaults({"screen": {}})["screen"]
+            cfg["screen"] = base; _deep_merge(cfg["screen"], screen)
     else:
         raise ValueError("Ugyldig mode")
     return replace_config(cfg)

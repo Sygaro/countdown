@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Countdown · Diagnose</title>
   <link rel="stylesheet" href="/static/css/ui.css"/>
+  <style>
+    .readout { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .mono { font-family: ui-monospace, monospace }
+    .chip { border:1px solid var(--border); border-radius:8px; padding:4px 8px; }
+  </style>
 </head>
 <body>
   <header>
@@ -20,23 +25,41 @@
   <main class="grid">
     <section class="card">
       <h2>Status</h2>
-      <button id="btn_upd">Oppdater</button>
-      <div id="tick_line" class="hint"></div>
-      <div id="fmt_line" class="hint"></div>
+      <div class="row">
+        <button id="btn_upd">Oppdater</button>
+        <span id="lat" class="chip">latency: — ms</span>
+      </div>
+      <div id="tick_line" class="readout"></div>
+      <div id="fmt_line" class="readout"></div>
     </section>
 
     <section class="card">
       <h2>Debug</h2>
-      <div class="row"><button id="btn_who">/debug/whoami</button><button id="btn_cfg">/api/config</button><button id="btn_self">/debug/selftest</button><button id="btn_hb">/debug/view-heartbeat</button></div>
-      <pre id="out">( tom )</pre>
+      <div class="row">
+        <button id="btn_who">/debug/whoami</button>
+        <button id="btn_cfg">/api/config</button>
+        <button id="btn_self">/debug/selftest</button>
+        <button id="btn_hb">/debug/view-heartbeat</button>
+      </div>
+      <pre id="out" class="mono">( tom )</pre>
     </section>
   </main>
 
 <script>
 (function(){
   const $=s=>document.querySelector(s);
-  async function tick(){ const r=await fetch("/tick"); const t=await r.json(); $("#tick_line").textContent = `state=${t.state} mode=${t.mode} now=${t.now_ms} target=${t.target_ms} display=${t.display_ms} signed=${t.signed_display_ms}`; const abs=Math.abs(t.signed_display_ms); const h=Math.floor(abs/3600000), m=Math.floor((abs%3600000)/60000), s=Math.floor((abs%60000)/1000); $("#fmt_line").textContent=`Fomat: ${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}  /  ${Math.floor(abs/60000)}:${String(Math.floor((abs/1000)%60)).padStart(2,"0")}`; }
+  const fmt = (ms)=>{ const abs=Math.abs(ms); const h=Math.floor(abs/3600000), m=Math.floor((abs%3600000)/60000), s=Math.floor((abs%60000)/1000); return {h,m,s,mmss:`${Math.floor(abs/60000)}:${String(Math.floor((abs/1000)%60)).padStart(2,"0")}`, hms:`${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`}; };
+
+  async function tick(){
+    const t0=performance.now();
+    const r=await fetch("/tick"); const t=await r.json();
+    const dt=performance.now()-t0; $("#lat").textContent=`latency: ${dt.toFixed(0)} ms`;
+    $("#tick_line").textContent = `mode=${t.mode} state=${t.state} now=${t.now_ms} target=${t.target_ms} display=${t.display_ms} signed=${t.signed_display_ms}`;
+    const f=fmt(t.signed_display_ms);
+    $("#fmt_line").textContent = `format: ${f.hms}  /  ${f.mmss}`;
+  }
   async function dump(url){ const r=await fetch(url); const js=await r.json(); $("#out").textContent = JSON.stringify(js,null,2); }
+
   $("#btn_upd").addEventListener("click",()=>tick().catch(console.error));
   $("#btn_who").addEventListener("click",()=>dump("/debug/whoami").catch(console.error));
   $("#btn_cfg").addEventListener("click",()=>dump("/api/config").catch(console.error));

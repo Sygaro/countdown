@@ -31,9 +31,9 @@
   </header>
 
   <div class="actions">
-    <button id="btn_save" class="primary" title="Lagre endringer">Lagre</button>
-    <button id="btn_refresh" title="Hent status fra server">Oppdater</button>
-    <button id="btn_reset_view" title="Tilbakestill (defaults fra server)">Tilbakestill visning</button>
+    <button id="btn_save" class="primary">Lagre</button>
+    <button id="btn_refresh">Oppdater</button>
+    <button id="btn_reset_view">Tilbakestill visning</button>
     <span id="sync_pill" class="pill off">Synk: —</span>
     <span id="save_hint" class="muted"></span>
   </div>
@@ -42,15 +42,15 @@
     <!-- Modus -->
     <section class="card">
       <h2>Modus</h2>
-      <label title="Teller ned til fast klokkeslett"><input type="radio" name="mode" value="daily"/> Daglig klokkeslett</label>
+      <label><input type="radio" name="mode" value="daily"/> Daglig klokkeslett</label>
       <input id="daily_time" type="time" step="60"/>
       <br/>
-      <label title="Teller ned til ett bestemt tidspunkt"><input type="radio" name="mode" value="once"/> Engangs-tidspunkt</label>
+      <label><input type="radio" name="mode" value="once"/> Engangs-tidspunkt</label>
       <input id="once_at" type="datetime-local"/>
       <br/>
-      <label title="Manuell varighetsnedtelling"><input type="radio" name="mode" value="duration"/> Varighet (manuell start)</label>
+      <label><input type="radio" name="mode" value="duration"/> Varighet (manuell start)</label>
       <br/>
-      <label title="Vis ren stopp-skjerm (tekst/bilde/blackout)"><input type="radio" name="mode" value="screen"/> Stopp-skjerm</label>
+      <label><input type="radio" name="mode" value="screen"/> Stopp-skjerm</label>
       <p class="hint">Velg én modus. Lagre for at endring skal gjelde.</p>
       <p id="active_mode" class="muted">Aktiv modus: —</p>
     </section>
@@ -67,30 +67,15 @@
         <button id="btn_start" class="primary">Start nedtelling nå</button>
         <button id="btn_stop">Stopp</button>
       </div>
-      <p class="hint">Starter alltid varighetsmodus umiddelbart.</p>
     </section>
 
-    <!-- Stopp-skjerm -->
+    <!-- Meldinger (innhold) -->
     <section class="card">
-      <h2>Stopp-skjerm</h2>
-      <label><input type="radio" name="screen_type" value="text"/> Tekst</label>
-      <label><input type="radio" name="screen_type" value="image"/> Bilde</label>
-      <label><input type="radio" name="screen_type" value="blackout"/> Blackout</label>
-      <div id="screen_text_cfg">
-        <label>Tekst <input id="screen_text" type="text" placeholder="Pause"/></label>
-        <label>Tekstfarge <input id="screen_text_color" type="color" value="#ffffff"/></label>
-        <label>Bakgrunn <input id="screen_bg" type="color" value="#000000"/></label>
-        <label>Skriftstørrelse (vh) <input id="screen_font_vh" type="number" min="4" max="30" step="1" value="10"/></label>
-      </div>
-      <div id="screen_image_cfg">
-        <label>Bilde-URL <input id="screen_image_url" type="url" placeholder="https://..."/></label>
-        <label>Opacity (0–100) <input id="screen_image_opacity" type="number" min="0" max="100" step="1" value="100"/></label>
-        <label>Tilpasning
-          <select id="screen_image_fit"><option value="cover">cover</option><option value="contain">contain</option></select>
-        </label>
-        <label>Bakgrunn <input id="screen_bg_img" type="color" value="#000000"/></label>
-      </div>
-      <p class="hint">Gjelder når modus = Stopp-skjerm.</p>
+      <h2>Meldinger</h2>
+      <label><input id="show_message_primary" type="checkbox"/> Vis hovedmelding</label>
+      <textarea id="message_primary" rows="2" placeholder="Velkommen !"></textarea>
+      <label><input id="show_message_secondary" type="checkbox"/> Vis sekundær melding</label>
+      <input id="message_secondary" type="text" placeholder="Vi starter igjen kl:"/>
     </section>
 
     <!-- Visning / oppførsel -->
@@ -156,9 +141,20 @@
       </div>
     </section>
 
-    <!-- Utseende – Bakgrunn -->
+    <!-- Utseende – Bakgrunn (visningen) -->
     <section class="card">
       <h2>Utseende – Bakgrunn</h2>
+      <div class="row">
+        <label>Preset
+          <select id="bg_preset">
+            <option value="none">(ingen)</option>
+            <option value="dark-solid">Mørk ensfarget</option>
+            <option value="dark-grad">Mørk gradient</option>
+            <option value="photo-tint">Foto m/tint</option>
+          </select>
+        </label>
+        <button id="btn_apply_preset">Bruk preset</button>
+      </div>
       <label><input type="radio" name="bg_mode" value="solid"/> Ensfarget</label>
       <label><input type="radio" name="bg_mode" value="gradient"/> Gradient</label>
       <label><input type="radio" name="bg_mode" value="image"/> Bilde</label>
@@ -182,285 +178,298 @@
       </div>
     </section>
 
-    <!-- Forhåndsvisning -->
+    <!-- Stopp-skjerm – Bakgrunn + Klokke -->
     <section class="card">
-      <h2>Forhåndsvisning</h2>
-      <div class="row">
-        <span class="tag">Simuler:</span>
-        <label><input type="radio" name="pv_state" value="normal" checked/> Normal</label>
-        <label><input type="radio" name="pv_state" value="warn"/> Gul</label>
-        <label><input type="radio" name="pv_state" value="alert"/> Rød</label>
-        <label><input type="radio" name="pv_state" value="overrun"/> Minus-tid</label>
-        <label><input type="checkbox" id="pv_blink"/> Blink</label>
-      </div>
-      <div id="preview" class="preview">
-        <div id="pv_box" class="pv-box" style="background:#0b0f14">
-          <div id="pv_above" style="display:none;text-align:center">
-            <div id="pv_prim_above"></div><div id="pv_sec_above"></div>
-          </div>
-          <div id="pv_digits" class="pv-digits">12:34</div>
-          <div id="pv_below" style="display:block;text-align:center">
-            <div id="pv_prim_below"></div><div id="pv_sec_below"></div>
-          </div>
+      <h2>Stopp-skjerm – Bakgrunn & Klokke</h2>
+      <label><input id="sc_use_theme_bg" type="checkbox"/> Bruk samme bakgrunn som visningen</label>
+
+      <div id="sc_bg_cfg">
+        <label><input type="radio" name="sc_bg_mode" value="solid"/> Ensfarget</label>
+        <label><input type="radio" name="sc_bg_mode" value="gradient"/> Gradient</label>
+        <label><input type="radio" name="sc_bg_mode" value="image"/> Bilde</label>
+        <div id="sc_bg_solid"><label>Farge <input id="sc_bg_solid_color" type="color" value="#0b0f14"/></label></div>
+        <div id="sc_bg_grad">
+          <label>Fra <input id="sc_bg_grad_from" type="color" value="#142033"/></label>
+          <label>Til <input id="sc_bg_grad_to" type="color" value="#0b0f14"/></label>
+          <label>Vinkel (°) <input id="sc_bg_grad_angle" type="number" min="0" max="360" step="1" value="180"/></label>
+        </div>
+        <div id="sc_bg_img">
+          <label>Bilde-URL <input id="sc_bg_img_url" type="url" placeholder="https://..."/></label>
+          <label>Fit
+            <select id="sc_bg_img_fit"><option>cover</option><option>contain</option></select>
+          </label>
+          <label>Opacity (0–1) <input id="sc_bg_img_op" type="number" min="0" max="1" step="0.05" value="1"/></label>
+          <label>Tint-farge <input id="sc_bg_img_tint" type="color" value="#000000"/></label>
+          <label>Tint-opacity (0–1) <input id="sc_bg_img_tint_op" type="number" min="0" max="1" step="0.05" value="0"/></label>
         </div>
       </div>
+
+      <hr/>
+      <label><input id="sc_clock_show" type="checkbox"/> Vis klokke</label>
+      <label><input id="sc_clock_secs" type="checkbox"/> Vis sekunder</label>
+      <label>Klokke-farge <input id="sc_clock_color" type="color" value="#e6edf3"/></label>
+      <label>Klokke-størrelse (vh) <input id="sc_clock_size" type="number" min="6" max="30" step="1" value="12"/></label>
     </section>
   </main>
 
   <script>
-  (function(){
-    const $ = s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
-    const pill=$("#sync_pill"); const hint=$("#save_hint");
-    let lastCfg=null, defaultsCache=null;
+    (function(){
+      const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+      const pill=$("#sync_pill"), hint=$("#save_hint"); let lastCfg=null, defaultsCache=null;
 
-    function headers(){ const pwd=($("#admin_password")?.value||"").trim(); const h={"Content-Type":"application/json"}; if(pwd) h["X-Admin-Password"]=pwd; return h; }
-    function selMode(){ const r=$$("input[name=mode]:checked")[0]; return r? r.value : "daily"; }
-    function selBgMode(){ const r=$$("input[name=bg_mode]:checked")[0]; return r? r.value : "solid"; }
-    function lock(){
-      const m=selMode();
-      $("#daily_time").disabled=(m!=="daily"); $("#once_at").disabled=(m!=="once");
-      const st=(m==="screen"); $("#screen_text_cfg").style.display = st ? "block":"none"; $("#screen_image_cfg").style.display = st ? "block":"none";
-      const bg=selBgMode();
-      $("#bg_solid_cfg").style.display = bg==="solid"?"block":"none";
-      $("#bg_grad_cfg").style.display  = bg==="gradient"?"block":"none";
-      $("#bg_img_cfg").style.display   = bg==="image"?"block":"none";
-    }
-    function pulse(el){ if(!el) return; el.classList.remove("pulse"); void el.offsetWidth; el.classList.add("pulse"); }
+      async function fetchDefaults(){ if (defaultsCache) return defaultsCache; const r=await fetch("/api/defaults"); const js=await r.json(); defaultsCache=js.defaults; return defaultsCache; }
+      function headers(){ const pwd=($("#admin_password")?.value||"").trim(); const h={"Content-Type":"application/json"}; if(pwd) h["X-Admin-Password"]=pwd; return h; }
+      const selMode=()=> ($$("input[name=mode]:checked")[0]?.value)||"daily";
+      const selBgMode=()=> ($$("input[name=bg_mode]:checked")[0]?.value)||"solid";
+      const selScBgMode=()=> ($$("input[name=sc_bg_mode]:checked")[0]?.value)||"solid";
+      function lock(){
+        const m=selMode();
+        $("#daily_time").disabled=(m!=="daily"); $("#once_at").disabled=(m!=="once");
+        const st=(m==="screen"); $("#sc_clock_show").disabled=!st; $("#sc_clock_secs").disabled=!st;
+        const scUseTheme=$("#sc_use_theme_bg").checked;
+        $("#sc_bg_cfg").style.display = scUseTheme ? "none" : "block";
+        const bg=selBgMode(); $("#bg_solid_cfg").style.display = bg==="solid"?"block":"none"; $("#bg_grad_cfg").style.display = bg==="gradient"?"block":"none"; $("#bg_img_cfg").style.display = bg==="image"?"block":"none";
+        const bg2=selScBgMode(); $("#sc_bg_solid").style.display = bg2==="solid"?"block":"none"; $("#sc_bg_grad").style.display = bg2==="gradient"?"block":"none"; $("#sc_bg_img").style.display = bg2==="image"?"block":"none";
+      }
 
-    // kontrast
-    const hexToRgb = h => { const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((h||"").trim()); return m? [parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)] : [230,237,243]; };
-    const luminance = ([r,g,b]) => { const a=[r,g,b].map(v=>{v/=255; return (v<=0.03928)? v/12.92 : Math.pow((v+0.055)/1.055,2.4)}); return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2]; };
-    const contrast = (c1,c2) => { const L1=luminance(hexToRgb(c1)), L2=luminance(hexToRgb(c2)); const [hi,lo]=L1>L2?[L1,L2]:[L2,L1]; return (hi+0.05)/(lo+0.05); };
+      // kontrast hjelp (brukt tidligere)
+      const hexToRgb = h => { const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((h||"").trim()); return m? [parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)] : [230,237,243]; };
+      const luminance = ([r,g,b]) => { const a=[r,g,b].map(v=>{v/=255; return (v<=0.03928)? v/12.92 : Math.pow((v+0.055)/1.055,2.4)}); return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2]; };
+      const contrast = (c1,c2) => { const L1=luminance(hexToRgb(c1)), L2=luminance(hexToRgb(c2)); const [hi,lo]=L1>L2?[L1,L2]:[L2,L1]; return (hi+0.05)/(lo+0.05); };
+      function currentPreviewBgColor(){
+        // enkel estimat for kontrast; bruk visningsbakgrunnens tunge farge
+        const bg=selBgMode(); if(bg==="solid") return $("#bg_solid_color").value; if(bg==="gradient") return $("#bg_grad_to").value; return $("#bg_img_tint").value;
+      }
+      function updateDigitContrastHints(){
+        const bg = currentPreviewBgColor();
+        const set = (id, val) => { const el=$(id); if(!el) return; const ratio=contrast(val,bg); el.textContent = `kontrast ${ratio.toFixed(2)}${ratio>=3?' ✔':' ⚠'}`; el.style.color = ratio>=3 ? '#69db7c' : '#ffd166'; };
+        set("#c_contrast_normal", $("#color_normal").value);
+        set("#c_contrast_warn",   $("#color_warn").value);
+        set("#c_contrast_alert",  $("#color_alert").value);
+        set("#c_contrast_over",   $("#color_over").value);
+      }
+      function updateMessageContrastHints(){
+        const bg = currentPreviewBgColor();
+        const set = (id, val) => { const el=$(id); const ratio=contrast(val,bg); el.textContent = `${ratio.toFixed(2)}${ratio>=3?' ✔':' ⚠'}`; el.style.color = ratio>=3 ? '#69db7c' : '#ffd166'; };
+        set("#m_contrast_p", $("#theme_p_color").value);
+        set("#m_contrast_s", $("#theme_s_color").value);
+      }
 
-    function updateDigitContrastHints(){
-      const bg = currentPreviewBgColor();
-      const set = (id, val) => { const el=$(id); if(!el) return; const ratio=contrast(val,bg); el.textContent = `kontrast ${ratio.toFixed(2)}${ratio>=3?' ✔':' ⚠'}`; el.style.color = ratio>=3 ? '#69db7c' : '#ffd166'; };
-      set("#c_contrast_normal", $("#color_normal").value);
-      set("#c_contrast_warn",   $("#color_warn").value);
-      set("#c_contrast_alert",  $("#color_alert").value);
-      set("#c_contrast_over",   $("#color_over").value);
-    }
-    function updateMessageContrastHints(){
-      const bg = currentPreviewBgColor();
-      const set = (id, val) => { const el=$(id); const ratio=contrast(val,bg); el.textContent = `${ratio.toFixed(2)}${ratio>=3?' ✔':' ⚠'}`; el.style.color = ratio>=3 ? '#69db7c' : '#ffd166'; };
-      set("#m_contrast_p", $("#theme_p_color").value);
-      set("#m_contrast_s", $("#theme_s_color").value);
-    }
+      function apply(cfg, tick){
+        lastCfg=cfg;
+        // Modus
+        ($(`input[name=mode][value=${cfg.mode||"daily"}]`)||{}).checked=true;
+        $("#daily_time").value=cfg.daily_time||""; $("#once_at").value=(cfg.once_at||"").replace("Z","");
+        $("#active_mode").textContent=`Aktiv modus: ${cfg.mode} · Fase: ${tick?.mode||"—"} (${tick?.state||"—"})`;
 
-    async function fetchDefaults(){ if (defaultsCache) return defaultsCache; const r=await fetch("/api/defaults"); const js=await r.json(); defaultsCache=js.defaults; return defaultsCache; }
+        // Meldinger innhold
+        $("#show_message_primary").checked=!!cfg.show_message_primary;
+        $("#show_message_secondary").checked=!!cfg.show_message_secondary;
+        $("#message_primary").value=cfg.message_primary||"";
+        $("#message_secondary").value=cfg.message_secondary||"";
 
-    // Apply config -> UI
-    function apply(cfg, tick){
-      lastCfg=cfg;
-      // modus
-      const r=$(`input[name=mode][value=${cfg.mode||"daily"}]`); if(r) r.checked=true;
-      $("#daily_time").value=cfg.daily_time||""; $("#once_at").value=(cfg.once_at||"").replace("Z","");
-      $("#active_mode").textContent=`Aktiv modus: ${cfg.mode} · Fase: ${tick?.mode||"—"} (${tick?.state||"—"})`;
+        // Visning/oppførsel
+        $("#use_phase_colors").checked=!!cfg.use_phase_colors; $("#use_blink").checked=!!cfg.use_blink;
+        $("#color_normal").value=cfg.color_normal||"#e6edf3"; $("#color_warn").value=cfg.color_warn||"#ffd166";
+        $("#color_alert").value=cfg.color_alert||"#ff6b6b"; $("#color_over").value=cfg.color_over||"#9ad0ff";
+        $("#show_target_time").checked=!!cfg.show_target_time; $("#target_time_after").value=cfg.target_time_after||"secondary";
+        $("#messages_position").value=cfg.messages_position||"below";
+        $("#hms_threshold_minutes").value=cfg.hms_threshold_minutes??60;
 
-      // stopp-skjerm
-      const sc=cfg.screen||{}; const sr=$(`input[name=screen_type][value=${sc.type||"text"}]`); if(sr) sr.checked=true;
-      $("#screen_text").value=sc.text||"Pause"; $("#screen_text_color").value=sc.text_color||"#ffffff";
-      $("#screen_bg").value=sc.bg||"#000000"; $("#screen_font_vh").value=sc.font_vh??10;
-      $("#screen_image_url").value=sc.image_url||""; $("#screen_image_opacity").value=sc.image_opacity??100;
-      $("#screen_image_fit").value=sc.image_fit||"cover"; $("#screen_bg_img").value=sc.bg||"#000000";
+        // Theme: meldinger/digits
+        const p=cfg?.theme?.messages?.primary||{}, s=cfg?.theme?.messages?.secondary||{};
+        $("#theme_p_size").value=String(p.size_rem??1.0); $("#theme_p_weight").value=String(p.weight??600); $("#theme_p_color").value=String(p.color??"#9aa4b2");
+        $("#theme_s_size").value=String(s.size_rem??1.0); $("#theme_s_weight").value=String(s.weight??400); $("#theme_s_color").value=String(s.color??"#9aa4b2");
+        $("#digits_size_preset").value=String(cfg?.theme?.digits?.size_vw??14);
 
-      // visning/oppførsel
-      $("#use_phase_colors").checked=!!cfg.use_phase_colors; $("#use_blink").checked=!!cfg.use_blink;
-      $("#color_normal").value=cfg.color_normal||"#e6edf3"; $("#color_warn").value=cfg.color_warn||"#ffd166";
-      $("#color_alert").value=cfg.color_alert||"#ff6b6b"; $("#color_over").value=cfg.color_over||"#9ad0ff";
-      $("#show_target_time").checked=!!cfg.show_target_time; $("#target_time_after").value=cfg.target_time_after||"secondary";
-      $("#messages_position").value=cfg.messages_position||"below";
-      $("#hms_threshold_minutes").value=cfg.hms_threshold_minutes??60;
+        // Theme: visningsbakgrunn
+        const bg=cfg?.theme?.background||{}; ($(`input[name=bg_mode][value=${(bg.mode||"solid")}]`)||{}).checked=true;
+        $("#bg_solid_color").value = bg.solid?.color || "#0b0f14";
+        $("#bg_grad_from").value   = bg.gradient?.from || "#142033";
+        $("#bg_grad_to").value     = bg.gradient?.to   || "#0b0f14";
+        $("#bg_grad_angle").value  = bg.gradient?.angle_deg ?? 180;
+        $("#bg_img_url").value     = bg.image?.url  || "";
+        $("#bg_img_fit").value     = bg.image?.fit  || "cover";
+        $("#bg_img_op").value      = bg.image?.opacity ?? 1;
+        $("#bg_img_tint").value    = bg.image?.tint?.color || "#000000";
+        $("#bg_img_tint_op").value = bg.image?.tint?.opacity ?? 0;
 
-      // theme – meldinger
-      const p=cfg?.theme?.messages?.primary||{}, s=cfg?.theme?.messages?.secondary||{};
-      $("#theme_p_size").value=String(p.size_rem??1.0); $("#theme_p_weight").value=String(p.weight??600); $("#theme_p_color").value=String(p.color??"#9aa4b2");
-      $("#theme_s_size").value=String(s.size_rem??1.0); $("#theme_s_weight").value=String(s.weight??400); $("#theme_s_color").value=String(s.color??"#9aa4b2");
+        // Stopp-skjerm bakgrunn + klokke
+        const sc=cfg?.screen||{};
+        $("#sc_use_theme_bg").checked = !!sc.use_theme_background;
+        const sbg=sc.background||{}; ($(`input[name=sc_bg_mode][value=${(sbg.mode||"solid")}]`)||{}).checked=true;
+        $("#sc_bg_solid_color").value = sbg.solid?.color || "#0b0f14";
+        $("#sc_bg_grad_from").value   = sbg.gradient?.from || "#142033";
+        $("#sc_bg_grad_to").value     = sbg.gradient?.to   || "#0b0f14";
+        $("#sc_bg_grad_angle").value  = sbg.gradient?.angle_deg ?? 180;
+        $("#sc_bg_img_url").value     = sbg.image?.url  || "";
+        $("#sc_bg_img_fit").value     = sbg.image?.fit  || "cover";
+        $("#sc_bg_img_op").value      = sbg.image?.opacity ?? 1;
+        $("#sc_bg_img_tint").value    = sbg.image?.tint?.color || "#000000";
+        $("#sc_bg_img_tint_op").value = sbg.image?.tint?.opacity ?? 0;
 
-      // theme – digits
-      $("#digits_size_preset").value=String(cfg?.theme?.digits?.size_vw??14);
+        $("#sc_clock_show").checked = !!(sc.clock?.show);
+        $("#sc_clock_secs").checked = !!(sc.clock?.with_seconds);
+        $("#sc_clock_color").value = sc.clock?.color || "#e6edf3";
+        $("#sc_clock_size").value  = sc.clock?.size_vh ?? 12;
 
-      // theme – background
-      const bg=cfg?.theme?.background||{}; const bm=$(`input[name=bg_mode][value=${(bg.mode||"solid")}]`); if(bm) bm.checked=true;
-      $("#bg_solid_color").value = bg.solid?.color || "#0b0f14";
-      $("#bg_grad_from").value   = bg.gradient?.from || "#142033";
-      $("#bg_grad_to").value     = bg.gradient?.to   || "#0b0f14";
-      $("#bg_grad_angle").value  = bg.gradient?.angle_deg ?? 180;
-      $("#bg_img_url").value     = bg.image?.url  || "";
-      $("#bg_img_fit").value     = bg.image?.fit  || "cover";
-      $("#bg_img_op").value      = bg.image?.opacity ?? 1;
-      $("#bg_img_tint").value    = bg.image?.tint?.color || "#000000";
-      $("#bg_img_tint_op").value = bg.image?.tint?.opacity ?? 0;
+        lock(); updateDigitContrastHints(); updateMessageContrastHints();
+      }
 
-      lock(); renderPreview(); updateDigitContrastHints(); updateMessageContrastHints();
-    }
+      async function loadAll(){ const r=await fetch("/api/config"); const js=await r.json(); js.config.tick=js.tick; apply(js.config,js.tick); hint.textContent="Status oppdatert"; setTimeout(()=>hint.textContent="",1200); }
 
-    async function loadAll(){ const r=await fetch("/api/config"); const js=await r.json(); js.config.tick=js.tick; apply(js.config,js.tick); pulse(hint); hint.textContent="Status oppdatert"; setTimeout(()=>hint.textContent="",1200); }
+      async function saveAll(){
+        const m=selMode();
+        const body={
+          mode:m,
+          daily_time:$("#daily_time").value, once_at:$("#once_at").value,
 
-    async function saveAll(){
-      const m=selMode();
-      const body={
-        mode:m,
-        daily_time:$("#daily_time").value, once_at:$("#once_at").value,
-        // visning/oppførsel
-        use_phase_colors:$("#use_phase_colors").checked, use_blink:$("#use_blink").checked,
-        color_normal:$("#color_normal").value, color_warn:$("#color_warn").value, color_alert:$("#color_alert").value, color_over:$("#color_over").value,
-        show_target_time:$("#show_target_time").checked, target_time_after:$("#target_time_after").value,
-        messages_position:$("#messages_position").value, hms_threshold_minutes:parseInt($("#hms_threshold_minutes").value||"60",10),
-        // screen
-        screen: undefined,
-        // theme
-        theme: {
-          digits: { size_vw: Number($("#digits_size_preset").value||"14") },
-          messages: {
-            primary:   { size_rem: Number($("#theme_p_size").value||"1.0"), weight: Number($("#theme_p_weight").value||"600"), color: $("#theme_p_color").value },
-            secondary: { size_rem: Number($("#theme_s_size").value||"1.0"), weight: Number($("#theme_s_weight").value||"400"), color: $("#theme_s_color").value }
+          // meldinger
+          show_message_primary: $("#show_message_primary").checked,
+          show_message_secondary: $("#show_message_secondary").checked,
+          message_primary: $("#message_primary").value,
+          message_secondary: $("#message_secondary").value,
+
+          // visning/oppførsel
+          use_phase_colors:$("#use_phase_colors").checked, use_blink:$("#use_blink").checked,
+          color_normal:$("#color_normal").value, color_warn:$("#color_warn").value, color_alert:$("#color_alert").value, color_over:$("#color_over").value,
+          show_target_time:$("#show_target_time").checked, target_time_after:$("#target_time_after").value,
+          messages_position:$("#messages_position").value, hms_threshold_minutes:parseInt($("#hms_threshold_minutes").value||"60",10),
+
+          // theme
+          theme: {
+            digits: { size_vw: Number($("#digits_size_preset").value||"14") },
+            messages: {
+              primary:   { size_rem: Number($("#theme_p_size").value||"1.0"), weight: Number($("#theme_p_weight").value||"600"), color: $("#theme_p_color").value },
+              secondary: { size_rem: Number($("#theme_s_size").value||"1.0"), weight: Number($("#theme_s_weight").value||"400"), color: $("#theme_s_color").value }
+            },
+            background: {
+              mode: selBgMode(),
+              solid:    { color: $("#bg_solid_color").value },
+              gradient: { from: $("#bg_grad_from").value, to: $("#bg_grad_to").value, angle_deg: Number($("#bg_grad_angle").value||"180") },
+              image:    { url: $("#bg_img_url").value, fit: $("#bg_img_fit").value, opacity: Number($("#bg_img_op").value||"1"), tint: { color: $("#bg_img_tint").value, opacity: Number($("#bg_img_tint_op").value||"0") } }
+            }
           },
-          background: {
-            mode: selBgMode(),
-            solid:    { color: $("#bg_solid_color").value },
-            gradient: { from: $("#bg_grad_from").value, to: $("#bg_grad_to").value, angle_deg: Number($("#bg_grad_angle").value||"180") },
-            image:    { url: $("#bg_img_url").value, fit: $("#bg_img_fit").value, opacity: Number($("#bg_img_op").value||"1"), tint: { color: $("#bg_img_tint").value, opacity: Number($("#bg_img_tint_op").value||"0") } }
-          }
-        }
-      };
-      if(m==="screen"){
-        const st=$("input[name=screen_type]:checked")?.value || "text";
-        body.screen={
-          type:st, text:$("#screen_text").value, text_color:$("#screen_text_color").value,
-          bg:(st==="image")?$("#screen_bg_img").value:$("#screen_bg").value,
-          font_vh:parseInt($("#screen_font_vh").value||"10",10),
-          image_url:$("#screen_image_url").value,
-          image_opacity:parseInt($("#screen_image_opacity").value||"100",10),
-          image_fit:$("#screen_image_fit").value
+
+          // screen
+          screen: undefined
         };
-      } else {
-        delete body.screen;
+
+        // stopp-skjerm utvidelse
+        const useTheme = $("#sc_use_theme_bg").checked;
+        const scBg = {
+          mode: selScBgMode(),
+          solid:    { color: $("#sc_bg_solid_color").value },
+          gradient: { from: $("#sc_bg_grad_from").value, to: $("#sc_bg_grad_to").value, angle_deg: Number($("#sc_bg_grad_angle").value||"180") },
+          image:    { url: $("#sc_bg_img_url").value, fit: $("#sc_bg_img_fit").value, opacity: Number($("#sc_bg_img_op").value||"1"), tint: { color: $("#sc_bg_img_tint").value, opacity: Number($("#sc_bg_img_tint_op").value||"0") } }
+        };
+        const screenPatch = {
+          use_theme_background: useTheme,
+          background: scBg,
+          clock: {
+            show: $("#sc_clock_show").checked,
+            with_seconds: $("#sc_clock_secs").checked,
+            color: $("#sc_clock_color").value,
+            size_vh: Number($("#sc_clock_size").value||"12")
+          }
+        };
+        if(m==="screen"){
+          screenPatch["type"] = ($("input[name=screen_type]:checked")?.value)||"text";
+          // beholder eksisterende text/image-felter for kompat
+          screenPatch["text"] = $("#screen_text").value;
+          screenPatch["text_color"] = $("#screen_text_color").value;
+          screenPatch["font_vh"] = parseInt($("#screen_font_vh").value||"10",10);
+          screenPatch["image_url"] = $("#screen_image_url").value;
+          screenPatch["image_fit"] = $("#screen_image_fit").value;
+          screenPatch["image_opacity"] = parseInt($("#screen_image_opacity").value||"100",10);
+          screenPatch["bg"] = ($("#screen_bg_img").value||$("#screen_bg").value||"#000000"); // legacy
+        }
+        body.screen = screenPatch;
+
+        const r=await fetch("/api/config",{method:"POST",headers:headers(),body:JSON.stringify(body)});
+        if(!r.ok) throw new Error(await r.text());
+        const js=await r.json(); apply(js.config, js.tick); hint.textContent="Lagret"; setTimeout(()=>hint.textContent="",1200);
       }
-      const r=await fetch("/api/config",{method:"POST",headers:headers(),body:JSON.stringify(body)});
-      if(!r.ok) throw new Error(await r.text());
-      const js=await r.json(); apply(js.config, js.tick); pulse(hint); hint.textContent="Lagret"; setTimeout(()=>hint.textContent="",1200);
-    }
 
-    async function resetView(){
-      const d=await fetchDefaults();
-      // visning/oppførsel
-      $("#use_phase_colors").checked=!!d.use_phase_colors; $("#use_blink").checked=!!d.use_blink;
-      $("#color_normal").value=d.color_normal; $("#color_warn").value=d.color_warn; $("#color_alert").value=d.color_alert; $("#color_over").value=d.color_over;
-      $("#show_target_time").checked=!!d.show_target_time; $("#target_time_after").value=d.target_time_after; $("#messages_position").value=d.messages_position; $("#hms_threshold_minutes").value=d.hms_threshold_minutes;
-      // theme – meldinger/digits
-      $("#digits_size_preset").value=String(d.theme?.digits?.size_vw??14);
-      $("#theme_p_size").value=String(d.theme?.messages?.primary?.size_rem??1.0); $("#theme_p_weight").value=String(d.theme?.messages?.primary?.weight??600); $("#theme_p_color").value=d.theme?.messages?.primary?.color||"#9aa4b2";
-      $("#theme_s_size").value=String(d.theme?.messages?.secondary?.size_rem??1.0); $("#theme_s_weight").value=String(d.theme?.messages?.secondary?.weight??400); $("#theme_s_color").value=d.theme?.messages?.secondary?.color||"#9aa4b2";
-      // theme – background
-      const bg=d.theme?.background||{};
-      ($(`input[name=bg_mode][value=${bg.mode||"solid"}]`)||{}).checked=true;
-      $("#bg_solid_color").value=bg.solid?.color||"#0b0f14";
-      $("#bg_grad_from").value=bg.gradient?.from||"#142033";
-      $("#bg_grad_to").value=bg.gradient?.to||"#0b0f14";
-      $("#bg_grad_angle").value=bg.gradient?.angle_deg??180;
-      $("#bg_img_url").value=bg.image?.url||"";
-      $("#bg_img_fit").value=bg.image?.fit||"cover";
-      $("#bg_img_op").value=bg.image?.opacity??1;
-      $("#bg_img_tint").value=bg.image?.tint?.color||"#000000";
-      $("#bg_img_tint_op").value=bg.image?.tint?.opacity??0;
+      async function resetView(){
+        const d=await fetchDefaults();
+        // meldinger
+        $("#show_message_primary").checked=!!d.show_message_primary; $("#show_message_secondary").checked=!!d.show_message_secondary;
+        $("#message_primary").value=d.message_primary||""; $("#message_secondary").value=d.message_secondary||"";
+        // visning/oppførsel
+        $("#use_phase_colors").checked=!!d.use_phase_colors; $("#use_blink").checked=!!d.use_blink;
+        $("#color_normal").value=d.color_normal; $("#color_warn").value=d.color_warn; $("#color_alert").value=d.color_alert; $("#color_over").value=d.color_over;
+        $("#show_target_time").checked=!!d.show_target_time; $("#target_time_after").value=d.target_time_after; $("#messages_position").value=d.messages_position; $("#hms_threshold_minutes").value=d.hms_threshold_minutes;
+        // theme meldinger/digits
+        $("#digits_size_preset").value=String(d.theme.digits.size_vw);
+        $("#theme_p_size").value=String(d.theme.messages.primary.size_rem); $("#theme_p_weight").value=String(d.theme.messages.primary.weight); $("#theme_p_color").value=d.theme.messages.primary.color;
+        $("#theme_s_size").value=String(d.theme.messages.secondary.size_rem); $("#theme_s_weight").value=String(d.theme.messages.secondary.weight); $("#theme_s_color").value=d.theme.messages.secondary.color;
+        // theme bakgrunn
+        ($(`input[name=bg_mode][value=${d.theme.background.mode}]`)||{}).checked=true;
+        $("#bg_solid_color").value=d.theme.background.solid.color;
+        $("#bg_grad_from").value=d.theme.background.gradient.from; $("#bg_grad_to").value=d.theme.background.gradient.to; $("#bg_grad_angle").value=d.theme.background.gradient.angle_deg;
+        $("#bg_img_url").value=d.theme.background.image.url; $("#bg_img_fit").value=d.theme.background.image.fit; $("#bg_img_op").value=d.theme.background.image.opacity; $("#bg_img_tint").value=d.theme.background.image.tint.color; $("#bg_img_tint_op").value=d.theme.background.image.tint.opacity;
+        // stopp-skjerm
+        $("#sc_use_theme_bg").checked = !!d.screen.use_theme_background;
+        ($(`input[name=sc_bg_mode][value=${d.screen.background.mode}]`)||{}).checked=true;
+        $("#sc_bg_solid_color").value=d.screen.background.solid.color;
+        $("#sc_bg_grad_from").value=d.screen.background.gradient.from; $("#sc_bg_grad_to").value=d.screen.background.gradient.to; $("#sc_bg_grad_angle").value=d.screen.background.gradient.angle_deg;
+        $("#sc_bg_img_url").value=d.screen.background.image.url; $("#sc_bg_img_fit").value=d.screen.background.image.fit; $("#sc_bg_img_op").value=d.screen.background.image.opacity; $("#sc_bg_img_tint").value=d.screen.background.image.tint.color; $("#sc_bg_img_tint_op").value=d.screen.background.image.tint.opacity;
+        $("#sc_clock_show").checked = !!d.screen.clock.show; $("#sc_clock_secs").checked = !!d.screen.clock.with_seconds; $("#sc_clock_color").value=d.screen.clock.color; $("#sc_clock_size").value=d.screen.clock.size_vh;
 
-      lock(); renderPreview(); updateDigitContrastHints(); updateMessageContrastHints();
-      hint.textContent="Tilbakestilt (lagre for å aktivere)"; setTimeout(()=>hint.textContent="",1500);
-    }
-
-    // Forhåndsvisning
-    function currentPreviewBgColor(){
-      // grovt estimat for kontrast (bruk solid/gradient start/tint)
-      const bg=selBgMode();
-      if(bg==="solid") return $("#bg_solid_color").value;
-      if(bg==="gradient") return $("#bg_grad_to").value;
-      return $("#bg_img_tint").value; // hvis tint=0, er dette best effort
-    }
-    function applyPreviewBackground(){
-      const box=$("#pv_box");
-      const mode=selBgMode();
-      if(mode==="solid"){
-        box.style.background = $("#bg_solid_color").value;
-      } else if(mode==="gradient"){
-        box.style.background = `linear-gradient(${Number($("#bg_grad_angle").value||"180")}deg, ${$("#bg_grad_from").value}, ${$("#bg_grad_to").value})`;
-      } else {
-        const url=$("#bg_img_url").value||"";
-        const fit=$("#bg_img_fit").value||"cover";
-        const op = Number($("#bg_img_op").value||"1");
-        const tintC = $("#bg_img_tint").value||"#000000";
-        const tintOp= Number($("#bg_img_tint_op").value||"0");
-        box.style.background = (tintOp>0)
-          ? `linear-gradient(${hexToRgba(tintC,tintOp)}, ${hexToRgba(tintC,tintOp)}), url('${url}')`
-          : `url('${url}')`;
-        box.style.backgroundSize=fit; box.style.backgroundPosition="center"; box.style.backgroundRepeat="no-repeat";
-        box.style.opacity=String(op);
+        lock(); updateDigitContrastHints(); updateMessageContrastHints();
+        hint.textContent="Tilbakestilt (lagre for å aktivere)"; setTimeout(()=>hint.textContent="",1500);
       }
-    }
-    function hexToRgba(h, a){ const m=hexToRgb(h); return `rgba(${m.join(",")}, ${a})`; }
-    function renderPreview(){
-      applyPreviewBackground(); updateDigitContrastHints(); updateMessageContrastHints();
-      const vw=Number($("#digits_size_preset").value||"14");
-      $("#pv_digits").style.fontSize = `clamp(4vw, ${vw*0.55}vw, ${vw*0.8}vw)`; // mindre og proporsjonal
-      const p={ size_rem:Number($("#theme_p_size").value||"1.0"), weight:Number($("#theme_p_weight").value||"600"), color:$("#theme_p_color").value };
-      const s={ size_rem:Number($("#theme_s_size").value||"1.0"), weight:Number($("#theme_s_weight").value||"400"), color:$("#theme_s_color").value };
-      [["#pv_prim_above","#pv_prim_below"]].flat().forEach(sel=>{ const el=$(sel); el.style.fontSize=`${p.size_rem}rem`; el.style.fontWeight=String(p.weight); el.style.color=p.color; });
-      [["#pv_sec_above","#pv_sec_below"]].flat().forEach(sel=>{ const el=$(sel); el.style.fontSize=`${s.size_rem}rem`; el.style.fontWeight=String(s.weight); el.style.color=s.color; });
 
-      const showAbove = ($("#messages_position").value||"below")==="above";
-      $("#pv_above").style.display = showAbove?"block":"none";
-      $("#pv_below").style.display  = showAbove?"none":"block";
-
-      // Digitfarge basert på simulering
-      const sim = ($$("input[name=pv_state]:checked")[0]?.value)||"normal";
-      let color = $("#color_normal").value;
-      if($("#use_phase_colors").checked){
-        if(sim==="overrun") color=$("#color_over").value;
-        else if(sim==="alert") color=$("#color_alert").value;
-        else if(sim==="warn")  color=$("#color_warn").value;
+      // Bakgrunns-presets (visningen)
+      function applyPreset(){
+        const p = $("#bg_preset").value;
+        if (p==="dark-solid"){
+          ($(`input[name=bg_mode][value=solid]`)).checked=true;
+          $("#bg_solid_color").value="#0b0f14";
+        } else if (p==="dark-grad"){
+          ($(`input[name=bg_mode][value=gradient]`)).checked=true;
+          $("#bg_grad_from").value="#111827"; $("#bg_grad_to").value="#0b0f14"; $("#bg_grad_angle").value=180;
+        } else if (p==="photo-tint"){
+          ($(`input[name=bg_mode][value=image]`)).checked=true;
+          $("#bg_img_url").value="https://picsum.photos/1600/900";
+          $("#bg_img_fit").value="cover"; $("#bg_img_op").value=1;
+          $("#bg_img_tint").value="#000000"; $("#bg_img_tint_op").value=0.4;
+        }
+        lock(); updateDigitContrastHints(); updateMessageContrastHints();
       }
-      const digits=$("#pv_digits");
-      digits.style.color = color;
-      digits.classList.toggle("blink", $("#pv_blink").checked && $("#use_blink").checked);
-    }
 
-    // synk-pill
-    async function updateSyncPill(){
-      try{
-        const r=await fetch("/debug/view-heartbeat"); const js=await r.json();
-        const hb=js.heartbeat||{}; const age=hb.age_seconds??9999;
-        const viewRev=hb.rev||0; const cfgRev=(lastCfg&&lastCfg._updated_at)?lastCfg._updated_at:0;
-        if(age>30||!hb.ts_iso){ pill.textContent="Synk: visning offline"; pill.className="pill off"; }
-        else if(viewRev>=cfgRev){ pill.textContent=`Synk: OK (rev ${viewRev})`; pill.className="pill ok"; }
-        else { pill.textContent=`Synk: venter (view ${viewRev} < cfg ${cfgRev})`; pill.className="pill warn"; }
-      }catch(e){ pill.textContent="Synk: —"; pill.className="pill off"; }
-    }
+      // synk-pill
+      async function updateSyncPill(){
+        try{
+          const r=await fetch("/debug/view-heartbeat"); const js=await r.json();
+          const hb=js.heartbeat||{}; const age=hb.age_seconds??9999;
+          const viewRev=hb.rev||0; const cfgRev=(lastCfg&&lastCfg._updated_at)?lastCfg._updated_at:0;
+          if (age>30 || !hb.ts_iso) { pill.textContent="Synk: visning offline"; pill.className="pill off"; }
+          else if (viewRev>=cfgRev) { pill.textContent=`Synk: OK (rev ${viewRev})`; pill.className="pill ok"; }
+          else { pill.textContent=`Synk: venter (view ${viewRev} < cfg ${cfgRev})`; pill.className="pill warn"; }
+        } catch { pill.textContent="Synk: —"; pill.className="pill off"; }
+      }
 
-    // events
-    $$("input[name=mode]").forEach(el=>el.addEventListener("change",()=>{lock(); renderPreview();}));
-    $$("input[name=screen_type]").forEach(el=>el.addEventListener("change",lock));
-    $$(".preset").forEach(b=>b.addEventListener("click",()=>{$("#start_minutes").value=b.dataset.min;}));
-    ["use_phase_colors","use_blink","color_normal","color_warn","color_alert","color_over","messages_position","hms_threshold_minutes"].forEach(id=>{
-      $("#"+id).addEventListener("input", ()=>{ renderPreview(); updateDigitContrastHints(); });
-    });
-    ["theme_p_size","theme_p_weight","theme_p_color","theme_s_size","theme_s_weight","theme_s_color","digits_size_preset"].forEach(id=>{
-      $("#"+id).addEventListener("input", ()=>{ renderPreview(); updateMessageContrastHints(); });
-    });
-    $$("input[name=bg_mode]").forEach(el=>el.addEventListener("change", ()=>{lock(); renderPreview();}));
-    ["bg_solid_color","bg_grad_from","bg_grad_to","bg_grad_angle","bg_img_url","bg_img_fit","bg_img_op","bg_img_tint","bg_img_tint_op"].forEach(id=>{
-      $("#"+id).addEventListener("input", renderPreview);
-    });
-    $$("input[name=pv_state]").forEach(el=>el.addEventListener("change", renderPreview));
-    $("#pv_blink").addEventListener("change", renderPreview);
+      // events
+      $$("input[name=mode]").forEach(el=>el.addEventListener("change",()=>{lock();}));
+      ["use_phase_colors","use_blink","color_normal","color_warn","color_alert","color_over","messages_position","hms_threshold_minutes","theme_p_color","theme_s_color"].forEach(id=>{
+        const n=document.getElementById(id); if(n) n.addEventListener("input", ()=>{ updateDigitContrastHints(); updateMessageContrastHints(); });
+      });
+      $$("input[name=bg_mode]").forEach(el=>el.addEventListener("change",()=>{lock(); updateDigitContrastHints(); updateMessageContrastHints();}));
+      $$("input[name=sc_bg_mode]").forEach(el=>el.addEventListener("change",lock));
+      $("#sc_use_theme_bg").addEventListener("change",lock);
+      $("#btn_apply_preset").addEventListener("click", applyPreset);
 
-    $("#btn_save").addEventListener("click",()=>saveAll().catch(e=>alert(e.message)));
-    $("#btn_refresh").addEventListener("click",()=>loadAll().catch(e=>alert(e.message)));
-    $("#btn_reset_view").addEventListener("click",()=>resetView().catch(e=>alert(e.message)));
+      $$(".preset").forEach(b=>b.addEventListener("click",()=>{$("#start_minutes").value=b.dataset.min;}));
+      $("#btn_save").addEventListener("click",()=>saveAll().catch(e=>alert(e.message)));
+      $("#btn_refresh").addEventListener("click",()=>loadAll().catch(e=>alert(e.message)));
+      $("#btn_reset_view").addEventListener("click",()=>resetView().catch(e=>alert(e.message)));
 
-    // init
-    loadAll().catch(console.error);
-    setInterval(updateSyncPill, 3000);
-  })();
+      // init
+      loadAll().catch(console.error);
+      setInterval(updateSyncPill, 3000);
+    })();
   </script>
 </body>
 </html>
