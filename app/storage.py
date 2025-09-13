@@ -14,34 +14,34 @@ from .settings import CONFIG_PATH, TZ
 # -------- Defaults --------
 _DEFAULTS: Dict[str, Any] = {
     "mode": "daily",               # daily|once|duration|clock
-    "daily_time": "20:00",
+    "daily_time": "19:15",
     "once_at": "",
-    "duration_minutes": 10,
+    "duration_minutes": 20,
     "duration_started_ms": 0,
 
     # Klokke (top-level, brukes når mode=clock)
     "clock": {
-        "with_seconds": False,
+        "with_seconds": True,
         "color": "#e6edf3",
-        "size_vh": 12              # 6..30
+        "size_vh": 15              # 6..30
     },
 
     # Meldinger (innhold)
-    "message_primary": "",
-    "message_secondary": "",
+    "message_primary": "Velkommen!",
+    "message_secondary": "Vi starter kl:",
     "show_message_primary": True,
-    "show_message_secondary": False,
+    "show_message_secondary": True,
 
     # Varsler/blink (logikk)
-    "warn_minutes": 4,
-    "alert_minutes": 2,
+    "warn_minutes": 5,
+    "alert_minutes": 3,
     "blink_seconds": 10,
-    "overrun_minutes": 1,
+    "overrun_minutes": 20,
 
     # Visning / oppførsel
-    "show_target_time": False,
+    "show_target_time": True,
     "target_time_after": "secondary",   # primary|secondary
-    "messages_position": "below",       # above|below
+    "messages_position": "above",       # above|below
     "use_blink": True,
     "use_phase_colors": False,
     "color_normal": "#e6edf3",
@@ -77,7 +77,7 @@ def get_defaults() -> Dict[str, Any]:
 
 # -------- IO helpers --------
 def _atomic_write(path: str, data: Dict[str, Any]) -> None:
-    # Håndter rot-sti ('' → '.')
+    # tåler at CONFIG_PATH er i repo-rot (dirname == '')
     dirpath = os.path.dirname(path) or "."
     os.makedirs(dirpath, exist_ok=True)
 
@@ -88,14 +88,14 @@ def _atomic_write(path: str, data: Dict[str, Any]) -> None:
             f.write("\n")
             f.flush()
             os.fsync(f.fileno())
-        # Atomic bytte på samme filsystem
-        os.replace(tmp, path)
+        os.replace(tmp, path)  # atomic swap på samme fs
     finally:
         try:
             if os.path.exists(tmp):
                 os.unlink(tmp)
         except Exception:
             pass
+
 
 def _deep_merge(dst: Dict[str, Any], src: Dict[str, Any]) -> Dict[str, Any]:
     for k, v in (src or {}).items():
@@ -250,23 +250,29 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
 # -------- Validering/renhold --------
 def _validate(cfg: Dict[str, Any]) -> Tuple[bool, str]:
     m = cfg.get("mode")
-    if m not in ("daily","once","duration","clock"):
+    if m not in ("daily", "once", "duration", "clock"):
         return False, "mode må være daily|once|duration|clock"
+
     if m == "daily":
         s = (cfg.get("daily_time") or "").strip()
         if len(s) != 5 or ":" not in s:
             return False, "daily_time må være HH:MM"
+
     if m == "once":
         s = (cfg.get("once_at") or "").strip()
         if s:
+            ss = s.replace("Z", "+00:00")  # Python liker ikke 'Z'
             try:
-                datetime.fromisoformat(s)
+                datetime.fromisoformat(ss)
             except Exception:
-                return False, "once_at må være ISO (YYYY-MM-DDTHH:MM)"
+                return False, "once_at må være ISO (YYYY-MM-DDTHH:MM eller med tz)"
+
     if m == "duration" and int(cfg.get("duration_minutes") or 0) <= 0:
         return False, "duration_minutes må være > 0"
+
     # clock har ingen ekstra feltkrav
     return True, ""
+
 
 def _clean_by_mode(cfg: Dict[str, Any]) -> Dict[str, Any]:
     m = cfg.get("mode")

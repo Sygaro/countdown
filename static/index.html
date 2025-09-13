@@ -120,36 +120,35 @@
       }
 
       function applyClock(){
-    // Skjul nedtelling, vis klokke
-    $("#view_countdown").style.display = "none";
-    const root = $("#view_screen");
-    root.style.display = "flex";
+  // Skjul nedtelling, vis klokke
+  $("#view_countdown").style.display = "none";
+  const root = $("#view_clock");
+  root.style.display = "flex";
 
-    // Bruk alltid theme.background
-    applyThemeBackground(root, state.cfg?.theme?.background);
+  // Bakgrunn: bruk samme theme som nedtelling
+  applyThemeBackground(document.body, state.cfg?.theme?.background);
 
-    // Klokke
-    const clk = state.cfg.clock || {};
-    const clkEl = $("#screen_clock");
-    clkEl.style.display="block";
-    clkEl.style.color = clk.color || "#e6edf3";
-    clkEl.style.fontSize = `${Math.max(6, Math.min(30, Number(clk.size_vh||12)))}vh`;
+  // Klokke
+  const clk = state.cfg.clock || {};
+  const el = $("#clock_time");
+  el.style.display = "block";
+  el.style.color = clk.color || "#e6edf3";
+  el.style.fontSize = `${Math.max(6, Math.min(30, Number(clk.size_vh || 12)))}vh`;
+  el.style.fontWeight = "800";
 
-    if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer=null; }
-    const updateClock = () => {
-      const d = new Date();
-      const HH = String(d.getHours()).padStart(2,"0");
-      const MM = String(d.getMinutes()).padStart(2,"0");
-      const SS = String(d.getSeconds()).padStart(2,"0");
-      clkEl.textContent = clk.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
-    };
-    updateClock();
-    state.clockTimer = setInterval(updateClock, clk.with_seconds ? 1000 : 5000);
+  // Timer
+  if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
+  const update = () => {
+    const d = new Date();
+    const HH = String(d.getHours()).padStart(2,"0");
+    const MM = String(d.getMinutes()).padStart(2,"0");
+    const SS = String(d.getSeconds()).padStart(2,"0");
+    el.textContent = clk.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
+  };
+  update();
+  state.clockTimer = setInterval(update, clk.with_seconds ? 1000 : 5000);
+}
 
-    // Tøm eventuelt tidligere "screen innhold"
-    const inner = $("#screen_inner");
-    if (inner) inner.innerHTML = "";
-  }
 
       async function fetchConfig(){
         const r = await fetch("/api/config"); const js = await r.json();
