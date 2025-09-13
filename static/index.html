@@ -51,10 +51,24 @@
       function applyMessageStyles(){
         const p = state.cfg?.theme?.messages?.primary   || {};
         const s = state.cfg?.theme?.messages?.secondary || {};
-        const set = (sel, m)=> { const el=$(sel); if(!el) return; el.style.fontSize   = `${Number(m.size_rem ?? 1.0)}rem`; el.style.fontWeight = String(Number(m.weight ?? 400)); el.style.color = String(m.color ?? "#9aa4b2"); };
-        set("#msg_primary_above", p); set("#msg_secondary_above", s);
-        set("#msg_primary_below", p); set("#msg_secondary_below", s);
+
+        // Hjelper som skriver vmin i stedet for rem
+        const set = (sel, m, factor)=> {
+          const el = document.querySelector(sel);
+          if (!el) return;
+          const base = Number(m.size_rem ?? 1.0);     // beholder dine verdier som skaleringsfaktor
+          el.style.fontSize   = `${base * factor}vmin`;
+          el.style.fontWeight = String(Number(m.weight ?? 400));
+          el.style.color      = String(m.color ?? "#9aa4b2");
+        };
+
+        // primær litt større enn sekundær
+        set("#msg_primary_above",   p, 2.0);
+        set("#msg_secondary_above", s, 1.8);
+        set("#msg_primary_below",   p, 2.0);
+        set("#msg_secondary_below", s, 1.8);
       }
+
       // --- robust background-applier: solid | gradient | image (+ tint overlay) ---
       function applyThemeBackground(el, bg) {
         if (!el || !bg) return;
@@ -161,9 +175,11 @@
         digits.style.color = color;
         digits.classList.toggle("blink", !!(c.use_blink && t.blink));
 
-        const targetText = (c.show_target_time && t.target_hhmm) ? ` ${t.target_hhmm}` : "";
-        const prim = (c.show_message_primary ? (c.message_primary||"") : "") + ((c.target_time_after==="primary") ? targetText : "");
-        const sec  = (c.show_message_secondary ? (c.message_secondary||"") : "") + ((c.target_time_after==="secondary") ? targetText : "");
+        const targetTextPrim = (c.show_target_time && c.show_message_primary   && c.target_time_after === "primary"   && t.target_hhmm) ? ` ${t.target_hhmm}` : "";
+        const targetTextSec  = (c.show_target_time && c.show_message_secondary && c.target_time_after === "secondary" && t.target_hhmm) ? ` ${t.target_hhmm}` : "";
+
+        const prim = c.show_message_primary   ? ((c.message_primary   || "") + targetTextPrim) : "";
+        const sec  = c.show_message_secondary ? ((c.message_secondary || "") + targetTextSec ) : "";
 
         const above = c.messages_position === "above";
         $("#msgs_above").style.display = above ? "block" : "none";
@@ -179,22 +195,24 @@
         const viewCountdown = $("#view_countdown");
         if (viewCountdown) viewCountdown.style.display = "none";
 
-        // Støtt gamle/ny DOM
+        // DOM
         const root = document.querySelector("#view_clock, #view_screen");
         const clkEl = document.querySelector("#clock_time, #screen_clock");
-        if (!root || !clkEl) return;
+        const wrap = $("#clock_msgs");
+        const elP  = $("#clock_msg_primary");
+        const elS  = $("#clock_msg_secondary");
+        if (!root || !clkEl || !wrap || !elP || !elS) return;
 
         root.style.display = "flex";
 
-        // litt luft mot sidene (top/bottom er ok)
-        const SIDE_INSET_VW = 5;
-        const TOP_BOTTOM_VH = 3;
+        // litt luft mot sidene
+        const SIDE_INSET_VW = 5, TOP_BOTTOM_VH = 3;
         root.style.padding = `${TOP_BOTTOM_VH}vh ${SIDE_INSET_VW}vw`;
 
-        // Alltid re-apply theme background (fanger endringer uten refresh)
+        // Bakgrunn
         applyThemeBackground(document.body, state.cfg?.theme?.background);
 
-        // ---- Klokkens plassering via flex ----
+        // Klokkens plassering
         const clockPos = (state.cfg?.clock?.position || "center").toLowerCase();
         const posMap = {
           "center":        { ai: "center",     jc: "center"     },
@@ -209,7 +227,7 @@
         root.style.alignItems = m.ai;
         root.style.justifyContent = m.jc;
 
-        // ---- Klokkens typografi ----
+        // Klokkens typografi
         const clk = state.cfg?.clock || {};
         const sizeVmin = Number(clk.size_vmin ?? clk.size_vh ?? 12);
         const size = Math.max(6, Math.min(30, sizeVmin));
@@ -218,43 +236,56 @@
         clkEl.style.display = "block";
         clkEl.style.color = clk.color || "#e6edf3";
 
-        // ---- Meldinger rundt klokka ----
-        const showP = !!state.cfg?.show_message_primary;
-        const showS = !!state.cfg?.show_message_secondary;
-        const msgP  = (state.cfg?.message_primary   || "").trim();
-        const msgS  = (state.cfg?.message_secondary || "").trim();
+        // Meldinger: vis KUN hvis use_clock_messages = true
+        const useOwn = !!clk.use_clock_messages;
+        if (!useOwn) {
+          wrap.style.display = "none";
+        } else {
+          const msgP  = (clk.message_primary   || "").trim();
+          const msgS  = (clk.message_secondary || "").trim();
+          const showP = !!msgP;
+          const showS = !!msgS;
 
-        // NB: eget navn => unngår kollisjon med clockPos
-        const msgPos = (state.cfg?.messages_position || "below"); // "above" | "below"
+          // plassering rundt klokka
+          const msgPos   = (clk.messages_position || "right"); // right|left|above|below
+          const msgAlign = (clk.messages_align    || "center"); // start|center|end
 
-        const themeMsg = state.cfg?.theme?.messages || {};
-        const pTheme = themeMsg.primary   || {};
-        const sTheme = themeMsg.secondary || {};
+          if (msgPos === "left" || msgPos === "right") {
+            root.style.flexDirection = "row";
+            wrap.style.flexDirection = "column";
+            clkEl.style.order = (msgPos === "left") ? 2 : 1;
+            wrap.style.order  = (msgPos === "left") ? 1 : 2;
+          } else {
+            root.style.flexDirection = "column";
+            clkEl.style.order = (msgPos === "above") ? 2 : 1;
+            wrap.style.order  = (msgPos === "above") ? 1 : 2;
+            wrap.style.flexDirection = "column";
+          }
 
-        const wrap = $("#clock_msgs");
-        const elP  = $("#clock_msg_primary");
-        const elS  = $("#clock_msg_secondary");
+          wrap.style.display = (showP || showS) ? "flex" : "none";
+          wrap.style.alignItems = ({"start":"flex-start","center":"center","end":"flex-end"}[msgAlign] || "center");
+          wrap.style.textAlign  = ({"start":"left","center":"center","end":"right"}[msgAlign] || "center");
+          wrap.style.gap = "0.25rem";
 
-        wrap.style.display = (showP || showS) ? "flex" : "none";
-        wrap.style.flexDirection = (msgPos === "above") ? "column-reverse" : "column";
-        wrap.style.alignItems = "center";
-        wrap.style.gap = "0.25rem";
+          elP.style.display = showP ? "block" : "none";
+          elS.style.display = showS ? "block" : "none";
 
-        elP.style.display = showP && msgP ? "block" : "none";
-        elS.style.display = showS && msgS ? "block" : "none";
+          elP.textContent = msgP;
+          elS.textContent = msgS;
 
-        elP.textContent = msgP;
-        elS.textContent = msgS;
+          // ✨ Skaler tekst i vmin (pkt. 2)
+          const themeMsg = state.cfg?.theme?.messages || {};
+          const pTheme = themeMsg.primary   || {};
+          const sTheme = themeMsg.secondary || {};
+          elP.style.fontSize   = `${Number(pTheme.size_rem ?? 1.0) * 2.0}vmin`;
+          elP.style.fontWeight = String(pTheme.weight ?? 600);
+          elP.style.color      = String(pTheme.color ?? "#9aa4b2");
+          elS.style.fontSize   = `${Number(sTheme.size_rem ?? 1.0) * 1.8}vmin`;
+          elS.style.fontWeight = String(sTheme.weight ?? 400);
+          elS.style.color      = String(sTheme.color ?? "#9aa4b2");
+        }
 
-        elP.style.fontSize   = `${Number(pTheme.size_rem ?? 1.0)}rem`;
-        elP.style.fontWeight = String(pTheme.weight ?? 600);
-        elP.style.color      = String(pTheme.color ?? "#9aa4b2");
-
-        elS.style.fontSize   = `${Number(sTheme.size_rem ?? 1.0)}rem`;
-        elS.style.fontWeight = String(sTheme.weight ?? 400);
-        elS.style.color      = String(sTheme.color ?? "#9aa4b2");
-
-        // ---- Klokke-timer ----
+        // Timer
         if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
         const update = () => {
           const d = new Date();
@@ -266,9 +297,6 @@
         update();
         state.clockTimer = setInterval(update, clk.with_seconds ? 1000 : 5000);
       }
-
-
-
 
       async function fetchConfig(){
         const r = await fetch("/api/config"); const js = await r.json();

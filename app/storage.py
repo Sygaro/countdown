@@ -24,7 +24,12 @@ _DEFAULTS: Dict[str, Any] = {
         "with_seconds": True,
         "color": "#e6edf3",
         "size_vmin": 15,         # relativ skriftstørrelse (vmin), 6..30 anbefalt
-        "position": "center"     # center | top-left | top-right | bottom-left | bottom-right top-center bottom-center
+        "position": "center",         # center|top-left|top-right|bottom-left|bottom-right|top-center|bottom-center
+        "messages_position": "right", # right|left|above|below
+        "messages_align": "center",   # start|center|end
+        "use_clock_messages": False,  # true => bruk tekst under (ellers global message_*)
+        "message_primary": "Velkommen!",
+        "message_secondary": ""
     },
 
     # Meldinger (innhold)
@@ -236,32 +241,52 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
 
     # Clock
     clk = cfg.get("clock") or {}
-    # migrering fra ev. gammel 'size_vh' -> 'size_vmin' (engang)
+    # migrering fra ev. gammel 'size_vh' -> 'size_vmin'
     if "size_vmin" not in clk and "size_vh" in clk:
         try:
             clk["size_vmin"] = int(clk.get("size_vh") or 12)
         except Exception:
             clk["size_vmin"] = 12
 
-    # standardverdier og validering
+    # boolean
     clk["with_seconds"] = bool(clk.get("with_seconds", False))
+    clk["use_clock_messages"] = bool(clk.get("use_clock_messages", False))
 
+    # farge
+    if not isinstance(clk.get("color"), str) or not clk.get("color"):
+        clk["color"] = "#e6edf3"
+
+    # størrelse
     try:
         sz = int(clk.get("size_vmin", 12) or 12)
     except Exception:
         sz = 12
     clk["size_vmin"] = max(6, min(30, sz))
 
+    # posisjon av selve klokka
     pos = (clk.get("position") or "center").strip().lower()
     if pos not in ("center","top-left","top-right","bottom-left","bottom-right","top-center","bottom-center"):
         pos = "center"
     clk["position"] = pos
 
+    # plassering/jusering av meldinger i klokkemodus
+    mp = (clk.get("messages_position") or "right").strip().lower()
+    if mp not in ("right","left","above","below"):
+        mp = "right"
+    clk["messages_position"] = mp
 
-    if not isinstance(clk.get("color"), str) or not clk.get("color"):
-        clk["color"] = "#e6edf3"
+    ma = (clk.get("messages_align") or "center").strip().lower()
+    if ma not in ("start","center","end"):
+        ma = "center"
+    clk["messages_align"] = ma
+
+    # egne klokke-meldinger (valgfritt)
+    for key in ("message_primary","message_secondary"):
+        v = clk.get(key, "")
+        clk[key] = v if isinstance(v, str) else ("" if v is None else str(v))
 
     cfg["clock"] = clk
+
 
 
     # terskel

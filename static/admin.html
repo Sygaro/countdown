@@ -191,30 +191,60 @@
     </section>
     
     <!-- Klokke -->
-    <section class="card">
-    <h2>Klokke</h2>
-    <div class="row">
-      <label><input id="clk_with_seconds" type="checkbox"> Vis sekunder</label>
-      <label>Farge
-        <input id="clk_color" type="color" value="#e6edf3">
-        <small id="clk_contrast" class="hint" style="margin-left:.5rem"></small>
-      </label>
-      <label>Størrelse (vmin) <input id="clk_size_vmin" type="number" min="6" max="30" step="1" value="12"></label>
-      <label>Plassering
-        <select id="clk_position">
-          <option value="center">Midtstilt</option>
-          <option value="top-center">Øvre midtstilt</option>
-          <option value="bottom-center">Nedre midtstilt</option>
-          <option value="top-left">Øvre venstre</option>
-          <option value="top-right">Øvre høyre</option>
-          <option value="bottom-left">Nedre venstre</option>
-          <option value="bottom-right">Nedre høyre</option>
+<section class="card">
+  <h2>Klokke</h2>
+  <div class="row">
+    <label><input id="clk_with_seconds" type="checkbox"> Vis sekunder</label>
 
-        </select>
-      </label>
-    </div>
-    <p class="hint">Klokken bruker temaets bakgrunn (Theme → Background). <code>vmin</code> gir konsistent størrelse i både stående og liggende format.</p>
-  </section>
+    <label>Farge
+      <input id="clk_color" type="color" value="#e6edf3">
+      <small id="clk_contrast" class="hint" style="margin-left:.5rem"></small>
+    </label>
+
+    <label>Størrelse (vmin)
+      <input id="clk_size_vmin" type="number" min="6" max="30" step="1" value="12">
+    </label>
+
+    <label>Plassering
+      <select id="clk_position">
+        <option value="center">Midtstilt</option>
+        <option value="top-center">Øvre midtstilt</option>
+        <option value="bottom-center">Nedre midtstilt</option>
+        <option value="top-left">Øvre venstre</option>
+        <option value="top-right">Øvre høyre</option>
+        <option value="bottom-left">Nedre venstre</option>
+        <option value="bottom-right">Nedre høyre</option>
+      </select>
+    </label>
+
+    <label>Plassering av klokke-tekst
+      <select id="clk_msg_position">
+        <option value="right">Til høyre</option>
+        <option value="left">Til venstre</option>
+        <option value="above">Over</option>
+        <option value="below">Under</option>
+      </select>
+    </label>
+
+    <label>Justering klokke-tekst
+      <select id="clk_msg_align">
+        <option value="start">Venstre</option>
+        <option value="center" selected>Midtstilt</option>
+        <option value="end">Høyre</option>
+      </select>
+    </label>
+
+    <label><input id="clk_use_own_msgs" type="checkbox"> Bruk egne meldinger i klokkemodus</label>
+
+    <textarea id="clk_msg_primary" rows="2" placeholder="(valgfri) Klokkens hovedmelding"></textarea>
+    <input id="clk_msg_secondary" type="text" placeholder="(valgfri) Klokkens sekundærmelding"/>
+  </div>
+
+  <p class="hint">
+    Klokken bruker temaets bakgrunn (Theme → Background). <code>vmin</code> gir konsistent størrelse i både stående og liggende format.
+  </p>
+</section>
+
 
  
 
@@ -264,10 +294,16 @@
 
       // Klokke-felter er valgfrie – hvis de finnes, deaktiver utenom clock-modus
       const isClock = m === "clock";
-      $("#clk_with_seconds") && ($("#clk_with_seconds").disabled = !isClock);
-      $("#clk_color")        && ($("#clk_color").disabled        = !isClock);
-      $("#clk_size_vmin")    && ($("#clk_size_vmin").disabled    = !isClock);
-      $("#clk_position")     && ($("#clk_position").disabled     = !isClock);
+      const own = !!$("#clk_use_own_msgs")?.checked;
+      $("#clk_with_seconds") && ($("#clk_with_seconds").disabled = false);
+      $("#clk_color")        && ($("#clk_color").disabled        = false);
+      $("#clk_size_vmin")    && ($("#clk_size_vmin").disabled    = false);
+      $("#clk_position")     && ($("#clk_position").disabled     = false);
+      $("#clk_msg_position") && ($("#clk_msg_position").disabled = false);
+      $("#clk_msg_align")    && ($("#clk_msg_align").disabled    = false);
+      $("#clk_use_own_msgs") && ($("#clk_use_own_msgs").disabled = false);
+      $("#clk_msg_primary")    && ($("#clk_msg_primary").disabled  = !own);
+      $("#clk_msg_secondary")  && ($("#clk_msg_secondary").disabled= !own);
 
   }
     // -------- kontrast-hint (som før) --------
@@ -296,16 +332,15 @@
     }
 
     function updateClockContrastHint(){
-      const bg = currentPreviewBgColor(); // du har denne fra før
+      const bg = currentPreviewBgColor();        // solid: solid, gradient: 'to', image: tint
       const color = val("#clk_color","#e6edf3");
-      const clkColorEl = document.getElementById("clk_color");
-      clkColorEl && clkColorEl.addEventListener("input", updateClockContrastHint);
       const el = $("#clk_contrast");
       if (!el) return;
       const ratio = contrast(color,bg);
       el.textContent = `kontrast ${ratio.toFixed(2)}${ratio>=3?' ✔':' ⚠'}`;
       el.style.color = ratio>=3?'#69db7c':'#ffd166';
     }
+
 
     // -------- apply() --------
     function apply(cfg, tick){
@@ -367,10 +402,17 @@
 
       // Ny: klokke (top-level) – hvis feltene finnes
       const clk = cfg?.clock || {};
-      $("#clk_with_seconds") && ($("#clk_with_seconds").checked = !!clk.with_seconds);
-      $("#clk_color")        && ($("#clk_color").value = clk.color || "#e6edf3");
-      $("#clk_size_vmin")    && ($("#clk_size_vmin").value = clk.size_vmin ?? 12);
-      $("#clk_position")     && ($("#clk_position").value = clk.position || "center");
+      $("#clk_with_seconds")   && ($("#clk_with_seconds").checked = !!clk.with_seconds);
+      $("#clk_color")          && ($("#clk_color").value          = clk.color || "#e6edf3");
+      $("#clk_size_vmin")      && ($("#clk_size_vmin").value      = clk.size_vmin ?? 12);
+      $("#clk_position")       && ($("#clk_position").value       = clk.position || "center");
+      $("#clk_msg_position")   && ($("#clk_msg_position").value   = (cfg?.clock?.messages_position || "right"));
+      $("#clk_msg_align")      && ($("#clk_msg_align").value      = (cfg?.clock?.messages_align || "center"));
+      $("#clk_use_own_msgs")   && ($("#clk_use_own_msgs").checked = !!cfg?.clock?.use_clock_messages);
+      $("#clk_msg_primary")    && ($("#clk_msg_primary").value    = cfg?.clock?.message_primary   || "");
+      $("#clk_msg_secondary")  && ($("#clk_msg_secondary").value  = cfg?.clock?.message_secondary || "");
+      updateClockContrastHint();
+
 
       lock();
       updateDigitContrastHints();
@@ -391,16 +433,30 @@
       const m = selMode();
 
       // Bygg clock-del, men bare hvis feltene finnes – ellers bruk lastCfg.clock som fallback
-      const clock = (function(){
-        if ($("#clk_with_seconds") || $("#clk_color") || $("#clk_size_vh")) {
+      const clock = (function () {
+        const hasClockFields =
+          $("#clk_with_seconds") || $("#clk_color") || $("#clk_size_vmin") ||
+          $("#clk_position") || $("#clk_msg_position") || $("#clk_msg_align") ||
+          $("#clk_use_own_msgs") || $("#clk_msg_primary") || $("#clk_msg_secondary");
+
+        if (hasClockFields) {
           return {
-            with_seconds: checked("#clk_with_seconds"),
-            color: val("#clk_color","#e6edf3"),
-            size_vh: Number(val("#clk_size_vh","12"))
+            with_seconds:        checked("#clk_with_seconds"),
+            color:               val("#clk_color", "#e6edf3"),
+            size_vmin:           Number(val("#clk_size_vmin", "12")),    // <- ny nøkkel
+            position:            val("#clk_position", "center"),
+
+            // nye klokke-tekstvalg
+            messages_position:   val("#clk_msg_position", "right"),       // right|left|above|below
+            messages_align:      val("#clk_msg_align", "center"),         // start|center|end
+            use_clock_messages:  checked("#clk_use_own_msgs"),
+            message_primary:     val("#clk_msg_primary", ""),
+            message_secondary:   val("#clk_msg_secondary", "")
           };
         }
         return lastCfg?.clock || {};
       })();
+
 
       const body = {
         mode: m,
@@ -451,8 +507,15 @@
           with_seconds: checked("#clk_with_seconds"),
           color:        val("#clk_color","#e6edf3"),
           size_vmin:    Number(val("#clk_size_vmin","12")),
-          position:     val("#clk_position","center")
+          position:     val("#clk_position","center"),
+
+          messages_position: val("#clk_msg_position","right"),
+          messages_align:    val("#clk_msg_align","center"),
+          use_clock_messages: checked("#clk_use_own_msgs"),
+          message_primary:   val("#clk_msg_primary",""),
+          message_secondary: val("#clk_msg_secondary","")
         }
+
       };
 
       const r = await fetch("/api/config", { method:"POST", headers:headers(), body: JSON.stringify(body) });
@@ -545,6 +608,19 @@
     }));
     $("#btn_start") && $("#btn_start").addEventListener("click", ()=>startDuration().catch(e=>alert(e.message)));
     $("#btn_stop") && $("#btn_stop").addEventListener("click", ()=>stopDurationSwitchDaily().catch(e=>alert(e.message)));
+    const clkColorEl = document.getElementById("clk_color");
+    clkColorEl && clkColorEl.addEventListener("input", updateClockContrastHint);
+
+    // Når bakgrunnsmodus/farger endres -> oppdater klokke-kontrast
+    $$("input[name=bg_mode]").forEach(el => el.addEventListener("change", () => {
+      lock(); updateDigitContrastHints(); updateMessageContrastHints(); updateClockContrastHint();
+    }));
+    ["#bg_solid_color", "#bg_grad_from", "#bg_grad_to", "#bg_img_tint", "#bg_img_tint_op"].forEach(sel=>{
+      const e=document.querySelector(sel); e && e.addEventListener("input", updateClockContrastHint);
+    });
+
+    // Egen-tekst toggle
+    $("#clk_use_own_msgs") && $("#clk_use_own_msgs").addEventListener("change", lock);
 
     // -------- init --------
     loadAll().catch(console.error);
