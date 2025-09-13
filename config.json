@@ -1,13 +1,13 @@
 {
   "_migrated_at": 1757592465,
-  "_updated_at": 1757778949,
+  "_updated_at": 1757781150,
   "admin_password": "",
   "alert_minutes": 3,
   "blink_seconds": 50,
   "clock": {
-    "color": "#5e9acf",
-    "position": "center",
-    "size_vh": 20,
+    "color": "#555acf",
+    "position": "top-left",
+    "size_vh": 30,
     "size_vmin": 15,
     "with_seconds": true
   },
@@ -15,7 +15,7 @@
   "color_normal": "#e6edf3",
   "color_over": "#9ad0ff",
   "color_warn": "#ffd166",
-  "daily_time": "17:03",
+  "daily_time": "23:00",
   "duration_minutes": 10,
   "duration_started_ms": 0,
   "hms_threshold_minutes": 60,

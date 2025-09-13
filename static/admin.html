@@ -262,7 +262,7 @@
       $("#clk_size_vmin")    && ($("#clk_size_vmin").disabled    = !isClock);
       $("#clk_position")     && ($("#clk_position").disabled     = !isClock);
 
-
+  }
     // -------- kontrast-hint (som før) --------
     const hexToRgb = h => { const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((h||"").trim()); return m? [parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)] : [230,237,243]; };
     const luminance = ([r,g,b]) => { const a=[r,g,b].map(v=>{v/=255; return (v<=0.03928)? v/12.92 : Math.pow((v+0.055)/1.055,2.4)}); return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2]; };

@@ -223,62 +223,57 @@
       setInterval(sendHeartbeat, 10000);
 
       // Fullscreen-håndtering: ikke vis knapp i fullscreen, heller ikke ved musebevegelse
-      const fsBtn = $("#btn_fullscreen");
+      // ===== Robust fullscreen-blokk (safe guards) =====
+  const fsBtn = document.getElementById("btn_fullscreen");
 
-      function showFsBtn(){
-        // Vis kun utenfor fullscreen
-        if (document.fullscreenElement) return;
-        fsBtn.style.display = (document.fullscreenEnabled ? "inline-block" : "none");
-        fsBtn.style.opacity = "1";
-      }
-      function hideFsBtn(){
-        if (document.fullscreenElement) return; // ikke fade i fullscreen – den er anyway skjult via CSS
-        if (document.fullscreenEnabled) fsBtn.style.opacity = "0";
-      }
+  function showFsBtn(){
+    if (!fsBtn) return;
+    if (document.fullscreenElement) return;
+    fsBtn.style.display = (document.fullscreenEnabled ? "inline-block" : "none");
+    fsBtn.style.opacity = "1";
+  }
+  function hideFsBtn(){
+    if (!fsBtn) return;
+    if (document.fullscreenElement) return;
+    if (document.fullscreenEnabled) fsBtn.style.opacity = "0";
+  }
 
-      // Toggle CSS-klasse for å skjule knappen med .is-fullscreen-regelen i ui.css
-      document.addEventListener("fullscreenchange", () => {
-        const on = !!document.fullscreenElement;
-        document.documentElement.classList.toggle("is-fullscreen", on);
-        if (on) {
-          // Skjul hardt umiddelbart ved overgang til fullscreen
-          fsBtn.style.display = "none";
+  document.addEventListener("fullscreenchange", () => {
+    const on = !!document.fullscreenElement;
+    document.documentElement.classList.toggle("is-fullscreen", on);
+    if (fsBtn) {
+      fsBtn.style.display = on ? "none" : (document.fullscreenEnabled ? "inline-block" : "none");
+      if (!on) fsBtn.style.opacity = "1";
+    }
+  });
+
+  function bumpActivity(){
+    if (document.fullscreenElement) return;
+    lastActivityTs = Date.now();
+    showFsBtn();
+  }
+  ["mousemove","mousedown","keydown","touchstart"].forEach(ev =>
+    document.addEventListener(ev, bumpActivity, { passive:true })
+  );
+  setInterval(()=>{ if (!document.fullscreenElement && Date.now()-lastActivityTs > 5000) hideFsBtn(); }, 1000);
+
+  if (fsBtn) {
+    fsBtn.addEventListener("click", async () => {
+      try {
+        if (!document.fullscreenElement) {
+          await document.documentElement.requestFullscreen();
         } else {
-          // Ikke fullscreen – vis igjen
-          showFsBtn();
+          await document.exitFullscreen();
         }
-      });
-
-      // Ikke trigge visning av knappen når vi er i fullscreen
-      let lastActivityTs = Date.now();
-      function bumpActivity(){
-        if (document.fullscreenElement) return; // <- viktig vakt
-        lastActivityTs = Date.now();
-        showFsBtn();
-      }
-      ["mousemove","mousedown","keydown","touchstart"].forEach(ev =>
-        document.addEventListener(ev, bumpActivity, { passive:true })
-      );
-      // auto-fade (kun utenfor fullscreen)
-      setInterval(()=>{ if (!document.fullscreenElement && Date.now()-lastActivityTs > 5000) hideFsBtn(); }, 1000);
-
-      // Toggle fullscreen på klikk
-      fsBtn.addEventListener("click", async () => {
-        try {
-          if (!document.fullscreenElement) {
-            await document.documentElement.requestFullscreen();
-          } else {
-            await document.exitFullscreen();
-          }
-        } catch (e) {}
-      });
-
-      // initialt
-      showFsBtn();
+      } catch (e) {}
+    });
+    showFsBtn();
+  }
+  // ===== slutt fullscreen-blokk =====
 
       firstLoad().catch(console.error);
       setInterval(pollTick, 1000);
-      setInterval(pollConfig, 3000);
+      setInterval(pollConfig, 3000);  // sørger for at theme/background oppdateres uten refresh
     })();
   </script>
 </body>

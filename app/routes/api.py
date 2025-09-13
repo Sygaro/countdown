@@ -64,22 +64,32 @@ def api_post_config():
         return jsonify({"ok": False, "error": "internal error"}), 500
 
 @bp.post("/start-duration")
-#@bp.post("/start")
-@require_password
-def start_duration_compat():
-    """
-    Kompatibilitetsalias for UI som kaller /api/start-duration eller /api/start_duration.
-    Gjør identisk som /api/start: forventer JSON {"minutes": <int>}.
-    """
+def api_start_duration():
+    # Godta kun JSON
+    if not request.is_json:
+        return jsonify({"ok": False, "error": "expected application/json"}), 415
+
     data = request.get_json(silent=True) or {}
+
+    # Robust parsing: støtt int/float/str; avvis None eller tom streng
+    minutes_val = data.get("minutes", None)
+
+    minutes: int | None = None
     try:
-        minutes = int(data.get("minutes"))
-    except Exception:
+        if isinstance(minutes_val, (int, float)):
+            minutes = int(minutes_val)
+        elif isinstance(minutes_val, str) and minutes_val.strip():
+            minutes = int(minutes_val.strip())
+    except (TypeError, ValueError):
+        minutes = None
+
+    if minutes is None:
         return jsonify({"ok": False, "error": "'minutes' må være heltall"}), 400
     if minutes <= 0:
         return jsonify({"ok": False, "error": "'minutes' må være > 0"}), 400
 
-    cfg = start_duration(minutes)  # eksisterende storage-funksjon
+    # Start varighet og returner oppdatert config + tick
+    cfg = start_duration(minutes)
     t = compute_tick(cfg)
     return jsonify({"ok": True, "config": cfg, "tick": t}), 200
 
