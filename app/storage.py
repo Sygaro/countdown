@@ -274,6 +274,7 @@ def _validate(cfg: Dict[str, Any]) -> Tuple[bool, str]:
     return True, ""
 
 
+
 def _clean_by_mode(cfg: Dict[str, Any]) -> Dict[str, Any]:
     m = cfg.get("mode")
     if m == "daily":

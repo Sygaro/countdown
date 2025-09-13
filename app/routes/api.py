@@ -12,60 +12,56 @@ from ..auth import require_password
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
+@bp.get("/defaults")
+def api_defaults():
+    from ..storage import get_defaults
+    return jsonify({"ok": True, "defaults": get_defaults()}), 200
+
 @bp.get("/config")
-def get_config():
+def api_get_config():
     cfg = load_config()
     t = compute_tick(cfg)
     return jsonify({"ok": True, "config": cfg, "tick": t, "server_time": datetime.now(TZ).isoformat()}), 200
 
-@bp.get("/defaults")
-def get_defaults_api():
-    # Kun de relevante delene for UI-reset; hele defaults er ok å eksponere.
-    return jsonify({"ok": True, "defaults": get_defaults()}), 200
-
 @bp.post("/config")
-@require_password
-def post_config():
+def api_post_config():
     data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return jsonify({"ok": False, "error": "Payload må være JSON-objekt"}), 400
 
-    if "mode" in data:
-        mode = str(data.get("mode")).strip().lower()
-        daily_time = str(data.get("daily_time") or "")
-        once_at = str(data.get("once_at") or "")
-        duration_minutes = int(data.get("duration_minutes") or 0) or None
-        screen = data.get("screen") if isinstance(data.get("screen"), dict) else None
-        try:
-            cfg = set_mode(mode, daily_time=daily_time, once_at=once_at, duration_minutes=duration_minutes, screen=screen)
-        except ValueError as e:
-            return jsonify({"ok": False, "error": str(e)}), 400
-    else:
-        cfg = load_config()
+    try:
+        if "mode" in data:
+            cfg = set_mode(
+                str(data.get("mode")).strip().lower(),
+                daily_time=str(data.get("daily_time") or ""),
+                once_at=str(data.get("once_at") or ""),
+                duration_minutes=int(data.get("duration_minutes") or 0) or None,
+                clock=data.get("clock") if isinstance(data.get("clock"), dict) else None,
+            )
+        else:
+            cfg = load_config()
 
-    passthrough = (
-        # meldinger
-        "message_primary","message_secondary","show_message_primary","show_message_secondary",
-        # varsler
-        "warn_minutes","alert_minutes","blink_seconds","overrun_minutes",
-        # visning / oppførsel
-        "use_blink","use_phase_colors",
-        "color_normal","color_warn","color_alert","color_over",
-        "show_target_time","target_time_after","messages_position","hms_threshold_minutes",
-        # theme (minimal)
-        "theme",
-        # admin
-        "admin_password",
-        # tider og screen
-        "daily_time","once_at","duration_minutes","screen"
-    )
-    patch = {k: data[k] for k in passthrough if k in data}
-    if patch:
-        try:
+        # “patch/merge” av øvrige felt
+        passthrough = (
+            "message_primary","message_secondary","show_message_primary","show_message_secondary",
+            "warn_minutes","alert_minutes","blink_seconds","overrun_minutes","admin_password",
+            "daily_time","once_at","duration_minutes", "theme","color_normal","color_warn","color_alert","color_over",
+            "show_target_time","target_time_after","messages_position","use_blink","use_phase_colors","hms_threshold_minutes",
+            "clock"
+        )
+        patch = {k: data[k] for k in passthrough if k in data}
+        if patch:
             cfg = save_config_patch(patch)
-        except ValueError as e:
-            return jsonify({"ok": False, "error": str(e)}), 400
 
-    t = compute_tick(cfg)
-    return jsonify({"ok": True, "config": cfg, "tick": t}), 200
+        t = compute_tick(cfg)
+        return jsonify({"ok": True, "config": cfg, "tick": t}), 200
+
+    except ValueError as e:
+        # Valideringsfeil fra storage → 400
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except Exception:
+        # Ikke lekk stacktrace til klient
+        return jsonify({"ok": False, "error": "internal error"}), 500
 
 @bp.post("/start-duration")
 #@bp.post("/start")

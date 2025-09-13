@@ -1,60 +1,28 @@
 {
   "_migrated_at": 1757592465,
-  "_updated_at": 1757763480,
+  "_updated_at": 1757768814,
   "admin_password": "",
   "alert_minutes": 3,
   "blink_seconds": 50,
+  "clock": {
+    "color": "#5e9acf",
+    "size_vh": 20,
+    "with_seconds": true
+  },
   "color_alert": "#ff6b6b",
   "color_normal": "#e6edf3",
   "color_over": "#9ad0ff",
   "color_warn": "#ffd166",
-  "daily_time": "17:00",
-  "duration_minutes": 5,
+  "daily_time": "17:03",
+  "duration_minutes": 10,
   "duration_started_ms": 0,
   "hms_threshold_minutes": 60,
   "message_primary": "Velkommen!",
   "message_secondary": "Vi starter kl:",
   "messages_position": "above",
-  "mode": "daily",
+  "mode": "clock",
   "once_at": "",
   "overrun_minutes": 30,
-  "screen": {
-    "background": {
-      "gradient": {
-        "angle_deg": 180,
-        "from": "#142033",
-        "to": "#0b0f14"
-      },
-      "image": {
-        "fit": "cover",
-        "opacity": 1.0,
-        "tint": {
-          "color": "#000000",
-          "opacity": 0.0
-        },
-        "url": ""
-      },
-      "mode": "solid",
-      "solid": {
-        "color": "#000000"
-      }
-    },
-    "bg": "#000000",
-    "clock": {
-      "color": "#e6edf3",
-      "show": false,
-      "size_vh": 12,
-      "with_seconds": false
-    },
-    "font_vh": 20,
-    "image_fit": "contain",
-    "image_opacity": 100,
-    "image_url": "",
-    "text": "Pause!",
-    "text_color": "#f5f5f5",
-    "type": "text",
-    "use_theme_background": false
-  },
   "show_message_primary": true,
   "show_message_secondary": true,
   "show_target_time": true,

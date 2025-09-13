@@ -119,31 +119,27 @@
         $("#msg_secondary_below").textContent = !above ? sec  : "";
       }
 
-      function applyClock(){
-  // Skjul nedtelling, vis klokke
+function applyClock(){
+  // Skjul nedtelling
   $("#view_countdown").style.display = "none";
-  const root = $("#view_clock");
+
+  // Støtt begge varianter
+  const root = document.querySelector("#view_clock, #view_screen");
+  const clkEl = document.querySelector("#clock_time, #screen_clock");
+  if (!root || !clkEl) return;
+
   root.style.display = "flex";
+  applyThemeBackground(root, state.cfg?.theme?.background);
 
-  // Bakgrunn: bruk samme theme som nedtelling
-  applyThemeBackground(document.body, state.cfg?.theme?.background);
-
-  // Klokke
   const clk = state.cfg.clock || {};
-  const el = $("#clock_time");
-  el.style.display = "block";
-  el.style.color = clk.color || "#e6edf3";
-  el.style.fontSize = `${Math.max(6, Math.min(30, Number(clk.size_vh || 12)))}vh`;
-  el.style.fontWeight = "800";
+  clkEl.style.display = "block";
+  clkEl.style.color = clk.color || "#e6edf3";
+  clkEl.style.fontSize = `${Math.max(6, Math.min(30, Number(clk.size_vh || 12)))}vh`;
 
-  // Timer
   if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
   const update = () => {
-    const d = new Date();
-    const HH = String(d.getHours()).padStart(2,"0");
-    const MM = String(d.getMinutes()).padStart(2,"0");
-    const SS = String(d.getSeconds()).padStart(2,"0");
-    el.textContent = clk.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
+    const d=new Date(), HH=String(d.getHours()).padStart(2,"0"), MM=String(d.getMinutes()).padStart(2,"0"), SS=String(d.getSeconds()).padStart(2,"0");
+    clkEl.textContent = clk.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
   };
   update();
   state.clockTimer = setInterval(update, clk.with_seconds ? 1000 : 5000);
