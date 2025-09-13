@@ -1,12 +1,14 @@
 {
   "_migrated_at": 1757592465,
-  "_updated_at": 1757768814,
+  "_updated_at": 1757778949,
   "admin_password": "",
   "alert_minutes": 3,
   "blink_seconds": 50,
   "clock": {
     "color": "#5e9acf",
+    "position": "center",
     "size_vh": 20,
+    "size_vmin": 15,
     "with_seconds": true
   },
   "color_alert": "#ff6b6b",
@@ -43,7 +45,7 @@
         },
         "url": "https://picsum.photos/1600/900"
       },
-      "mode": "image",
+      "mode": "solid",
       "solid": {
         "color": "#0b0f14"
       }

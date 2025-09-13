@@ -23,7 +23,8 @@ _DEFAULTS: Dict[str, Any] = {
     "clock": {
         "with_seconds": True,
         "color": "#e6edf3",
-        "size_vh": 15              # 6..30
+        "size_vmin": 15,         # relativ skriftstørrelse (vmin), 6..30 anbefalt
+        "position": "center"     # center | top-left | top-right | bottom-left | bottom-right
     },
 
     # Meldinger (innhold)
@@ -235,12 +236,32 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
 
     # Clock
     clk = cfg.get("clock") or {}
-    clk["with_seconds"] = _coerce_bool(clk.get("with_seconds", False), False)
-    try: clk["size_vh"] = max(6, min(30, int(clk.get("size_vh", 12) or 12)))
-    except Exception: clk["size_vh"] = 12
+    # migrering fra ev. gammel 'size_vh' -> 'size_vmin' (engang)
+    if "size_vmin" not in clk and "size_vh" in clk:
+        try:
+            clk["size_vmin"] = int(clk.get("size_vh") or 12)
+        except Exception:
+            clk["size_vmin"] = 12
+
+    # standardverdier og validering
+    clk["with_seconds"] = bool(clk.get("with_seconds", False))
+
+    try:
+        sz = int(clk.get("size_vmin", 12) or 12)
+    except Exception:
+        sz = 12
+    clk["size_vmin"] = max(6, min(30, sz))
+
+    pos = (clk.get("position") or "center").strip().lower()
+    if pos not in ("center","top-left","top-right","bottom-left","bottom-right"):
+        pos = "center"
+    clk["position"] = pos
+
     if not isinstance(clk.get("color"), str) or not clk.get("color"):
         clk["color"] = "#e6edf3"
+
     cfg["clock"] = clk
+
 
     # terskel
     hm = cfg.get("hms_threshold_minutes", _DEFAULTS["hms_threshold_minutes"])

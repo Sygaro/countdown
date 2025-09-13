@@ -25,9 +25,10 @@
   </div>
 
   <!-- Klokke-modus -->
-  <div id="view_clock" class="center fill" style="display:none; position:relative">
-    <div id="clock_time" style="position:absolute; right:4vw; top:3vh; font-weight:800;"></div>
+  <div id="view_clock" class="center fill" style="display:none;">
+    <div id="clock_time" style="font-weight:800;"></div>
   </div>
+
 
   <script>
     (function(){
@@ -119,31 +120,56 @@
         $("#msg_secondary_below").textContent = !above ? sec  : "";
       }
 
-function applyClock(){
-  // Skjul nedtelling
-  $("#view_countdown").style.display = "none";
+      function applyClock(){
+        // Skjul nedtelling
+        const viewCountdown = $("#view_countdown");
+        if (viewCountdown) viewCountdown.style.display = "none";
 
-  // Støtt begge varianter
-  const root = document.querySelector("#view_clock, #view_screen");
-  const clkEl = document.querySelector("#clock_time, #screen_clock");
-  if (!root || !clkEl) return;
+        // Støtt gamle/ny DOM
+        const root = document.querySelector("#view_clock, #view_screen");
+        const clkEl = document.querySelector("#clock_time, #screen_clock");
+        if (!root || !clkEl) return;
 
-  root.style.display = "flex";
-  applyThemeBackground(root, state.cfg?.theme?.background);
+        root.style.display = "flex";
 
-  const clk = state.cfg.clock || {};
-  clkEl.style.display = "block";
-  clkEl.style.color = clk.color || "#e6edf3";
-  clkEl.style.fontSize = `${Math.max(6, Math.min(30, Number(clk.size_vh || 12)))}vh`;
+        // Alltid re-apply theme background (fanger endringer uten refresh)
+        applyThemeBackground(document.body, state.cfg?.theme?.background);
 
-  if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
-  const update = () => {
-    const d=new Date(), HH=String(d.getHours()).padStart(2,"0"), MM=String(d.getMinutes()).padStart(2,"0"), SS=String(d.getSeconds()).padStart(2,"0");
-    clkEl.textContent = clk.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
-  };
-  update();
-  state.clockTimer = setInterval(update, clk.with_seconds ? 1000 : 5000);
-}
+        // Plassering via flex
+        const pos = (state.cfg?.clock?.position || "center").toLowerCase();
+        const posMap = {
+          "center":       { ai: "center",     jc: "center"     },
+          "top-left":     { ai: "flex-start", jc: "flex-start" },
+          "top-right":    { ai: "flex-start", jc: "flex-end"   },
+          "bottom-left":  { ai: "flex-end",   jc: "flex-start" },
+          "bottom-right": { ai: "flex-end",   jc: "flex-end"   }
+        };
+        const m = posMap[pos] || posMap.center;
+        root.style.alignItems = m.ai;
+        root.style.justifyContent = m.jc;
+
+        // Størrelse (vmin med fallback til gammel size_vh)
+        const clk = state.cfg?.clock || {};
+        const sizeVmin = Number(clk.size_vmin ?? clk.size_vh ?? 12);
+        const size = Math.max(6, Math.min(30, sizeVmin));
+        clkEl.style.fontSize = `${size}vmin`;
+        clkEl.style.fontWeight = "800";
+        clkEl.style.display = "block";
+        clkEl.style.color = clk.color || "#e6edf3";
+
+        // Timer
+        if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
+        const update = () => {
+          const d = new Date();
+          const HH = String(d.getHours()).padStart(2,"0");
+          const MM = String(d.getMinutes()).padStart(2,"0");
+          const SS = String(d.getSeconds()).padStart(2,"0");
+          clkEl.textContent = clk.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
+        };
+        update();
+        state.clockTimer = setInterval(update, clk.with_seconds ? 1000 : 5000);
+      }
+
 
 
       async function fetchConfig(){
@@ -168,6 +194,21 @@ function applyClock(){
         const mode = (state.cfg?.mode) || "daily";
         if (mode === "clock") applyClock(); else applyCountdown();
       }
+      async function pollConfig(){
+        try{
+          const r = await fetch("/api/config", { cache: "no-store" });
+          if (!r.ok) return;
+          const js = await r.json();
+          const cfg = js.config || {};
+          const rev = cfg._updated_at || 0;
+          if (rev !== state.lastCfgRev) {
+            state.cfg = cfg;
+            state.lastCfgRev = rev;
+            render(); // <- re-apply theme/background/posisjon/størrelse
+          }
+        }catch(_e){}
+      }
+
 
       // Heartbeat + fullskjerm auto-skjul
       function sendHeartbeat(){
@@ -181,20 +222,63 @@ function applyClock(){
       }
       setInterval(sendHeartbeat, 10000);
 
+      // Fullscreen-håndtering: ikke vis knapp i fullscreen, heller ikke ved musebevegelse
       const fsBtn = $("#btn_fullscreen");
-      function showFsBtn(){ fsBtn.style.display = (document.fullscreenEnabled ? "inline-block" : "none"); fsBtn.style.opacity = "1"; }
-      function hideFsBtn(){ if (document.fullscreenEnabled) fsBtn.style.opacity = "0"; }
-      function bumpActivity(){ lastActivityTs = Date.now(); showFsBtn(); }
-      ["mousemove","mousedown","keydown","touchstart"].forEach(ev => document.addEventListener(ev, bumpActivity, {passive:true}));
-      setInterval(()=>{ if (Date.now()-lastActivityTs > 5000) hideFsBtn(); }, 1000);
-      fsBtn.addEventListener("click", async () => {
-        try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
-              else await document.exitFullscreen(); } catch (e) {}
+
+      function showFsBtn(){
+        // Vis kun utenfor fullscreen
+        if (document.fullscreenElement) return;
+        fsBtn.style.display = (document.fullscreenEnabled ? "inline-block" : "none");
+        fsBtn.style.opacity = "1";
+      }
+      function hideFsBtn(){
+        if (document.fullscreenElement) return; // ikke fade i fullscreen – den er anyway skjult via CSS
+        if (document.fullscreenEnabled) fsBtn.style.opacity = "0";
+      }
+
+      // Toggle CSS-klasse for å skjule knappen med .is-fullscreen-regelen i ui.css
+      document.addEventListener("fullscreenchange", () => {
+        const on = !!document.fullscreenElement;
+        document.documentElement.classList.toggle("is-fullscreen", on);
+        if (on) {
+          // Skjul hardt umiddelbart ved overgang til fullscreen
+          fsBtn.style.display = "none";
+        } else {
+          // Ikke fullscreen – vis igjen
+          showFsBtn();
+        }
       });
 
+      // Ikke trigge visning av knappen når vi er i fullscreen
+      let lastActivityTs = Date.now();
+      function bumpActivity(){
+        if (document.fullscreenElement) return; // <- viktig vakt
+        lastActivityTs = Date.now();
+        showFsBtn();
+      }
+      ["mousemove","mousedown","keydown","touchstart"].forEach(ev =>
+        document.addEventListener(ev, bumpActivity, { passive:true })
+      );
+      // auto-fade (kun utenfor fullscreen)
+      setInterval(()=>{ if (!document.fullscreenElement && Date.now()-lastActivityTs > 5000) hideFsBtn(); }, 1000);
+
+      // Toggle fullscreen på klikk
+      fsBtn.addEventListener("click", async () => {
+        try {
+          if (!document.fullscreenElement) {
+            await document.documentElement.requestFullscreen();
+          } else {
+            await document.exitFullscreen();
+          }
+        } catch (e) {}
+      });
+
+      // initialt
       showFsBtn();
+
       firstLoad().catch(console.error);
       setInterval(pollTick, 1000);
+      setInterval(pollConfig, 3000);
     })();
   </script>
 </body>

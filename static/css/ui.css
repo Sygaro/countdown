@@ -44,3 +44,10 @@ input[type="time"], input[type="datetime-local"] { color: var(--text); backgroun
 /* Ekte blinking for digits */
 @keyframes flash { 0%,50%,100% { opacity:1 } 25%,75% { opacity:.2 } }
 .big.blink, .pv-digits.blink { animation: flash .8s steps(1) infinite; }
+
+/* hindrer at fullscreen-knappen vises i fullscreen */
+.is-fullscreen #btn_fullscreen,
+.is-fullscreen .fs-toggle,
+.is-fullscreen .fullscreen-button {
+  display: none !important;
+}
