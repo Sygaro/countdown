@@ -24,7 +24,7 @@ _DEFAULTS: Dict[str, Any] = {
         "with_seconds": True,
         "color": "#e6edf3",
         "size_vmin": 15,         # relativ skriftstørrelse (vmin), 6..30 anbefalt
-        "position": "center"     # center | top-left | top-right | bottom-left | bottom-right
+        "position": "center"     # center | top-left | top-right | bottom-left | bottom-right top-center bottom-center
     },
 
     # Meldinger (innhold)
@@ -253,9 +253,10 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     clk["size_vmin"] = max(6, min(30, sz))
 
     pos = (clk.get("position") or "center").strip().lower()
-    if pos not in ("center","top-left","top-right","bottom-left","bottom-right"):
+    if pos not in ("center","top-left","top-right","bottom-left","bottom-right","top-center","bottom-center"):
         pos = "center"
     clk["position"] = pos
+
 
     if not isinstance(clk.get("color"), str) or not clk.get("color"):
         clk["color"] = "#e6edf3"

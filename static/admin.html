@@ -189,25 +189,32 @@
         <label>Tint-opacity (0–1) <input id="bg_img_tint_op" type="number" min="0" max="1" step="0.05" value="0"/></label>
       </div>
     </section>
-
+    
+    <!-- Klokke -->
     <section class="card">
-  <h2>Klokke</h2>
-  <div class="row">
-    <label><input id="clk_with_seconds" type="checkbox"> Vis sekunder</label>
-    <label>Farge <input id="clk_color" type="color" value="#e6edf3"></label>
-    <label>Størrelse (vmin) <input id="clk_size_vmin" type="number" min="6" max="30" step="1" value="12"></label>
-    <label>Plassering
-      <select id="clk_position">
-        <option value="center">Midtstilt</option>
-        <option value="top-left">Øvre venstre</option>
-        <option value="top-right">Øvre høyre</option>
-        <option value="bottom-left">Nedre venstre</option>
-        <option value="bottom-right">Nedre høyre</option>
-      </select>
-    </label>
-  </div>
-  <p class="hint">Klokken bruker temaets bakgrunn (Theme → Background). <code>vmin</code> gir konsistent størrelse i både stående og liggende format.</p>
-</section>
+    <h2>Klokke</h2>
+    <div class="row">
+      <label><input id="clk_with_seconds" type="checkbox"> Vis sekunder</label>
+      <label>Farge
+        <input id="clk_color" type="color" value="#e6edf3">
+        <small id="clk_contrast" class="hint" style="margin-left:.5rem"></small>
+      </label>
+      <label>Størrelse (vmin) <input id="clk_size_vmin" type="number" min="6" max="30" step="1" value="12"></label>
+      <label>Plassering
+        <select id="clk_position">
+          <option value="center">Midtstilt</option>
+          <option value="top-center">Øvre midtstilt</option>
+          <option value="bottom-center">Nedre midtstilt</option>
+          <option value="top-left">Øvre venstre</option>
+          <option value="top-right">Øvre høyre</option>
+          <option value="bottom-left">Nedre venstre</option>
+          <option value="bottom-right">Nedre høyre</option>
+
+        </select>
+      </label>
+    </div>
+    <p class="hint">Klokken bruker temaets bakgrunn (Theme → Background). <code>vmin</code> gir konsistent størrelse i både stående og liggende format.</p>
+  </section>
 
  
 
@@ -286,6 +293,18 @@
       const set=(id, color)=>{ const el=$(id); if(!el) return; const ratio=contrast(color,bg); el.textContent=`${ratio.toFixed(2)}${ratio>=3?' ✔':' ⚠'}`; el.style.color=ratio>=3?'#69db7c':'#ffd166'; };
       $("#m_contrast_p") && set("#m_contrast_p", val("#theme_p_color","#9aa4b2"));
       $("#m_contrast_s") && set("#m_contrast_s", val("#theme_s_color","#9aa4b2"));
+    }
+
+    function updateClockContrastHint(){
+      const bg = currentPreviewBgColor(); // du har denne fra før
+      const color = val("#clk_color","#e6edf3");
+      const clkColorEl = document.getElementById("clk_color");
+      clkColorEl && clkColorEl.addEventListener("input", updateClockContrastHint);
+      const el = $("#clk_contrast");
+      if (!el) return;
+      const ratio = contrast(color,bg);
+      el.textContent = `kontrast ${ratio.toFixed(2)}${ratio>=3?' ✔':' ⚠'}`;
+      el.style.color = ratio>=3?'#69db7c':'#ffd166';
     }
 
     // -------- apply() --------

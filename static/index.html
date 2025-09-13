@@ -27,6 +27,10 @@
   <!-- Klokke-modus -->
   <div id="view_clock" class="center fill" style="display:none;">
     <div id="clock_time" style="font-weight:800;"></div>
+    <div id="clock_msgs" aria-hidden="false">
+      <div id="clock_msg_primary"></div>
+      <div id="clock_msg_secondary"></div>
+    </div>
   </div>
 
 
@@ -51,31 +55,81 @@
         set("#msg_primary_above", p); set("#msg_secondary_above", s);
         set("#msg_primary_below", p); set("#msg_secondary_below", s);
       }
-      function applyThemeBackground(rootEl, bgCfg){
-        if (!rootEl) return;
-        const bg = bgCfg || {};
-        const mode = (bg.mode || "solid");
+      // --- robust background-applier: solid | gradient | image (+ tint overlay) ---
+      function applyThemeBackground(el, bg) {
+        if (!el || !bg) return;
+
+        // nullstill alt først
+        el.style.background = "";
+        el.style.backgroundColor = "";
+        el.style.backgroundImage = "";
+        el.style.backgroundRepeat = "";
+        el.style.backgroundSize = "";
+        el.style.backgroundPosition = "";
+
+        const mode = (bg.mode || "solid").toLowerCase();
+
+        // hjelpefunksjon: #RRGGBB + opacity -> 'rgba(r,g,b,a)'
+        function hexToRgba(hex, opacity) {
+          const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((hex||"").trim());
+          if (!m) return `rgba(0,0,0,${Number(opacity||0)})`;
+          const r = parseInt(m[1],16), g = parseInt(m[2],16), b = parseInt(m[3],16);
+          const a = Math.max(0, Math.min(1, Number(opacity||0)));
+          return `rgba(${r},${g},${b},${a})`;
+        }
+
         if (mode === "solid") {
-          rootEl.style.background = bg.solid?.color || "#0b0f14";
-          rootEl.style.backgroundImage = "none";
-        } else if (mode === "gradient") {
-          const fr = bg.gradient?.from || "#142033";
-          const to = bg.gradient?.to   || "#0b0f14";
-          const ang = Number(bg.gradient?.angle_deg ?? 180);
-          rootEl.style.background = `linear-gradient(${ang}deg, ${fr}, ${to})`;
-          rootEl.style.backgroundImage = "none";
-        } else {
-          const im = bg.image || {};
-          const tint = im.tint || {};
-          rootEl.style.backgroundImage = (tint.opacity ?? 0) > 0
-            ? `linear-gradient(rgba(${hex2rgb(tint.color||"#000")}, ${tint.opacity||0}), rgba(${hex2rgb(tint.color||"#000")}, ${tint.opacity||0})), url('${im.url||""}')`
-            : `url('${im.url||""}')`;
-          rootEl.style.backgroundSize = im.fit||"cover";
-          rootEl.style.backgroundPosition = "center";
-          rootEl.style.backgroundRepeat = "no-repeat";
-          rootEl.style.opacity = String(im.opacity ?? 1);
+          el.style.backgroundColor = bg?.solid?.color || "#0b0f14";
+          el.style.backgroundImage = "none";
+          return;
+        }
+
+        if (mode === "gradient") {
+          const from  = bg?.gradient?.from || "#142033";
+          const to    = bg?.gradient?.to   || "#0b0f14";
+          const angle = Number(bg?.gradient?.angle_deg ?? 180);
+          el.style.backgroundImage = `linear-gradient(${angle}deg, ${from}, ${to})`;
+          el.style.backgroundColor = "transparent";
+          el.style.backgroundRepeat = "no-repeat";
+          el.style.backgroundSize = "cover";
+          el.style.backgroundPosition = "center center";
+          return;
+        }
+
+        if (mode === "image") {
+          const url   = (bg?.image?.url || "").trim();
+          const fit   = (bg?.image?.fit || "cover").toLowerCase();
+          const op    = Number(bg?.image?.opacity ?? 1);
+          const tintC = bg?.image?.tint?.color || null;
+          const tintO = Number(bg?.image?.tint?.opacity ?? 0);
+
+          // bygg lag: evt. tint først, så bilde
+          const layers = [];
+          if (tintC && tintO > 0) {
+            const rgba = hexToRgba(tintC, tintO);
+            layers.push(`linear-gradient(${rgba}, ${rgba})`);
+          }
+          if (url) layers.push(`url("${url}")`);
+
+          if (!layers.length) {
+            // ingen bilde-URL, ingen tint: fall tilbake til solid mørk bakgrunn
+            el.style.backgroundColor = "#0b0f14";
+            return;
+          }
+
+          el.style.backgroundImage = layers.join(", ");
+          el.style.backgroundRepeat = "no-repeat, no-repeat";
+          el.style.backgroundSize = (layers.length===2 ? "auto, " : "") + (fit === "contain" ? "contain" : "cover");
+          el.style.backgroundPosition = "center center, center center";
+          el.style.backgroundColor = "transparent";
+
+          // ‘opacity’ på image-laget: vi simulerer ved å injisere en alfamiks,
+          // men enklest: la tint håndtere “mørking”, og la image være 100%.
+          // Hvis du VIL bruke ‘opacity’, gjør det via egen overlay-node (ikke nødvendig her).
+          return;
         }
       }
+
 
       function applyCountdown(){
         $("#view_clock").style.display = "none";
@@ -132,23 +186,30 @@
 
         root.style.display = "flex";
 
+        // litt luft mot sidene (top/bottom er ok)
+        const SIDE_INSET_VW = 5;
+        const TOP_BOTTOM_VH = 3;
+        root.style.padding = `${TOP_BOTTOM_VH}vh ${SIDE_INSET_VW}vw`;
+
         // Alltid re-apply theme background (fanger endringer uten refresh)
         applyThemeBackground(document.body, state.cfg?.theme?.background);
 
-        // Plassering via flex
-        const pos = (state.cfg?.clock?.position || "center").toLowerCase();
+        // ---- Klokkens plassering via flex ----
+        const clockPos = (state.cfg?.clock?.position || "center").toLowerCase();
         const posMap = {
-          "center":       { ai: "center",     jc: "center"     },
-          "top-left":     { ai: "flex-start", jc: "flex-start" },
-          "top-right":    { ai: "flex-start", jc: "flex-end"   },
-          "bottom-left":  { ai: "flex-end",   jc: "flex-start" },
-          "bottom-right": { ai: "flex-end",   jc: "flex-end"   }
+          "center":        { ai: "center",     jc: "center"     },
+          "top-left":      { ai: "flex-start", jc: "flex-start" },
+          "top-right":     { ai: "flex-start", jc: "flex-end"   },
+          "bottom-left":   { ai: "flex-end",   jc: "flex-start" },
+          "bottom-right":  { ai: "flex-end",   jc: "flex-end"   },
+          "top-center":    { ai: "flex-start", jc: "center"     },
+          "bottom-center": { ai: "flex-end",   jc: "center"     }
         };
-        const m = posMap[pos] || posMap.center;
+        const m = posMap[clockPos] || posMap.center;
         root.style.alignItems = m.ai;
         root.style.justifyContent = m.jc;
 
-        // Størrelse (vmin med fallback til gammel size_vh)
+        // ---- Klokkens typografi ----
         const clk = state.cfg?.clock || {};
         const sizeVmin = Number(clk.size_vmin ?? clk.size_vh ?? 12);
         const size = Math.max(6, Math.min(30, sizeVmin));
@@ -157,7 +218,43 @@
         clkEl.style.display = "block";
         clkEl.style.color = clk.color || "#e6edf3";
 
-        // Timer
+        // ---- Meldinger rundt klokka ----
+        const showP = !!state.cfg?.show_message_primary;
+        const showS = !!state.cfg?.show_message_secondary;
+        const msgP  = (state.cfg?.message_primary   || "").trim();
+        const msgS  = (state.cfg?.message_secondary || "").trim();
+
+        // NB: eget navn => unngår kollisjon med clockPos
+        const msgPos = (state.cfg?.messages_position || "below"); // "above" | "below"
+
+        const themeMsg = state.cfg?.theme?.messages || {};
+        const pTheme = themeMsg.primary   || {};
+        const sTheme = themeMsg.secondary || {};
+
+        const wrap = $("#clock_msgs");
+        const elP  = $("#clock_msg_primary");
+        const elS  = $("#clock_msg_secondary");
+
+        wrap.style.display = (showP || showS) ? "flex" : "none";
+        wrap.style.flexDirection = (msgPos === "above") ? "column-reverse" : "column";
+        wrap.style.alignItems = "center";
+        wrap.style.gap = "0.25rem";
+
+        elP.style.display = showP && msgP ? "block" : "none";
+        elS.style.display = showS && msgS ? "block" : "none";
+
+        elP.textContent = msgP;
+        elS.textContent = msgS;
+
+        elP.style.fontSize   = `${Number(pTheme.size_rem ?? 1.0)}rem`;
+        elP.style.fontWeight = String(pTheme.weight ?? 600);
+        elP.style.color      = String(pTheme.color ?? "#9aa4b2");
+
+        elS.style.fontSize   = `${Number(sTheme.size_rem ?? 1.0)}rem`;
+        elS.style.fontWeight = String(sTheme.weight ?? 400);
+        elS.style.color      = String(sTheme.color ?? "#9aa4b2");
+
+        // ---- Klokke-timer ----
         if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
         const update = () => {
           const d = new Date();
@@ -169,6 +266,7 @@
         update();
         state.clockTimer = setInterval(update, clk.with_seconds ? 1000 : 5000);
       }
+
 
 
 

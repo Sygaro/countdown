@@ -1,18 +1,17 @@
 {
   "_migrated_at": 1757592465,
-  "_updated_at": 1757781150,
+  "_updated_at": 1757784157,
   "admin_password": "",
   "alert_minutes": 3,
   "blink_seconds": 50,
   "clock": {
-    "color": "#555acf",
-    "position": "top-left",
-    "size_vh": 30,
+    "color": "#a8beff",
+    "position": "center",
     "size_vmin": 15,
     "with_seconds": true
   },
   "color_alert": "#ff6b6b",
-  "color_normal": "#e6edf3",
+  "color_normal": "#a4c9ea",
   "color_over": "#9ad0ff",
   "color_warn": "#ffd166",
   "daily_time": "23:00",
@@ -32,20 +31,20 @@
   "theme": {
     "background": {
       "gradient": {
-        "angle_deg": 180,
-        "from": "#111827",
-        "to": "#0b0f14"
+        "angle_deg": 160,
+        "from": "#062974",
+        "to": "#010913"
       },
       "image": {
         "fit": "cover",
         "opacity": 1.0,
         "tint": {
-          "color": "#000000",
-          "opacity": 0.4
+          "color": "#0d2b73",
+          "opacity": 0.5
         },
-        "url": "https://picsum.photos/1600/900"
+        "url": "https://static.wixstatic.com/media/8ff0d1_80dfb573906b49bf9a474e3761e7dc14~mv2.jpg/v1/fill/w_1752,h_1054,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/8ff0d1_80dfb573906b49bf9a474e3761e7dc14~mv2.jpg"
       },
-      "mode": "solid",
+      "mode": "gradient",
       "solid": {
         "color": "#0b0f14"
       }
@@ -53,17 +52,17 @@
     "digits": {
       "font_weight": 800,
       "letter_spacing_em": 0.06,
-      "size_vw": 14
+      "size_vw": 18
     },
     "messages": {
       "primary": {
-        "color": "#9aa4b2",
-        "size_rem": 1.0,
+        "color": "#5687cd",
+        "size_rem": 3.0,
         "weight": 600
       },
       "secondary": {
-        "color": "#9aa4b2",
-        "size_rem": 1.0,
+        "color": "#3de166",
+        "size_rem": 1.5,
         "weight": 400
       }
     }
