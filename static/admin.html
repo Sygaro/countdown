@@ -191,166 +191,216 @@
     </section>
 
     <section class="card">
-  <h2>Klokke (visning)</h2>
-  <p class="hint">Klokke-modus bruker samme bakgrunn/tema som visningen.</p>
+   <h2>Klokke</h2>
   <div class="row">
-    <label><input id="clock_with_seconds" type="checkbox"/> Vis sekunder</label>
-    <label>Farge <input id="clock_color" type="color" value="#e6edf3"/></label>
-    <label>Størrelse (vh) <input id="clock_size_vh" type="number" min="6" max="30" step="1" value="12"/></label>
+    <label><input id="clk_with_seconds" type="checkbox"> Vis sekunder</label>
+    <label>Farge <input id="clk_color" type="color" value="#e6edf3"></label>
+    <label>Størrelse (vh) <input id="clk_size" type="number" min="6" max="30" step="1" value="12"></label>
   </div>
+  <p class="muted">Klokken bruker alltid samme bakgrunn som visningen (Theme → Background).</p>
 </section>
+ 
 
   </main>
 
-  <script>
+ <script>
   (function(){
-    const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
-    const pill=$("#sync_pill"), hint=$("#save_hint"); let lastCfg=null, defaultsCache=null;
+    const $ = s => document.querySelector(s);
+    const $$ = s => Array.from(document.querySelectorAll(s));
+    const pill = $("#sync_pill"), hint = $("#save_hint");
+    let lastCfg = null, defaultsCache = null;
 
-    // helpers
-    const val = (sel, def="") => (document.querySelector(sel)?.value ?? def);
+    // -------- helpers --------
+    const val = (sel, def = "") => (document.querySelector(sel)?.value ?? def);
     const checked = (sel) => !!document.querySelector(sel)?.checked;
-    const num = (sel, def=0) => { const v = parseFloat(val(sel,"")); return Number.isFinite(v) ? v : def; };
+    const num = (sel, def = 0) => { const v = parseFloat(val(sel, "")); return Number.isFinite(v) ? v : def; };
 
-    async function fetchDefaults(){ if (defaultsCache) return defaultsCache; const r=await fetch("/api/defaults"); const js=await r.json(); defaultsCache=js.defaults; return defaultsCache; }
-    function headers(){ const pwd=($("#admin_password")?.value||"").trim(); const h={"Content-Type":"application/json"}; if(pwd) h["X-Admin-Password"]=pwd; return h; }
-    const selMode=()=> ($$("input[name=mode]:checked")[0]?.value)||"daily";
-    const selBgMode=()=> ($$("input[name=bg_mode]:checked")[0]?.value)||"solid";
+    async function fetchDefaults(){
+      if (defaultsCache) return defaultsCache;
+      const r = await fetch("/api/defaults");
+      const js = await r.json();
+      defaultsCache = js.defaults;
+      return defaultsCache;
+    }
+    function headers(){
+      const pwd = ($("#admin_password")?.value || "").trim();
+      const h = {"Content-Type":"application/json"};
+      if (pwd) h["X-Admin-Password"] = pwd;
+      return h;
+    }
+    const selMode   = () => ($$("input[name=mode]:checked")[0]?.value) || "daily";
+    const selBgMode = () => ($$("input[name=bg_mode]:checked")[0]?.value) || "solid";
 
     function lock(){
-      const m=selMode();
-      $("#daily_time") && ($("#daily_time").disabled=(m!=="daily"));
-      $("#once_at")   && ($("#once_at").disabled=(m!=="once"));
-      // Bakgrunnsvalg for visningen (finnes fortsatt)
-      const bg=selBgMode();
-      $("#bg_solid_cfg") && ($("#bg_solid_cfg").style.display = bg==="solid"?"block":"none");
-      $("#bg_grad_cfg")  && ($("#bg_grad_cfg").style.display  = bg==="gradient"?"block":"none");
-      $("#bg_img_cfg")   && ($("#bg_img_cfg").style.display   = bg==="image"?"block":"none");
+      const m = selMode();
+      const bg = selBgMode();
+
+      // Modus-avhengig
+      const daily = $("#daily_time"), onceAt = $("#once_at");
+      if (daily) daily.disabled = (m !== "daily");
+      if (onceAt) onceAt.disabled = (m !== "once");
+
+      // Bakgrunn (visning)
+      $("#bg_solid_cfg") && ($("#bg_solid_cfg").style.display = bg === "solid"    ? "block" : "none");
+      $("#bg_grad_cfg")  && ($("#bg_grad_cfg").style.display  = bg === "gradient" ? "block" : "none");
+      $("#bg_img_cfg")   && ($("#bg_img_cfg").style.display   = bg === "image"    ? "block" : "none");
+
+      // Klokke-felter er valgfrie – hvis de finnes, deaktiver utenom clock-modus
+      const isClock = m === "clock";
+      $("#clk_with_seconds") && ($("#clk_with_seconds").disabled = !isClock);
+      $("#clk_color")        && ($("#clk_color").disabled        = !isClock);
+      $("#clk_size_vh")      && ($("#clk_size_vh").disabled      = !isClock);
     }
 
-    // kontrast-hint (bruker kun visningens bakgrunn)
+    // -------- kontrast-hint (som før) --------
     const hexToRgb = h => { const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((h||"").trim()); return m? [parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)] : [230,237,243]; };
     const luminance = ([r,g,b]) => { const a=[r,g,b].map(v=>{v/=255; return (v<=0.03928)? v/12.92 : Math.pow((v+0.055)/1.055,2.4)}); return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2]; };
     const contrast = (c1,c2) => { const L1=luminance(hexToRgb(c1)), L2=luminance(hexToRgb(c2)); const [hi,lo]=L1>L2?[L1,L2]:[L2,L1]; return (hi+0.05)/(lo+0.05); };
     function currentPreviewBgColor(){
-      const bg=selBgMode();
-      if(bg==="solid") return val("#bg_solid_color","#0b0f14");
-      if(bg==="gradient") return val("#bg_grad_to","#0b0f14");
+      const bg = selBgMode();
+      if (bg === "solid")    return val("#bg_solid_color","#0b0f14");
+      if (bg === "gradient") return val("#bg_grad_to","#0b0f14");
       return val("#bg_img_tint","#000000");
     }
     function updateDigitContrastHints(){
-      const bg=currentPreviewBgColor();
+      const bg = currentPreviewBgColor();
       const set=(id, color)=>{ const el=$(id); if(!el) return; const ratio=contrast(color,bg); el.textContent=`kontrast ${ratio.toFixed(2)}${ratio>=3?' ✔':' ⚠'}`; el.style.color=ratio>=3?'#69db7c':'#ffd166'; };
-      $("#c_contrast_normal") && set("#c_contrast_normal", val("#color_normal","#e6edf3"));
-      $("#c_contrast_warn")   && set("#c_contrast_warn",   val("#color_warn","#ffd166"));
-      $("#c_contrast_alert")  && set("#c_contrast_alert",  val("#color_alert","#ff6b6b"));
-      $("#c_contrast_over")   && set("#c_contrast_over",   val("#color_over","#9ad0ff"));
+      set("#c_contrast_normal", val("#color_normal","#e6edf3"));
+      set("#c_contrast_warn",   val("#color_warn","#ffd166"));
+      set("#c_contrast_alert",  val("#color_alert","#ff6b6b"));
+      set("#c_contrast_over",   val("#color_over","#9ad0ff"));
     }
     function updateMessageContrastHints(){
-      const bg=currentPreviewBgColor();
+      const bg = currentPreviewBgColor();
       const set=(id, color)=>{ const el=$(id); if(!el) return; const ratio=contrast(color,bg); el.textContent=`${ratio.toFixed(2)}${ratio>=3?' ✔':' ⚠'}`; el.style.color=ratio>=3?'#69db7c':'#ffd166'; };
       $("#m_contrast_p") && set("#m_contrast_p", val("#theme_p_color","#9aa4b2"));
       $("#m_contrast_s") && set("#m_contrast_s", val("#theme_s_color","#9aa4b2"));
     }
 
+    // -------- apply() --------
     function apply(cfg, tick){
-      lastCfg=cfg;
-      // Modus
+      lastCfg = cfg;
+
+      // Modus + info
       ( $(`input[name=mode][value=${cfg.mode||"daily"}]`) || {} ).checked = true;
-      $("#daily_time") && ($("#daily_time").value=cfg.daily_time||"");
-      $("#once_at") && ($("#once_at").value=(cfg.once_at||"").replace("Z",""));
-      $("#active_mode") && ($("#active_mode").textContent=`Aktiv modus: ${cfg.mode} · Fase: ${tick?.mode||"—"} (${tick?.state||"—"})`);
+      $("#daily_time") && ($("#daily_time").value = cfg.daily_time || "");
+      $("#once_at")    && ($("#once_at").value    = (cfg.once_at || "").replace("Z",""));
+      $("#active_mode") && ($("#active_mode").textContent = `Aktiv modus: ${cfg.mode} · Fase: ${tick?.mode||"—"} (${tick?.state||"—"})`);
 
       // Meldinger
-      $("#show_message_primary") && ($("#show_message_primary").checked=!!cfg.show_message_primary);
-      $("#show_message_secondary") && ($("#show_message_secondary").checked=!!cfg.show_message_secondary);
-      $("#message_primary") && ($("#message_primary").value=cfg.message_primary||"");
-      $("#message_secondary") && ($("#message_secondary").value=cfg.message_secondary||"");
+      $("#show_message_primary") && ($("#show_message_primary").checked = !!cfg.show_message_primary);
+      $("#show_message_secondary") && ($("#show_message_secondary").checked = !!cfg.show_message_secondary);
+      $("#message_primary") && ($("#message_primary").value = cfg.message_primary || "");
+      $("#message_secondary") && ($("#message_secondary").value = cfg.message_secondary || "");
 
       // Varsler/blink
-      $("#warn_minutes")    && ($("#warn_minutes").value = cfg.warn_minutes ?? 4);
-      $("#alert_minutes")   && ($("#alert_minutes").value = cfg.alert_minutes ?? 2);
-      $("#blink_seconds")   && ($("#blink_seconds").value = cfg.blink_seconds ?? 10);
+      $("#warn_minutes")    && ($("#warn_minutes").value    = cfg.warn_minutes    ?? 4);
+      $("#alert_minutes")   && ($("#alert_minutes").value   = cfg.alert_minutes   ?? 2);
+      $("#blink_seconds")   && ($("#blink_seconds").value   = cfg.blink_seconds   ?? 10);
       $("#overrun_minutes") && ($("#overrun_minutes").value = cfg.overrun_minutes ?? 1);
 
       // Visning/oppførsel
-      $("#use_phase_colors") && ($("#use_phase_colors").checked=!!cfg.use_phase_colors);
-      $("#use_blink") && ($("#use_blink").checked=!!cfg.use_blink);
-      $("#color_normal") && ($("#color_normal").value=cfg.color_normal||"#e6edf3");
-      $("#color_warn") && ($("#color_warn").value=cfg.color_warn||"#ffd166");
-      $("#color_alert") && ($("#color_alert").value=cfg.color_alert||"#ff6b6b");
-      $("#color_over") && ($("#color_over").value=cfg.color_over||"#9ad0ff");
-      $("#show_target_time") && ($("#show_target_time").checked=!!cfg.show_target_time);
-      $("#target_time_after") && ($("#target_time_after").value=cfg.target_time_after||"secondary");
-      $("#messages_position") && ($("#messages_position").value=cfg.messages_position||"below");
-      $("#hms_threshold_minutes") && ($("#hms_threshold_minutes").value=cfg.hms_threshold_minutes??60);
+      $("#use_phase_colors")   && ($("#use_phase_colors").checked = !!cfg.use_phase_colors);
+      $("#use_blink")          && ($("#use_blink").checked        = !!cfg.use_blink);
+      $("#color_normal")       && ($("#color_normal").value       = cfg.color_normal || "#e6edf3");
+      $("#color_warn")         && ($("#color_warn").value         = cfg.color_warn   || "#ffd166");
+      $("#color_alert")        && ($("#color_alert").value        = cfg.color_alert  || "#ff6b6b");
+      $("#color_over")         && ($("#color_over").value         = cfg.color_over   || "#9ad0ff");
+      $("#show_target_time")   && ($("#show_target_time").checked = !!cfg.show_target_time);
+      $("#target_time_after")  && ($("#target_time_after").value  = cfg.target_time_after || "secondary");
+      $("#messages_position")  && ($("#messages_position").value  = cfg.messages_position || "below");
+      $("#hms_threshold_minutes") && ($("#hms_threshold_minutes").value = cfg.hms_threshold_minutes ?? 60);
 
-      // Theme: meldinger/digits
-      const p=cfg?.theme?.messages?.primary||{}, s=cfg?.theme?.messages?.secondary||{};
-      $("#theme_p_size") && ($("#theme_p_size").value=String(p.size_rem??1.0));
-      $("#theme_p_weight") && ($("#theme_p_weight").value=String(p.weight??600));
-      $("#theme_p_color") && ($("#theme_p_color").value=String(p.color??"#9aa4b2"));
-      $("#theme_s_size") && ($("#theme_s_size").value=String(s.size_rem??1.0));
-      $("#theme_s_weight") && ($("#theme_s_weight").value=String(s.weight??400));
-      $("#theme_s_color") && ($("#theme_s_color").value=String(s.color??"#9aa4b2"));
-      $("#digits_size_preset") && ($("#digits_size_preset").value=String(cfg?.theme?.digits?.size_vw??14));
+      // Theme
+      const p = cfg?.theme?.messages?.primary   || {};
+      const s = cfg?.theme?.messages?.secondary || {};
+      $("#theme_p_size")   && ($("#theme_p_size").value   = String(p.size_rem ?? 1.0));
+      $("#theme_p_weight") && ($("#theme_p_weight").value = String(p.weight   ?? 600));
+      $("#theme_p_color")  && ($("#theme_p_color").value  = String(p.color    ?? "#9aa4b2"));
+      $("#theme_s_size")   && ($("#theme_s_size").value   = String(s.size_rem ?? 1.0));
+      $("#theme_s_weight") && ($("#theme_s_weight").value = String(s.weight   ?? 400));
+      $("#theme_s_color")  && ($("#theme_s_color").value  = String(s.color    ?? "#9aa4b2"));
+      $("#digits_size_preset") && ($("#digits_size_preset").value = String(cfg?.theme?.digits?.size_vw ?? 14));
 
-      // Theme: visningsbakgrunn
-      const bg=cfg?.theme?.background||{};
+      // Bakgrunn (visningen)
+      const bg = cfg?.theme?.background || {};
       ( $(`input[name=bg_mode][value=${(bg.mode||"solid")}]`) || {} ).checked = true;
       $("#bg_solid_color") && ($("#bg_solid_color").value = bg.solid?.color || "#0b0f14");
-      $("#bg_grad_from") && ($("#bg_grad_from").value   = bg.gradient?.from || "#142033");
-      $("#bg_grad_to") && ($("#bg_grad_to").value     = bg.gradient?.to   || "#0b0f14");
-      $("#bg_grad_angle") && ($("#bg_grad_angle").value  = bg.gradient?.angle_deg ?? 180);
-      $("#bg_img_url") && ($("#bg_img_url").value     = bg.image?.url  || "");
-      $("#bg_img_fit") && ($("#bg_img_fit").value     = bg.image?.fit  || "cover");
-      $("#bg_img_op") && ($("#bg_img_op").value      = bg.image?.opacity ?? 1);
-      $("#bg_img_tint") && ($("#bg_img_tint").value    = bg.image?.tint?.color || "#000000");
+      $("#bg_grad_from")   && ($("#bg_grad_from").value   = bg.gradient?.from || "#142033");
+      $("#bg_grad_to")     && ($("#bg_grad_to").value     = bg.gradient?.to   || "#0b0f14");
+      $("#bg_grad_angle")  && ($("#bg_grad_angle").value  = bg.gradient?.angle_deg ?? 180);
+      $("#bg_img_url")     && ($("#bg_img_url").value     = bg.image?.url  || "");
+      $("#bg_img_fit")     && ($("#bg_img_fit").value     = bg.image?.fit  || "cover");
+      $("#bg_img_op")      && ($("#bg_img_op").value      = bg.image?.opacity ?? 1);
+      $("#bg_img_tint")    && ($("#bg_img_tint").value    = bg.image?.tint?.color || "#000000");
       $("#bg_img_tint_op") && ($("#bg_img_tint_op").value = bg.image?.tint?.opacity ?? 0);
 
-      // Ny: klokke-innstillinger (egen modus)
-      const clk=cfg?.clock||{};
-      $("#clock_with_seconds") && ($("#clock_with_seconds").checked = !!clk.with_seconds);
-      $("#clock_color") && ($("#clock_color").value = clk.color || "#e6edf3");
-      $("#clock_size_vh") && ($("#clock_size_vh").value = clk.size_vh ?? 12);
+      // Ny: klokke (top-level) – hvis feltene finnes
+      const clk = cfg?.clock || {};
+      $("#clk_with_seconds") && ($("#clk_with_seconds").checked = !!clk.with_seconds);
+      $("#clk_color")        && ($("#clk_color").value = clk.color || "#e6edf3");
+      $("#clk_size_vh")      && ($("#clk_size_vh").value = clk.size_vh ?? 12);
 
-      lock(); updateDigitContrastHints(); updateMessageContrastHints();
+      lock();
+      updateDigitContrastHints();
+      updateMessageContrastHints();
     }
 
+    // -------- I/O --------
     async function loadAll(){
-      const r=await fetch("/api/config");
-      const js=await r.json();
-      js.config.tick=js.tick;
-      apply(js.config,js.tick);
-      hint && (hint.textContent="Status oppdatert");
-      setTimeout(()=>{ if(hint) hint.textContent=""; },1200);
+      const r = await fetch("/api/config");
+      const js = await r.json();
+      js.config.tick = js.tick;
+      apply(js.config, js.tick);
+      hint && (hint.textContent = "Status oppdatert");
+      setTimeout(()=>{ if(hint) hint.textContent = ""; }, 1200);
     }
 
     async function saveAll(){
-      const m=selMode();
-      const body={
-        mode:m,
-        daily_time:val("#daily_time"), once_at:val("#once_at"),
+      const m = selMode();
+
+      // Bygg clock-del, men bare hvis feltene finnes – ellers bruk lastCfg.clock som fallback
+      const clock = (function(){
+        if ($("#clk_with_seconds") || $("#clk_color") || $("#clk_size_vh")) {
+          return {
+            with_seconds: checked("#clk_with_seconds"),
+            color: val("#clk_color","#e6edf3"),
+            size_vh: Number(val("#clk_size_vh","12"))
+          };
+        }
+        return lastCfg?.clock || {};
+      })();
+
+      const body = {
+        mode: m,
+        daily_time: val("#daily_time"),
+        once_at:    val("#once_at"),
 
         // meldinger
-        show_message_primary: checked("#show_message_primary"),
+        show_message_primary:   checked("#show_message_primary"),
         show_message_secondary: checked("#show_message_secondary"),
-        message_primary: val("#message_primary"),
+        message_primary:   val("#message_primary"),
         message_secondary: val("#message_secondary"),
 
         // varsler/blink
-        warn_minutes: num("#warn_minutes",4),
-        alert_minutes: num("#alert_minutes",2),
-        blink_seconds: num("#blink_seconds",10),
-        overrun_minutes: num("#overrun_minutes",1),
+        warn_minutes:   num("#warn_minutes",4),
+        alert_minutes:  num("#alert_minutes",2),
+        blink_seconds:  num("#blink_seconds",10),
+        overrun_minutes:num("#overrun_minutes",1),
 
         // visning/oppførsel
-        use_phase_colors: checked("#use_phase_colors"), use_blink: checked("#use_blink"),
-        color_normal: val("#color_normal","#e6edf3"), color_warn: val("#color_warn","#ffd166"), color_alert: val("#color_alert","#ff6b6b"), color_over: val("#color_over","#9ad0ff"),
-        show_target_time: checked("#show_target_time"), target_time_after: val("#target_time_after","secondary"),
-        messages_position: val("#messages_position","below"), hms_threshold_minutes: parseInt(val("#hms_threshold_minutes","60"),10),
+        use_phase_colors: checked("#use_phase_colors"),
+        use_blink:        checked("#use_blink"),
+        color_normal: val("#color_normal","#e6edf3"),
+        color_warn:   val("#color_warn","#ffd166"),
+        color_alert:  val("#color_alert","#ff6b6b"),
+        color_over:   val("#color_over","#9ad0ff"),
+        show_target_time: checked("#show_target_time"),
+        target_time_after: val("#target_time_after","secondary"),
+        messages_position: val("#messages_position","below"),
+        hms_threshold_minutes: parseInt(val("#hms_threshold_minutes","60"),10),
 
-        // theme
+        // theme (digits/messages/bg)
         theme: {
           digits: { size_vw: Number(val("#digits_size_preset","14")) },
           messages: {
@@ -365,22 +415,19 @@
           }
         },
 
-        // Ny: klokke (erstatter stoppskjerm)
-        clock: {
-          with_seconds: checked("#clock_with_seconds"),
-          color: val("#clock_color","#e6edf3"),
-          size_vh: Number(val("#clock_size_vh","12"))
-        }
+        // ny topp-nøkkel
+        clock
       };
 
-      const r=await fetch("/api/config",{method:"POST",headers:headers(),body:JSON.stringify(body)});
-      if(!r.ok){ throw new Error(await r.text()); }
-      const js=await r.json(); apply(js.config, js.tick);
-      hint && (hint.textContent="Lagret");
-      setTimeout(()=>{ if(hint) hint.textContent=""; },1200);
+      const r = await fetch("/api/config", { method:"POST", headers:headers(), body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      const js = await r.json();
+      apply(js.config, js.tick);
+      hint && (hint.textContent = "Lagret");
+      setTimeout(()=>{ if(hint) hint.textContent=""; }, 1200);
     }
 
-    // start/stopp varighet – uendret
+    // -------- start/stopp varighet (uendret) --------
     async function startDuration(){
       const minutes = parseInt(val("#start_minutes","0"), 10);
       if (!Number.isFinite(minutes) || minutes <= 0) { alert("Ugyldig varighet"); return; }
@@ -394,6 +441,7 @@
       await loadAll();
     }
 
+    // -------- presets --------
     function applyPreset(){
       const p = val("#bg_preset","none");
       if (p==="dark-solid"){
@@ -415,7 +463,7 @@
       lock(); updateDigitContrastHints(); updateMessageContrastHints();
     }
 
-    // synk-pill – uendret
+    // -------- synk-pill --------
     async function updateSyncPill(){
       try{
         const r=await fetch("/debug/view-heartbeat"); const js=await r.json();
@@ -427,18 +475,18 @@
       } catch { pill && (pill.textContent="Synk: —"); pill && (pill.className="pill off"); }
     }
 
-    // events
-    $$("input[name=mode]").forEach(el=>el.addEventListener("change",lock));
-    $$("input[name=bg_mode]").forEach(el=>el.addEventListener("change",()=>{lock(); updateDigitContrastHints(); updateMessageContrastHints();}));
+    // -------- events --------
+    $$("input[name=mode]").forEach(el=>el.addEventListener("change", lock));
+    $$("input[name=bg_mode]").forEach(el=>el.addEventListener("change", ()=>{ lock(); updateDigitContrastHints(); updateMessageContrastHints(); }));
     ["color_normal","color_warn","color_alert","color_over","theme_p_color","theme_s_color"].forEach(id=>{
-      const e=document.getElementById(id);
+      const e = document.getElementById(id);
       e && e.addEventListener("input", ()=>{ updateDigitContrastHints(); updateMessageContrastHints(); });
     });
-    $$(".preset").forEach(b=>b.addEventListener("click",()=>{ const e=$("#start_minutes"); if(e) e.value=b.dataset.min; }));
-    $("#btn_apply_preset") && $("#btn_apply_preset").addEventListener("click",applyPreset);
-    $("#btn_save") && $("#btn_save").addEventListener("click",()=>saveAll().catch(e=>alert(e.message)));
-    $("#btn_refresh") && $("#btn_refresh").addEventListener("click",()=>loadAll().catch(e=>alert(e.message)));
-    $("#btn_reset_view") && $("#btn_reset_view").addEventListener("click",()=>fetchDefaults().then(d=>{
+    $$(".preset").forEach(b=>b.addEventListener("click", ()=>{ const e=$("#start_minutes"); if(e) e.value=b.dataset.min; }));
+    $("#btn_apply_preset") && $("#btn_apply_preset").addEventListener("click", applyPreset);
+    $("#btn_save") && $("#btn_save").addEventListener("click", ()=>saveAll().catch(e=>alert(e.message)));
+    $("#btn_refresh") && $("#btn_refresh").addEventListener("click", ()=>loadAll().catch(e=>alert(e.message)));
+    $("#btn_reset_view") && $("#btn_reset_view").addEventListener("click", ()=>fetchDefaults().then(d=>{
       const M=d.theme.messages, B=d.theme.background, D=d.theme.digits;
       $("#digits_size_preset") && ($("#digits_size_preset").value=String(D.size_vw));
       $("#theme_p_size") && ($("#theme_p_size").value=String(M.primary.size_rem));
@@ -459,14 +507,15 @@
       $("#bg_img_tint_op") && ($("#bg_img_tint_op").value=B.image.tint.opacity);
       lock(); updateDigitContrastHints(); updateMessageContrastHints();
     }));
-    $("#btn_start") && $("#btn_start").addEventListener("click",()=>startDuration().catch(e=>alert(e.message)));
-    $("#btn_stop") && $("#btn_stop").addEventListener("click",()=>stopDurationSwitchDaily().catch(e=>alert(e.message)));
+    $("#btn_start") && $("#btn_start").addEventListener("click", ()=>startDuration().catch(e=>alert(e.message)));
+    $("#btn_stop") && $("#btn_stop").addEventListener("click", ()=>stopDurationSwitchDaily().catch(e=>alert(e.message)));
 
-    // init
+    // -------- init --------
     loadAll().catch(console.error);
     setInterval(updateSyncPill, 3000);
   })();
 </script>
+
 
 </body>
 </html>

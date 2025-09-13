@@ -1,7 +1,7 @@
 # app/countdown.py
 """
 Target-beregning + tick.
-'Screen'-modus viser ikke klokke (state=screen).
+Ny kanonisk 'clock'-modus (tidligere 'screen').
 """
 from __future__ import annotations
 import time as _t
@@ -36,7 +36,7 @@ def compute_target_ms(cfg: Dict[str, Any], *, now_ms: Optional[int] = None) -> i
     now_ms = now_ms if now_ms is not None else _now_ms()
     mode = cfg.get("mode", "daily")
 
-    if mode == "screen":
+    if mode == "clock":
         return 0
 
     if mode == "daily":
@@ -71,15 +71,15 @@ def compute_tick(cfg: Dict[str, Any]) -> Dict[str, Any]:
     now_ms = _now_ms()
     mode_cfg = cfg.get("mode", "daily")
 
-    if mode_cfg == "screen":
+    if mode_cfg == "clock":
         return {
             "now_ms": now_ms,
             "target_ms": 0,
             "target_hhmm": "",
             "display_ms": 0,
             "signed_display_ms": 0,
-            "state": "screen",
-            "mode": "screen",
+            "state": "clock",
+            "mode": "clock",
             "blink": False,
             "warn_ms": 0,
             "alert_ms": 0,

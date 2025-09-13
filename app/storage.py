@@ -1,8 +1,9 @@
 # app/storage.py
 """
-Konfig I/O + defaults. Inkluderer theme.background, screen.background, screen.clock.
-- Defaults er kilden til sannhet for Admin "Tilbakestill".
-- Bakoverkomp: screen.bg/image_* brukes dersom screen.background ikke er definert.
+Konfig I/O + defaults.
+Nytt: 'clock' er kanonisk modus. All 'screen' legacy migreres bort ved lesing.
+- Klokke bruker alltid theme.background.
+- Engangsmigrering: mode=screen -> mode=clock, screen.clock -> clock.
 """
 from __future__ import annotations
 import json, os, tempfile, time
@@ -10,42 +11,19 @@ from typing import Any, Dict, Tuple
 from datetime import datetime
 from .settings import CONFIG_PATH, TZ
 
+# -------- Defaults --------
 _DEFAULTS: Dict[str, Any] = {
-    "mode": "daily",
+    "mode": "daily",               # daily|once|duration|clock
     "daily_time": "20:00",
     "once_at": "",
     "duration_minutes": 10,
     "duration_started_ms": 0,
 
-    # Stopp-skjerm (innhold + legacy bakgrunnsfelt)
-    "screen": {
-        "type": "text",               # text|image|blackout
-        "text": "Pause",
-        "text_color": "#ffffff",
-        "bg": "#000000",              # legacy (fallback når background mangler)
-        "font_vh": 10,
-        "image_url": "",
-        "image_opacity": 100,         # 0..100 (legacy)
-        "image_fit": "cover",
-
-        # NY: bakgrunnvalg for stopp-skjerm
-        "use_theme_background": False,
-        "background": {
-            "mode": "solid",          # solid|gradient|image
-            "solid":    { "color": "#0b0f14" },
-            "gradient": { "from": "#142033", "to": "#0b0f14", "angle_deg": 180 },
-            "image":    {
-                "url": "", "fit": "cover", "opacity": 1.0,
-                "tint": { "color": "#000000", "opacity": 0.0 }
-            }
-        },
-        # NY: klokke-overlay
-        "clock": {
-            "show": False,
-            "with_seconds": False,
-            "color": "#e6edf3",
-            "size_vh": 12              # 6..30
-        }
+    # Klokke (top-level, brukes når mode=clock)
+    "clock": {
+        "with_seconds": False,
+        "color": "#e6edf3",
+        "size_vh": 12              # 6..30
     },
 
     # Meldinger (innhold)
@@ -72,7 +50,7 @@ _DEFAULTS: Dict[str, Any] = {
     "color_over":   "#9ad0ff",
     "hms_threshold_minutes": 60,        # clamp [0,720]
 
-    # Theme for selve visningen
+    # Theme for selve visningen (brukes også i klokke-modus)
     "theme": {
         "digits": { "size_vw": 14, "font_weight": 800, "letter_spacing_em": 0.06 },
         "messages": {
@@ -80,7 +58,7 @@ _DEFAULTS: Dict[str, Any] = {
             "secondary": { "size_rem": 1.0, "weight": 400, "color": "#9aa4b2" }
         },
         "background": {
-            "mode": "solid",
+            "mode": "solid",  # solid|gradient|image
             "solid":    { "color": "#0b0f14" },
             "gradient": { "from": "#142033", "to": "#0b0f14", "angle_deg": 180 },
             "image":    { "url": "", "fit": "cover", "opacity": 1.0,
@@ -90,11 +68,14 @@ _DEFAULTS: Dict[str, Any] = {
 
     "admin_password": None,
 }
+
+# Legacy nøkler som skal fjernes direkte
 _LEGACY = {"target_ms", "target_iso", "target_datetime"}
 
 def get_defaults() -> Dict[str, Any]:
     return json.loads(json.dumps(_DEFAULTS))
 
+# -------- IO helpers --------
 def _atomic_write(path: str, data: Dict[str, Any]) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=".config.", dir=os.path.dirname(path))
@@ -121,11 +102,52 @@ def _merge_defaults(cfg: Dict[str, Any]) -> Dict[str, Any]:
     merged = get_defaults()
     return _deep_merge(merged, cfg or {})
 
+# -------- Legacy/migrering --------
 def _strip_legacy(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    # fjern helt gamle felt
     for k in list(cfg.keys()):
         if k in _LEGACY: cfg.pop(k, None)
+
+    # Engangsmigrering fra "screen" → "clock"
+    # - mode: screen -> clock
+    # - clock-oppsett hentes fra screen.clock om det finnes
+    sc = (cfg.get("screen") or {}) if isinstance(cfg.get("screen"), dict) else {}
+    if cfg.get("mode") == "screen":
+        cfg["mode"] = "clock"  # bytt kanonisk modus
+        # Ta med klokkeinnstillinger dersom de fantes
+        sclk = sc.get("clock") or {}
+        clk = cfg.get("clock") or {}
+        # suppler/overstyr med screen.clock
+        if isinstance(sclk, dict):
+            clk.setdefault("with_seconds", bool(sclk.get("with_seconds", False)))
+            clk.setdefault("color", sclk.get("color") or "#e6edf3")
+            try:
+                clk.setdefault("size_vh", max(6, min(30, int(sclk.get("size_vh", 12)))))
+            except Exception:
+                clk.setdefault("size_vh", 12)
+        cfg["clock"] = clk or get_defaults()["clock"]
+
+        # Valgfritt: dersom screen.use_theme_background==False og egen background var satt,
+        # kan vi migrere denne inn i theme.background så visningen bevarer utseendet.
+        try:
+            use_theme_bg = bool(sc.get("use_theme_background", False))
+            sc_bg = sc.get("background") or {}
+            if not use_theme_bg and sc_bg:
+                th = cfg.get("theme") or {}
+                th_bg = th.get("background") or {}
+                _deep_merge(th_bg, sc_bg)
+                th["background"] = th_bg
+                cfg["theme"] = th
+        except Exception:
+            pass
+
+    # Fjern screen-blokken helt dersom den ligger igjen
+    if "screen" in cfg:
+        try: del cfg["screen"]
+        except Exception: cfg["screen"] = None
     return cfg
 
+# -------- Typing/normalisering --------
 def _coerce_bool(v, default: bool) -> bool:
     if isinstance(v, bool): return v
     if isinstance(v, str):
@@ -204,58 +226,25 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     base_th["background"] = bg
     cfg["theme"] = base_th
 
-    # Screen background/clock (ny modell + legacy fallback)
-    sc = cfg.get("screen") or {}
-    sc["use_theme_background"] = _coerce_bool(sc.get("use_theme_background", False), False)
-    # background
-    sc_bg = sc.get("background") or {}
-    sc_bg = _deep_merge(get_defaults()["screen"]["background"], sc_bg)
-    mode2 = (sc_bg.get("mode") or "solid").lower()
-    if mode2 not in ("solid","gradient","image"): mode2 = "solid"
-    sc_bg["mode"] = mode2
-    try: ang2 = int(sc_bg.get("gradient", {}).get("angle_deg", 180))
-    except Exception: ang2 = 180
-    sc_bg.setdefault("gradient", {}); sc_bg["gradient"]["angle_deg"] = max(0, min(360, ang2))
-    sc_bg.setdefault("image", {})
-    sc_bg["image"]["opacity"] = _clamp01(sc_bg["image"].get("opacity", 1.0), 1.0)
-    sc_bg["image"]["fit"] = (sc_bg["image"].get("fit") or "cover")
-    sc_bg["image"].setdefault("tint", {})
-    sc_bg["image"]["tint"]["opacity"] = _clamp01(sc_bg["image"]["tint"].get("opacity", 0.0), 0.0)
-
-    # legacy → hvis background ikke satt spesifikt, mapp fra gamle felt
-    if not sc.get("background_set_explicitly") and (sc.get("image_url") or sc.get("bg")):
-        if sc.get("image_url"):
-            sc_bg["mode"] = "image"
-            sc_bg["image"]["url"] = sc.get("image_url")
-            sc_bg["image"]["fit"] = sc.get("image_fit") or "cover"
-            sc_bg["image"]["opacity"] = (float(sc.get("image_opacity", 100))/100.0)
-        else:
-            sc_bg["mode"] = "solid"
-            sc_bg.setdefault("solid", {})["color"] = sc.get("bg") or "#000000"
-
-    sc["background"] = sc_bg
-
-    # clock
-    clk = sc.get("clock") or {}
-    clk["show"] = _coerce_bool(clk.get("show", False), False)
+    # Clock
+    clk = cfg.get("clock") or {}
     clk["with_seconds"] = _coerce_bool(clk.get("with_seconds", False), False)
     try: clk["size_vh"] = max(6, min(30, int(clk.get("size_vh", 12) or 12)))
     except Exception: clk["size_vh"] = 12
     if not isinstance(clk.get("color"), str) or not clk.get("color"):
         clk["color"] = "#e6edf3"
-    sc["clock"] = clk
-
-    cfg["screen"] = sc
+    cfg["clock"] = clk
 
     # terskel
     hm = cfg.get("hms_threshold_minutes", _DEFAULTS["hms_threshold_minutes"])
     cfg["hms_threshold_minutes"] = max(0, min(720, hm))
     return cfg
 
+# -------- Validering/renhold --------
 def _validate(cfg: Dict[str, Any]) -> Tuple[bool, str]:
     m = cfg.get("mode")
-    if m not in ("daily","once","duration","screen"):
-        return False, "mode må være daily|once|duration|screen"
+    if m not in ("daily","once","duration","clock"):
+        return False, "mode må være daily|once|duration|clock"
     if m == "daily":
         s = (cfg.get("daily_time") or "").strip()
         if len(s) != 5 or ":" not in s:
@@ -269,12 +258,7 @@ def _validate(cfg: Dict[str, Any]) -> Tuple[bool, str]:
                 return False, "once_at må være ISO (YYYY-MM-DDTHH:MM)"
     if m == "duration" and int(cfg.get("duration_minutes") or 0) <= 0:
         return False, "duration_minutes må være > 0"
-    if m == "screen":
-        sc = cfg.get("screen") or {}
-        if sc.get("type") not in ("text","image","blackout"):
-            return False, "screen.type må være text|image|blackout"
-        if sc.get("type") == "image" and not (sc.get("image_url") or sc.get("background", {}).get("image", {}).get("url")):
-            return False, "screen.image_url må settes for image"
+    # clock har ingen ekstra feltkrav
     return True, ""
 
 def _clean_by_mode(cfg: Dict[str, Any]) -> Dict[str, Any]:
@@ -285,10 +269,11 @@ def _clean_by_mode(cfg: Dict[str, Any]) -> Dict[str, Any]:
         cfg["duration_started_ms"] = 0
     elif m == "duration":
         cfg["once_at"] = ""
-    elif m == "screen":
+    elif m == "clock":
         cfg["once_at"] = ""; cfg["duration_started_ms"] = 0
     return cfg
 
+# -------- Offentlige APIer --------
 def load_config() -> Dict[str, Any]:
     path = str(CONFIG_PATH)
     if not os.path.exists(path):
@@ -313,7 +298,7 @@ def save_config_patch(patch: Dict[str, Any]) -> Dict[str, Any]:
     current = load_config(); merged = _merge_defaults(current); _deep_merge(merged, patch or {})
     return replace_config(merged)
 
-def set_mode(mode: str, *, daily_time: str = "", once_at: str = "", duration_minutes: int | None = None, screen: Dict[str, Any] | None = None) -> Dict[str, Any]:
+def set_mode(mode: str, *, daily_time: str = "", once_at: str = "", duration_minutes: int | None = None, clock: Dict[str, Any] | None = None) -> Dict[str, Any]:
     cfg = load_config(); cfg["mode"] = mode
     if mode == "daily":
         if daily_time: cfg["daily_time"] = daily_time
@@ -322,10 +307,10 @@ def set_mode(mode: str, *, daily_time: str = "", once_at: str = "", duration_min
         cfg["once_at"] = once_at or ""; cfg["duration_started_ms"] = 0
     elif mode == "duration":
         if duration_minutes: cfg["duration_minutes"] = int(duration_minutes)
-    elif mode == "screen":
-        if screen:
-            base = _merge_defaults({"screen": {}})["screen"]
-            cfg["screen"] = base; _deep_merge(cfg["screen"], screen)
+    elif mode == "clock":
+        if clock:
+            base = _merge_defaults({"clock": {}})["clock"]
+            cfg["clock"] = base; _deep_merge(cfg["clock"], clock)
     else:
         raise ValueError("Ugyldig mode")
     return replace_config(cfg)

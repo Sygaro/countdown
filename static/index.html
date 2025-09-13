@@ -9,6 +9,7 @@
 <body class="center fill">
   <button id="btn_fullscreen" class="fs-btn" title="Fullskjerm">⛶ Fullskjerm</button>
 
+  <!-- Nedtelling -->
   <div id="view_countdown" class="center fill" style="flex-direction:column;gap:2vh;display:none">
     <div id="msgs_above" class="muted" style="display:none;text-align:center">
       <div id="msg_primary_above"></div>
@@ -23,9 +24,9 @@
     </div>
   </div>
 
-  <div id="view_screen" class="screen" style="display:none; position:relative">
-    <div id="screen_inner"></div>
-    <div id="screen_clock" style="display:none; position:absolute; right:4vw; top:3vh; font-weight:800;"></div>
+  <!-- Klokke-modus -->
+  <div id="view_clock" class="center fill" style="display:none; position:relative">
+    <div id="clock_time" style="position:absolute; right:4vw; top:3vh; font-weight:800;"></div>
   </div>
 
   <script>
@@ -45,21 +46,27 @@
       function applyMessageStyles(){
         const p = state.cfg?.theme?.messages?.primary   || {};
         const s = state.cfg?.theme?.messages?.secondary || {};
-        const set = (sel, m)=> { const el=$(sel); if(!el) return; el.style.fontSize   = `${Number(m.size_rem ?? 1.0)}rem`; el.style.fontWeight = String(Number(m.weight ?? 400)); el.style.color = String(m.color ?? '#9aa4b2'); };
-        ["#msg_primary_above","#msg_primary_below"].forEach(sel=>set(sel,p));
-        ["#msg_secondary_above","#msg_secondary_below"].forEach(sel=>set(sel,s));
+        const set = (sel, m)=> { const el=$(sel); if(!el) return; el.style.fontSize   = `${Number(m.size_rem ?? 1.0)}rem`; el.style.fontWeight = String(Number(m.weight ?? 400)); el.style.color = String(m.color ?? "#9aa4b2"); };
+        set("#msg_primary_above", p); set("#msg_secondary_above", s);
+        set("#msg_primary_below", p); set("#msg_secondary_below", s);
       }
-      function applyThemeBackground(rootEl, bg){
-        const mode = (bg?.mode||"solid").toLowerCase();
-        if (mode==="solid"){
+      function applyThemeBackground(rootEl, bgCfg){
+        if (!rootEl) return;
+        const bg = bgCfg || {};
+        const mode = (bg.mode || "solid");
+        if (mode === "solid") {
           rootEl.style.background = bg.solid?.color || "#0b0f14";
-        } else if (mode==="gradient"){
-          const g = bg.gradient||{};
-          rootEl.style.background = `linear-gradient(${Number(g.angle_deg||180)}deg, ${g.from||"#142033"}, ${g.to||"#0b0f14"})`;
-        } else if (mode==="image"){
-          const im = bg.image||{};
-          const tint = im.tint||{};
-          rootEl.style.background = (tint.opacity>0)
+          rootEl.style.backgroundImage = "none";
+        } else if (mode === "gradient") {
+          const fr = bg.gradient?.from || "#142033";
+          const to = bg.gradient?.to   || "#0b0f14";
+          const ang = Number(bg.gradient?.angle_deg ?? 180);
+          rootEl.style.background = `linear-gradient(${ang}deg, ${fr}, ${to})`;
+          rootEl.style.backgroundImage = "none";
+        } else {
+          const im = bg.image || {};
+          const tint = im.tint || {};
+          rootEl.style.backgroundImage = (tint.opacity ?? 0) > 0
             ? `linear-gradient(rgba(${hex2rgb(tint.color||"#000")}, ${tint.opacity||0}), rgba(${hex2rgb(tint.color||"#000")}, ${tint.opacity||0})), url('${im.url||""}')`
             : `url('${im.url||""}')`;
           rootEl.style.backgroundSize = im.fit||"cover";
@@ -70,14 +77,14 @@
       }
 
       function applyCountdown(){
-        $("#view_screen").style.display = "none";
+        $("#view_clock").style.display = "none";
         const root = $("#view_countdown");
         root.style.display = "flex";
         // legg tema-bakgrunn på BODY
         applyThemeBackground(document.body, state.cfg?.theme?.background);
         // cleanup clock timer hvis aktiv
         if (state.clockTimer){ clearInterval(state.clockTimer); state.clockTimer=null; }
-        $("#screen_clock").style.display="none";
+        $("#clock_time").style.display="none";
 
         applyDigitsSize(); applyMessageStyles();
 
@@ -112,101 +119,37 @@
         $("#msg_secondary_below").textContent = !above ? sec  : "";
       }
 
-      function applyScreen(){
-        const sc = state.cfg.screen || {};
-        $("#view_countdown").style.display = "none";
-        const root = $("#view_screen");
-        root.style.display = "flex";
+      function applyClock(){
+    // Skjul nedtelling, vis klokke
+    $("#view_countdown").style.display = "none";
+    const root = $("#view_screen");
+    root.style.display = "flex";
 
-        // bakgrunn: bruk theme dersom valgt, ellers screen.background, fallback legacy
-        if (sc.use_theme_background) {
-          applyThemeBackground(root, state.cfg?.theme?.background);
-        } else if (sc.background) {
-          applyThemeBackground(root, sc.background);
-        } else {
-          // legacy fallback
-          root.style.background = sc.bg || "#000";
-        }
+    // Bruk alltid theme.background
+    applyThemeBackground(root, state.cfg?.theme?.background);
 
-        // clock overlay
-        const clk = sc.clock || {};
-        const clkEl = $("#screen_clock");
-        if (clk.show) {
-          clkEl.style.display="block";
-          clkEl.style.color = clk.color || "#e6edf3";
-          clkEl.style.fontSize = `${Math.max(6, Math.min(30, Number(clk.size_vh||12)))}vh`;
-          if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer=null; }
-          const updateClock = () => {
-            const d = new Date();
-            const HH = String(d.getHours()).padStart(2,"0");
-            const MM = String(d.getMinutes()).padStart(2,"0");
-            const SS = String(d.getSeconds()).padStart(2,"0");
-            clkEl.textContent = clk.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
-          };
-          updateClock();
-          state.clockTimer = setInterval(updateClock, clk.with_seconds ? 1000 : 5000);
-        } else {
-          clkEl.style.display="none";
-          if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer=null; }
-        }
+    // Klokke
+    const clk = state.cfg.clock || {};
+    const clkEl = $("#screen_clock");
+    clkEl.style.display="block";
+    clkEl.style.color = clk.color || "#e6edf3";
+    clkEl.style.fontSize = `${Math.max(6, Math.min(30, Number(clk.size_vh||12)))}vh`;
 
-        const inner = $("#screen_inner");
-        inner.innerHTML = "";
-        if (sc.type === "blackout") return;
+    if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer=null; }
+    const updateClock = () => {
+      const d = new Date();
+      const HH = String(d.getHours()).padStart(2,"0");
+      const MM = String(d.getMinutes()).padStart(2,"0");
+      const SS = String(d.getSeconds()).padStart(2,"0");
+      clkEl.textContent = clk.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
+    };
+    updateClock();
+    state.clockTimer = setInterval(updateClock, clk.with_seconds ? 1000 : 5000);
 
-        if (sc.type === "image") {
-          const wrap = document.createElement("div");
-          wrap.style.position="relative"; wrap.style.width="100%"; wrap.style.height="100%";
-          const img = document.createElement("img");
-          img.src = sc.image_url || "";
-          img.style.objectFit = sc.image_fit || "cover";
-          img.style.width="100%"; img.style.height="100%";
-          img.style.opacity = String((sc.image_opacity ?? 100)/100);
-          wrap.appendChild(img);
-          inner.appendChild(wrap);
-          return;
-        }
-        // text
-        const div = document.createElement("div");
-        div.className = "text";
-        div.textContent = sc.text || "Pause";
-        div.style.color = sc.text_color || "#fff";
-        div.style.fontSize = `${Math.max(4, Math.min(30, Number(sc.font_vh ?? 10)))}vh`;
-        inner.appendChild(div);
-      }
-function applyClock(){
-  // Skjul nedtelling
-  $("#view_countdown").style.display = "none";
-
-  // Bruk eksisterende "screen"-container som ren klokkevisning
-  const root = $("#view_screen");
-  root.style.display = "flex";
-
-  // Bruk tema-bakgrunn fra visningen (ikke egen skjerm-bakgrunn)
-  applyThemeBackground(document.body, state.cfg?.theme?.background);
-
-  // Klokkeparametre fra config
-  const clk = state.cfg?.clock || {};
-  const clkEl = $("#screen_clock");
-  const inner = $("#screen_inner");
-  inner.innerHTML = ""; // ingen stopp-tekst/bilde
-  clkEl.style.display = "block";
-  clkEl.style.color = clk.color || state.cfg?.color_normal || "#e6edf3";
-  clkEl.style.fontSize = `${Math.max(6, Math.min(30, Number(clk.size_vh || 12)))}vh`;
-  clkEl.style.fontWeight = "800";
-
-  // Start/timer
-  if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
-  const updateClock = () => {
-    const d = new Date();
-    const HH = String(d.getHours()).padStart(2,"0");
-    const MM = String(d.getMinutes()).padStart(2,"0");
-    const SS = String(d.getSeconds()).padStart(2,"0");
-    clkEl.textContent = clk.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
-  };
-  updateClock();
-  state.clockTimer = setInterval(updateClock, clk.with_seconds ? 1000 : 5000);
-}
+    // Tøm eventuelt tidligere "screen innhold"
+    const inner = $("#screen_inner");
+    if (inner) inner.innerHTML = "";
+  }
 
       async function fetchConfig(){
         const r = await fetch("/api/config"); const js = await r.json();
@@ -227,17 +170,9 @@ function applyClock(){
       }
 
       function render(){
-  // Backward-compat: behandle legacy "screen" som "clock"
-  const m = (state.cfg?.mode) || "daily";
-  const mode = (m === "screen") ? "clock" : m;
-
-  if (mode === "clock") {
-    applyClock();
-  } else {
-    applyCountdown();
-  }
-}
-
+        const mode = (state.cfg?.mode) || "daily";
+        if (mode === "clock") applyClock(); else applyCountdown();
+      }
 
       // Heartbeat + fullskjerm auto-skjul
       function sendHeartbeat(){

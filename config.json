@@ -1,6 +1,6 @@
 {
   "_migrated_at": 1757592465,
-  "_updated_at": 1757761927,
+  "_updated_at": 1757763480,
   "admin_password": "",
   "alert_minutes": 3,
   "blink_seconds": 50,
@@ -10,12 +10,12 @@
   "color_warn": "#ffd166",
   "daily_time": "17:00",
   "duration_minutes": 5,
-  "duration_started_ms": 1757761927498,
+  "duration_started_ms": 0,
   "hms_threshold_minutes": 60,
   "message_primary": "Velkommen!",
   "message_secondary": "Vi starter kl:",
   "messages_position": "above",
-  "mode": "duration",
+  "mode": "daily",
   "once_at": "",
   "overrun_minutes": 30,
   "screen": {
