@@ -37,6 +37,7 @@
       <div id="phase" class="muted">fase: — · state: —</div>
       <div id="meta" class="muted">mål: — · nå: —</div>
       <div id="both" class="muted">format: — / —</div>
+      <pre id="live" class="mono" style="margin-top:.5rem;max-height:30vh;overflow:auto">(live)</pre>
       <div style="margin-top:.5rem;display:flex;gap:.5rem;align-items:center">
         <button id="refresh">Oppdater</button>
         <span id="lat" class="chip">latency: — ms</span>
@@ -88,7 +89,7 @@
         document.getElementById("meta").textContent = `mål: ${t.target_hhmm || t.target_ms} · nå: ${new Date(t.now_ms).toLocaleTimeString()}`;
         document.getElementById("both").textContent = `format: ${both.hms} / ${both.mmss}`;
         document.getElementById("lat").textContent = `latency: ${dt.toFixed(0)} ms`;
-        document.getElementById("raw").textContent = JSON.stringify(t, null, 2);
+        document.getElementById("live").textContent = JSON.stringify(t, null, 2);
       }
       async function selftest() {
         const r = await fetch("/debug/selftest"); const js = await r.json();

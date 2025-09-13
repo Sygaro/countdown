@@ -247,19 +247,29 @@
           const showS = !!msgS;
 
           // plassering rundt klokka
-          const msgPos   = (clk.messages_position || "right"); // right|left|above|below
-          const msgAlign = (clk.messages_align    || "center"); // start|center|end
+          const msgPos   = (clk.messages_position || "right");   // right|left|above|below
+          const msgAlign = (clk.messages_align    || "center");  // start|center|end
 
           if (msgPos === "left" || msgPos === "right") {
             root.style.flexDirection = "row";
             wrap.style.flexDirection = "column";
             clkEl.style.order = (msgPos === "left") ? 2 : 1;
             wrap.style.order  = (msgPos === "left") ? 1 : 2;
+
+            // 👉 mer luft mellom klokke og tekst
+            root.style.gap = "3vmin";
+            // ekstra side-margin for wrap slik at det ikke “klistrer” seg til klokka
+            wrap.style.marginLeft  = (msgPos === "right") ? "2vmin" : "0";
+            wrap.style.marginRight = (msgPos === "left")  ? "2vmin" : "0";
           } else {
             root.style.flexDirection = "column";
             clkEl.style.order = (msgPos === "above") ? 2 : 1;
             wrap.style.order  = (msgPos === "above") ? 1 : 2;
             wrap.style.flexDirection = "column";
+
+            // vertikal layout – litt mindre gap
+            root.style.gap = "1.25vmin";
+            wrap.style.marginLeft = wrap.style.marginRight = "0";
           }
 
           wrap.style.display = (showP || showS) ? "flex" : "none";

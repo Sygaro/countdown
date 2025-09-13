@@ -62,6 +62,7 @@
         <button class="preset" data-min="5">+5 min</button>
         <button class="preset" data-min="10">+10 min</button>
         <button class="preset" data-min="15">+15 min</button>
+        <button class="preset" data-min="20">+20 min</button>
         <button class="preset" data-min="30">+30 min</button>
         <label>Varighet (minutter) <input id="start_minutes" type="number" min="1" step="1" value="10"/></label>
         <button id="btn_start" class="primary">Start nedtelling nå</button>
@@ -527,18 +528,23 @@
     }
 
     // -------- start/stopp varighet (uendret) --------
-    async function startDuration(){
-      const minutes = parseInt(val("#start_minutes","0"), 10);
-      if (!Number.isFinite(minutes) || minutes <= 0) { alert("Ugyldig varighet"); return; }
-      const r = await fetch("/api/start-duration",{method:"POST",headers:headers(),body:JSON.stringify({minutes})});
-      if(!r.ok){ alert(await r.text()); return; }
-      await loadAll();
+      async function startDuration(argMinutes){
+    const minutes = (argMinutes != null)
+      ? Number(argMinutes)
+      : parseInt(val("#start_minutes","0"), 10);
+
+    if (!Number.isFinite(minutes) || minutes <= 0) {
+      alert("Ugyldig varighet"); return;
     }
-    async function stopDurationSwitchDaily(){
-      const r = await fetch("/api/config",{method:"POST",headers:headers(),body:JSON.stringify({mode:"daily"})});
-      if(!r.ok){ alert(await r.text()); return; }
-      await loadAll();
-    }
+    const r = await fetch("/api/start-duration",{
+      method:"POST",
+      headers:headers(),
+      body:JSON.stringify({ minutes })
+    });
+    if(!r.ok){ alert(await r.text()); return; }
+    await loadAll();
+  }
+
 
     // -------- presets --------
     function applyPreset(){
@@ -581,7 +587,12 @@
       const e = document.getElementById(id);
       e && e.addEventListener("input", ()=>{ updateDigitContrastHints(); updateMessageContrastHints(); });
     });
-    $$(".preset").forEach(b=>b.addEventListener("click", ()=>{ const e=$("#start_minutes"); if(e) e.value=b.dataset.min; }));
+    $$(".preset").forEach(b=>b.addEventListener("click", async ()=>{
+      const m = Number(b.dataset.min);
+      const e = $("#start_minutes");
+      if (e) e.value = String(m);        // behold visuell verdi i feltet
+      await startDuration(m);            // 👉 start umiddelbart
+    }));
     $("#btn_apply_preset") && $("#btn_apply_preset").addEventListener("click", applyPreset);
     $("#btn_save") && $("#btn_save").addEventListener("click", ()=>saveAll().catch(e=>alert(e.message)));
     $("#btn_refresh") && $("#btn_refresh").addEventListener("click", ()=>loadAll().catch(e=>alert(e.message)));

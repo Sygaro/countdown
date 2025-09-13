@@ -1,14 +1,14 @@
 {
   "_migrated_at": 1757592465,
-  "_updated_at": 1757789769,
+  "_updated_at": 1757796709,
   "admin_password": "",
   "alert_minutes": 3,
   "blink_seconds": 50,
   "clock": {
-    "color": "#c5cce2",
-    "message_primary": "Velkommen!",
-    "message_secondary": "Himmelpartner",
-    "messages_align": "center",
+    "color": "#adbae6",
+    "message_primary": "Velkommen til",
+    "message_secondary": "Himmelpartner bibleskole",
+    "messages_align": "end",
     "messages_position": "left",
     "position": "center",
     "size_vmin": 20,
@@ -20,7 +20,7 @@
   "color_over": "#9ad0ff",
   "color_warn": "#ffd166",
   "daily_time": "23:00",
-  "duration_minutes": 5,
+  "duration_minutes": 1,
   "duration_started_ms": 0,
   "hms_threshold_minutes": 60,
   "message_primary": "Velkommen!",
@@ -49,7 +49,7 @@
         },
         "url": "https://picsum.photos/1600/900"
       },
-      "mode": "gradient",
+      "mode": "image",
       "solid": {
         "color": "#0b0f14"
       }
@@ -61,14 +61,14 @@
     },
     "messages": {
       "primary": {
-        "color": "#cd4747",
-        "size_rem": 3.0,
-        "weight": 700
+        "color": "#ebe7e0",
+        "size_rem": 2.5,
+        "weight": 500
       },
       "secondary": {
-        "color": "#3384c1",
-        "size_rem": 2.0,
-        "weight": 300
+        "color": "#2871a9",
+        "size_rem": 3.0,
+        "weight": 700
       }
     }
   },
