@@ -77,16 +77,23 @@ def get_defaults() -> Dict[str, Any]:
 
 # -------- IO helpers --------
 def _atomic_write(path: str, data: Dict[str, Any]) -> None:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    fd, tmp = tempfile.mkstemp(prefix=".config.", dir=os.path.dirname(path))
+    # Håndter rot-sti ('' → '.')
+    dirpath = os.path.dirname(path) or "."
+    os.makedirs(dirpath, exist_ok=True)
+
+    fd, tmp = tempfile.mkstemp(prefix=".config.", dir=dirpath)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2, sort_keys=True)
             f.write("\n")
+            f.flush()
+            os.fsync(f.fileno())
+        # Atomic bytte på samme filsystem
         os.replace(tmp, path)
     finally:
         try:
-            if os.path.exists(tmp): os.unlink(tmp)
+            if os.path.exists(tmp):
+                os.unlink(tmp)
         except Exception:
             pass
 
