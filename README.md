@@ -1,164 +1,232 @@
-# Countdown – prosjektbeskrivelse og arkitektur
+# Countdown (RPi · Flask/Gunicorn · systemd)
 
-En robust, hodeløs "kiosk"-løsning for å vise en lokal Flask‑app (nedtelling) i fullskjerm på Raspberry Pi 4/5 – uten desktop‑miljø.
-
----
-
-## Oversikt
-
-- **Mål**: Vise en webbasert nedtelling i fullskjerm på en TV/HDMI‑skjerm, med automatisk oppstart ved boot og fjernadministrasjon over LAN.
-- **Maskinvare/OS**: Raspberry Pi 4/5 · Raspberry Pi OS Lite (Debian Bookworm, aarch64)
-- **Visningsmotor**: Cog (WPE WebKit) direkte på DRM/KMS (ingen X/Wayland)
-- **Appserver**: Flask → Gunicorn på port **5000** (binder til `0.0.0.0` for LAN‑tilgang)
-- **Init/Orkestrering**: systemd (én **user‑service** for appen + én **system‑service** for kiosken)
-- **Repo**: `Sygaro/countdown`
+En enkel, driftssikker visningsapp for Raspberry Pi i kiosk-modus.  
+Modi: **daily**, **once**, **duration**, **clock**.  
+Konfig lagres atomisk i `config.json`. Admin-endringer slår inn i visningen uten refresh.
 
 ---
 
-## Hovedkomponenter
+## Innhold
 
-1. **Flask‑app (Countdown)**
-
-   - Viser nedtelling/tekster, enkel admin‑side for å lagre meldinger og tidspunkt.
-   - Endepunkter for health/konfig/start; klient oppdateres via SSE/polling.
-
-2. **Gunicorn (user‑service)**
-
-   - Kjører Flask som prosess under bruker (f.eks. `reidar`).
-   - Lytter på `0.0.0.0:5000` slik at siden er tilgjengelig på LAN.
-
-3. **Cog (system‑service)**
-
-   - Starter nettleser i helskjerm på tty1, renderer rett på DRM/KMS.
-   - Venter på at appen svarer før den prøver å laste URLen.
-
-4. **setup\_kiosk.sh**
-
-   - Installerer avhengigheter, lager venv, genererer systemd‑units, detekterer riktig DRM‑enhet/HDMI‑connector, og aktiverer autostart.
+- [Funksjoner](#funksjoner)
+- [Mappestruktur](#mappestruktur)
+- [Krav](#krav)
+- [Kom i gang (lokalt)](#kom-i-gang-lokalt)
+- [Produksjon (RPi)](#produksjon-rpi)
+- [API](#api)
+- [Konfig (utdrag)](#konfig-utdrag)
+- [Utvikling](#utvikling)
+- [Driftstips](#driftstips)
+- [Lisens](#lisens)
 
 ---
 
-## Systemd‑tjenester
+## Funksjoner
 
-### 1) User‑service: `~/.config/systemd/user/countdown.service`
+- **Modi**
+  - `daily` – visning teller ned mot valgt tid hver dag (f.eks. 23:00)
+  - `once` – engangs tidspunkt (ISO, f.eks. `2025-09-13T19:30+02:00`)
+  - `duration` – start nedtelling på X minutter fra nå
+  - `clock` – stor klokke (HH:MM / HH:MM:SS)
+- **Tema & bakgrunn**
+  - Farger og størrelser for tall og meldinger
+  - Bakgrunn: solid, gradient eller bilde (med tint/opacity)
+- **Meldinger**
+  - Primær og sekundær melding i nedtelling
+  - Valgfri **egen melding i klokkemodus** (posisjon: høyre/venstre/over/under, egen justering)
+- **Live-oppdatering**
+  - Admin-endringer oppdaterer visningen uten reload (bakgrunn, farger, meldinger mm.)
+- **Kiosk-vennlig**
+  - Fullskjerm-knapp skjules automatisk i fullscreen og vises ikke ved musebevegelse
+- **Robust lagring**
+  - Atomisk skriving av `config.json` (fsync + `os.replace`)
 
-Viktige felter:
+---
 
+## Mappestruktur
+
+
+```bash
+countdown/
+├─ app/
+│ ├─ init.py # create_app + blueprint-registrering
+│ ├─ routes/ # pages, admin, api, public, diag
+│ ├─ countdown.py # kjernelogikk/tick
+│ ├─ storage.py # lasting/validering/skriving av config (atomisk)
+│ ├─ settings.py # miljø/paths/tz
+│ └─ models.py # (ev. simple typer/DTO-er)
+├─ static/
+│ ├─ index.html # visning
+│ ├─ admin.html # adminpanel
+│ ├─ diag.html # diagnose
+│ ├─ about.html # om-siden
+│ ├─ css/ # ui.css / style.css
+│ └─ js/ # (valgfritt) util/theme-moduler om du ønsker
+├─ wsgi.py # gunicorn entry
+├─ requirements.txt
+└─ config.json # runtime-konfig (genereres automatisk ved første start)
+```
+
+
+---
+
+## Krav
+
+- Python **3.10+**
+- Linux (RPi OS anbefalt)
+- `systemd` (bruker-tjeneste)
+- Kiosk-nettleser: **WPE/Cog** eller **Chromium** i kiosk-modus
+
+---
+
+## Kom i gang (lokalt)
+
+```bash
+git clone https://github.com/<org>/<repo>.git
+cd countdown
+python3 -m venv venv
+. venv/bin/activate
+pip install -r requirements.txt
+
+# dev-kjøring
+FLASK_APP=wsgi.py FLASK_ENV=development python wsgi.py
+# åpne http://127.0.0.1:5000
+```
+## Produksjon (RPi)
+
+#### 1. Installer avhengigheter
+sudo apt update
+sudo apt install -y python3-venv
+python3 -m venv venv
+. venv/bin/activate
+pip install -r requirements.txt
+
+### 2. systemd (brukertjeneste)
+```console
+~/.config/systemd/user/countdown.service
+```
 ```ini
+[Unit]
+Description=Countdown (Flask/Gunicorn)
+After=network-online.target
+
 [Service]
-WorkingDirectory=/home/<user>/countdown
-Environment=PYTHONPATH=/home/<user>/countdown
+WorkingDirectory=%h/countdown
+ExecStart=%h/countdown/venv/bin/gunicorn -w 2 -b 127.0.0.1:5000 wsgi:app
+Restart=on-failure
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/<user>/countdown/venv/bin/gunicorn wsgi:app \
-  --bind 0.0.0.0:5000 --workers 2 --threads 4 --timeout 0 \
-  --access-logfile - --error-logfile -
-Restart=always
-RestartSec=2
+
+[Install]
+WantedBy=default.target
+
+```
+Aktiver:
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now countdown.service
+systemctl --user status countdown.service
 ```
 
-Oppstart ved boot uten pålogging:
+### 3. Kiosk-nettleser
+
+WPE/Cog: `cog http://localhost:5000/ --platform=wl`
+
+Chromium: `chromium --kiosk --app=http://localhost:5000/ --noerrdialogs --disable-session-crashed-bubble`
+
+---
+## API
+
+| Metode | Sti                   | Beskrivelse                             |
+| -----: | --------------------- | --------------------------------------- |
+|    GET | `/`                   | Visning                                 |
+|    GET | `/admin`              | Admin                                   |
+|    GET | `/diag`               | Diagnose                                |
+|    GET | `/about`              | Om                                      |
+|    GET | `/api/config`         | Hent `{ ok, config, tick }`             |
+|   POST | `/api/config`         | Lagre/patch konfig (inkl. bytte `mode`) |
+|   POST | `/api/start-duration` | Start varighetsmodus: `{"minutes": N}`  |
+|    GET | `/tick`               | Status for visning/diagnose             |
+|    GET | `/health`             | 200 OK (helse-sjekk)                    |
+
+
+Admin-passord (valgfritt): hvis satt, sendes i header `X-Admin-Password`.
+
+---
+
+### Konfig (utdrag)
+
+```json
+{
+  "mode": "daily|once|duration|clock",
+  "daily_time": "HH:MM",
+  "once_at": "YYYY-MM-DDTHH:MM(+TZ)",
+  "duration_minutes": 10,
+
+  "clock": {
+    "with_seconds": false,
+    "color": "#e6edf3",
+    "size_vmin": 12,
+    "position": "center|top-left|top-center|top-right|bottom-left|bottom-center|bottom-right",
+    "messages_position": "right|left|above|below",
+    "messages_align": "start|center|end",
+    "use_clock_messages": false,
+    "message_primary": "",
+    "message_secondary": ""
+  },
+
+  "theme": {
+    "digits":   { "size_vw": 14 },
+    "messages": {
+      "primary":   { "size_rem": 1.0, "weight": 600, "color": "#9aa4b2" },
+      "secondary": { "size_rem": 1.0, "weight": 400, "color": "#9aa4b2" }
+    },
+    "background": {
+      "mode": "solid|gradient|image",
+      "solid":    { "color": "#0b0f14" },
+      "gradient": { "from": "#142033", "to": "#0b0f14", "angle_deg": 180 },
+      "image":    {
+        "url": "", "fit": "cover|contain", "opacity": 1,
+        "tint": { "color": "#000000", "opacity": 0.0 }
+      }
+    }
+  }
+}
+
+```
+
+## Utvikling
+- Kjør lokalt
 
 ```bash
-loginctl enable-linger <user>
+. venv/bin/activate
+FLASK_APP=wsgi.py FLASK_ENV=development python wsgi.py
 ```
 
-### 2) System‑service: `/etc/systemd/system/kiosk-cog.service`
 
-Viktige felter og miljøvariabler:
+- Lint/format (anbefalt)
 
-```ini
-[Service]
-User=<user>
-Environment=XDG_RUNTIME_DIR=/run/user/<uid>
-Environment=WPE_BACKEND_FDO_DRM_DEVICE=/dev/dri/card1
-Environment=COG_PLATFORM_DRM_OUTPUT=HDMI-A-1
-Environment=COG_PLATFORM_DRM_VIDEO_MODE=1920x1080
-Environment=COG_PLATFORM_DRM_MODE_MAX=1920x1080@60
-Environment=COG_PLATFORM_DRM_NO_CURSOR=1
+pip install -r requirements-dev.txt  # hvis du bruker egen dev-fil
+ruff check app
+black app static
 
-# Robust pre-wait: port eller /health eller / gir 200/30x
-ExecStartPre=/bin/sh -c 'for i in $(seq 1 150); do \
-  ss -ltn | grep -q ":5000 " && { echo ok; exit 0; }; \
-  curl --connect-timeout 1 -fsS http://127.0.0.1:5000/health >/dev/null && { echo ok; exit 0; }; \
-  code=$(curl --connect-timeout 1 -fsSI -o /dev/null -w "%{http_code}" http://127.0.0.1:5000/ || true); \
-  echo "$code" | grep -qE "^(200|30[0-9])$" && { echo ok; exit 0; }; \
-  sleep 0.5; done; echo timeout; exit 1'
 
-ExecStart=/usr/bin/cog --platform=drm --platform-params=renderer=gles \
-  "http://127.0.0.1:5000/?kiosk=1"
+- Enkel røyk-test (CI/Action)
 
-TTYPath=/dev/tty1
-StandardOutput=journal
-StandardError=journal
-Restart=always
-RestartSec=2
-```
+curl -sf http://127.0.0.1:5000/health
 
-Valgfritt for renere logger:
 
-```ini
-Environment=NO_AT_BRIDGE=1
-```
+- Editor
+
+.editorconfig for consistent LF/UTF-8
+
+Pre-commit hooks: ruff/black/prettier
 
 ---
 
-## Oppstartssekvens (forenklet)
+### Driftstips
 
-1. **systemd** henter nettverk, starter **user\@UID** (linger aktivert).
-2. **countdown.service** starter Gunicorn i `/home/<user>/countdown` og lytter på **:5000**.
-3. **kiosk-cog.service** venter til appen svarer (port/health/200) og starter så Cog på tty1.
-4. TV/HDMI viser appens URL i helskjerm.
-
----
-
-## Endepunkter (eksempler)
-
-- `GET /health` → 200 OK (brukes av kiosk‑precheck)
-- `GET /api/config` → Leser konfig (JSON)
-- `POST /api/config` → Lagrer konfig (f.eks. tekst, `daily_time`)
-- `POST /api/start` → Start nedtelling nå (payload med minutter)
-
----
-
-## Skjerm/HDMI‑tuning
-
-- Primær kobling: `HDMI-A-1` på `/dev/dri/card1` (kan være `card0` i noen oppsett).
-- Tving oppløsning via Cog‑env (`VIDEO_MODE`/`MODE_MAX`) og evt. kernel‑arg i `/boot/firmware/cmdline.txt`:
-  - `video=HDMI-A-1:1920x1080@60`
-
----
-
-## Feilsøking – nyttige kommandoer
-
-```bash
-# Appen (user-service)
-systemctl --user status countdown.service -n 40
-journalctl --user -u countdown.service -b -n 200 --no-pager
-
-# Kiosk (system-service)
-sudo systemctl status kiosk-cog.service -n 40
-journalctl -u kiosk-cog.service -b -n 200 --no-pager
-
-# Nett/health
-ss -ltn | grep ':5000' || echo "no listen"
-curl -sI http://127.0.0.1:5000/ | head -n1
-curl -sI http://127.0.0.1:5000/health | head -n1 || echo "no /health"
-```
-
----
-
-## Sikkerhet og drift
-
-- Ingen hemmeligheter i git: `.env` og `config.json` holdes utenfor repo.
-- Bind mot `0.0.0.0` for LAN‑tilgang; vurder brannmur eller reverse proxy for WAN.
-- systemd sørger for automatisk restart ved feil, og boot‑autostart via linger.
-
----
-
-## Videre arbeid (idébank)
-
-- Graceful fallback til sekundær URL hvis lokal app er nede.
-- Watchdog som reloader Cog ved nettfeil.
-- OTA‑oppdatering via git‑pull + systemd‑restarts.
-- Enklere administrasjon av tidsskjema (cron‑lignende UI) og varselgrenser.
-
+- `config.json` skrives atomisk (tempfil + `os.replace()`).
+-Endringer i admin pushes live til visningen (periodisk polling av `/api/config`).
+-Fullskjerm-knappen skjules i fullscreen og vises ikke ved musebevegelse.
+-Logg:
+`journalctl --user -u countdown.service -b -n 200 --no-pager`

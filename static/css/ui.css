@@ -1,6 +1,6 @@
 /* static/css/ui.css */
 :root{
-  --bg:#0b0f14; --panel:#121825; --muted:#9aa4b2; --text:#e6edf3;
+  --bg:#140b0e; --panel:#251219; --muted:#9aa4b2; --text:#e6edf3;
   --accent:#6aa9ff; --good:#69db7c; --bad:#ff6b6b; --border:#1f2633;
   --radius:16px; --gap:16px; --shadow:0 8px 24px rgba(0,0,0,.25);
 }
