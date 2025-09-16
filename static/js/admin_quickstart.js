@@ -1,14 +1,31 @@
+// static/js/admin_quickstart.js
+// Hvorfor: injiserer hurtigknapper uten å endre eksisterende HTML.
+
 import { ui } from "/static/js/ui.js";
 
-// Hurtigstart-panel for å starte nedtelling med 1 klikk
 (function () {
+  async function postJSON(url, body) {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    try {
+      return await r.json();
+    } catch {
+      return {};
+    }
+  }
+
   async function startMinutes(min) {
     const m = Math.max(1, Math.floor(Number(min)));
     try {
-      await ui.post("/api/start-duration", { minutes: m });
+      await postJSON("/api/start-duration", { minutes: m });
       ui.toast("Startet +" + m + " min", "ok");
     } catch (e) {
-      ui.toast("Start feilet: " + (e?.message || String(e)), "bad");
+      ui.toast(e.message || String(e), "bad");
     }
   }
 
@@ -17,6 +34,7 @@ import { ui } from "/static/js/ui.js";
       document.querySelector("[data-admin-quickstart]") ||
       document.getElementById("admin-quickstart");
 
+    // Prioriter brukers container hvis funnet; ellers flytende kort
     const panel = document.createElement("div");
     panel.className = host ? "" : "aqs-card";
     panel.innerHTML = `
@@ -47,7 +65,6 @@ import { ui } from "/static/js/ui.js";
   }
 
   function init() {
-    ui.injectQuickstartStyles?.(); // evt. flytt CSS til static/css/admin_quickstart.css
     buildPanel();
   }
 

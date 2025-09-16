@@ -1,0 +1,50 @@
+/* --- Admin Quickstart panel --- */
+
+.aqs-card {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483000;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+  padding: 14px;
+  min-width: 260px;
+  font: 14px/1.35 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+.aqs-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.aqs-btn {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  background: #f7f7f7;
+  cursor: pointer;
+}
+.aqs-btn:hover {
+  background: #efefef;
+}
+.aqs-btn.primary {
+  background: #e6f2ff;
+  border-color: #8ac2ff;
+}
+
+.aqs-input {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  width: 90px;
+}
+
+.aqs-title {
+  font-weight: 600;
+  margin: 0 0 4px 0;
+}

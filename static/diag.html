@@ -1,3 +1,4 @@
+<!-- static/diag.html -->
 <!doctype html>
 <html lang="no">
   <head>
@@ -5,54 +6,60 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Countdown · Diagnose</title>
     <link rel="stylesheet" href="/static/css/ui.css" />
-    <link rel="stylesheet" href="/static/css/diag.css" />
+    <style>
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        padding: 1rem;
+        background: #0b0f14;
+        color: #e6edf3;
+      }
+      h1 {
+        font-size: 1.4rem;
+        margin-bottom: 1rem;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 6px 10px;
+        align-items: center;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      .json {
+        white-space: pre;
+        background: #0b1020;
+        color: #d7e7ff;
+        border-radius: 10px;
+        padding: 10px;
+        margin-top: 1rem;
+        max-height: 400px;
+        overflow: auto;
+      }
+    </style>
   </head>
   <body>
-    <header>
-      <h1>Diagnose</h1>
-      <nav>
-        <a href="/">Visning</a>
-        <a href="/admin">Admin</a>
-        <a class="active" href="/diag">Diagnose</a>
-        <a href="/about">Om</a>
-      </nav>
-    </header>
+    <h1>Diagnose – Countdown</h1>
 
-    <main class="grid">
-      <!-- Nedtelling -->
-      <section class="card">
-        <h2>Nedtelling (live)</h2>
-        <div id="countdown" class="big">00:00</div>
-        <div id="phase" class="muted"></div>
-        <div id="meta" class="muted"></div>
-        <div id="both" class="muted"></div>
-        <pre id="live" class="mono">(live)</pre>
-        <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; align-items: center">
-          <button id="refresh">Oppdater</button>
-          <span id="lat" class="chip">latency: — ms</span>
-        </div>
-      </section>
+    <div class="grid mono">
+      <div>State</div><div id="dg-state">—</div>
+      <div>Phase</div><div id="dg-phase">—</div>
+      <div>Mode</div><div id="dg-mode">—</div>
+      <div>Server now_ms</div><div id="dg-now">—</div>
+      <div>Target ms</div><div id="dg-target">—</div>
+      <div>Target HH:MM</div><div id="dg-thhmm">—</div>
+      <div>Display mm:ss</div><div id="dg-disp">—</div>
+      <div>warn_ms</div><div id="dg-warn">—</div>
+      <div>alert_ms</div><div id="dg-alert">—</div>
+      <div>overrun_ms</div><div id="dg-overrun">—</div>
+      <div>Blink</div><div id="dg-blink">—</div>
+      <div>RTT</div><div id="dg-rtt">—</div>
+    </div>
 
-      <!-- Debug -->
-      <section class="card">
-        <h2>Debug</h2>
-        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem">
-          <button data-endpoint="/debug/whoami">/debug/whoami</button>
-          <button data-endpoint="/api/config">/api/config</button>
-          <button data-endpoint="/debug/selftest">/debug/selftest</button>
-          <button data-endpoint="/debug/view-heartbeat">/debug/view-heartbeat</button>
-        </div>
-        <pre id="raw" class="mono">(tom)</pre>
-      </section>
+    <div class="json mono" id="diag-raw">{}</div>
 
-      <!-- Selvtest -->
-      <section class="card">
-        <h2>Selvtest</h2>
-        <ul id="selftest"></ul>
-        <button id="run_selftest">Kjør selvtest</button>
-      </section>
-    </main>
-
-    <script type="module" src="/static/js/diag.js"></script>
+    <script src="/static/js/ui.js" type="module"></script>
+    <script src="/static/js/diag.js" type="module"></script>
+    <script src="/static/js/diag_widget.js"></script>
   </body>
 </html>

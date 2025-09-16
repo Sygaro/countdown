@@ -1,0 +1,100 @@
+{
+  "_meta": {
+    "migrated_at": 1757592465,
+    "updated_at": 1757954456,
+    "version": 1
+  },
+  "admin_password": "",
+  "mode": "daily",
+  "daily_time": "20:00",
+  "once_at": "",
+  "duration_minutes": 20,
+  "duration_started_ms": 0,
+
+  "warn_minutes": 5,
+  "alert_minutes": 3,
+  "blink_seconds": 55,
+  "overrun_minutes": 30,
+  "use_blink": true,
+  "use_phase_colors": true,
+  "show_message_primary": true,
+  "show_message_secondary": true,
+  "message_primary": "Velkommen!",
+  "message_secondary": "Vi starter kl:",
+  "show_target_time": true,
+  "target_time_after": "secondary",
+  "messages_position": "above",
+  "hms_threshold_minutes": 60,
+
+  "color_normal": "#a4c9ea",
+  "color_warn": "#ffd166",
+  "color_alert": "#ff6b6b",
+  "color_over": "#9ad0ff",
+
+  "theme": {
+    "digits": {
+      "size_vmin": 10,
+      "font_weight": 800,
+      "letter_spacing_em": 0.06
+    },
+    "messages": {
+      "primary": {
+        "color": "#ebe7e0",
+        "size_rem": 3.0,
+        "weight": 500
+      },
+      "secondary": {
+        "color": "#2871a9",
+        "size_rem": 3.0,
+        "weight": 900
+      }
+    },
+    "background": {
+      "mode": "image",
+      "solid": { "color": "#0b0f14" },
+      "gradient": {
+        "from": "#111827",
+        "to": "#0b0f14",
+        "angle_deg": 180
+      },
+      "image": {
+        "url": "https://picsum.photos/1600/900",
+        "fit": "cover",
+        "opacity": 0.5,
+        "tint": { "color": "#a75858", "opacity": 0.0 }
+      }
+    }
+  },
+
+  "clock": {
+    "color": "#b4bad0",
+    "with_seconds": true,
+    "size_vmin": 25,
+    "position": "center",
+    "messages_position": "left",
+    "messages_align": "end",
+    "use_clock_messages": true,
+    "message_primary": "Velkommen!",
+    "message_secondary": ""
+  },
+
+  "overlays": [
+    {
+      "id": "example_logo",
+      "type": "image",
+      "url": "https://example.com/logo.png",
+      "position": "top-right",
+      "size_vmin": 20,
+      "opacity": 1.0,
+      "offset_vw": 2.0,
+      "offset_vh": 2.0,
+      "z_index": 10,
+      "visible_in": ["clock", "countdown"],
+      "tint": {
+        "color": "#000000",
+        "opacity": 0.5,
+        "blend": "multiply"
+      }
+    }
+  ]
+}

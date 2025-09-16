@@ -1,12 +1,15 @@
+# app/routes/pages.py
 """
 Sider + kompat-endepunkter + debug/selftest + view-heartbeat.
 """
 from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from flask import Blueprint, send_from_directory, jsonify, request
-from app.settings import PROJECT_ROOT, TZ
-from app.storage.api import load_config, clear_duration_and_switch_to_daily, replace_config
-from app.countdown import compute_tick, compute_target_ms
+
+from ..settings import PROJECT_ROOT, TZ
+from app.storage.api import get_config, patch_config, replace_config
+from ..storage.duration import clear_duration_and_switch_to_daily
+from ..countdown import compute_tick, compute_target_ms
 
 bp = Blueprint("pages", __name__)
 
@@ -16,16 +19,6 @@ _STATIC = (PROJECT_ROOT / "static").resolve()
 _LAST_VIEW_HEARTBEAT = {"rev": 0, "ts": None, "page": "view"}  # ts = aware datetime
 
 
-def _tick_response(cfg, minimal=False):
-    t = compute_tick(cfg)
-    if t["state"] == "ended" and cfg.get("mode") == "duration":
-        cfg = clear_duration_and_switch_to_daily()
-        t = compute_tick(cfg)
-    if not minimal:
-        t["cfg_rev"] = int(cfg.get("_updated_at", 0))
-    return jsonify(t), 200
-
-
 @bp.post("/debug/view-heartbeat")
 def view_hb_post():
     try:
@@ -33,12 +26,11 @@ def view_hb_post():
         rev = int(data.get("rev") or 0)
         page = str(data.get("page") or "view")
     except Exception:
-        rev, page = 0, "view"
-    _LAST_VIEW_HEARTBEAT.update({
-        "rev": rev,
-        "page": page,
-        "ts": datetime.now(timezone.utc),
-    })
+        rev = 0
+        page = "view"
+    _LAST_VIEW_HEARTBEAT["rev"] = rev
+    _LAST_VIEW_HEARTBEAT["page"] = page
+    _LAST_VIEW_HEARTBEAT["ts"] = datetime.now(timezone.utc)
     return jsonify({"ok": True})
 
 
@@ -47,7 +39,9 @@ def view_hb_get():
     hb = dict(_LAST_VIEW_HEARTBEAT)
     ts = hb.get("ts")
     hb["ts_iso"] = ts.isoformat() if ts else None
-    hb["age_seconds"] = (datetime.now(timezone.utc) - ts).total_seconds() if ts else None
+    hb["age_seconds"] = (
+        (datetime.now(timezone.utc) - ts).total_seconds() if ts else None
+    )
     return jsonify({"ok": True, "heartbeat": hb})
 
 
@@ -78,34 +72,67 @@ def health():
 
 @bp.get("/tick")
 def tick():
-    cfg = load_config()
-    return _tick_response(cfg)
+    cfg = get_config()
+    t = compute_tick(cfg)
+    if t["state"] == "ended" and cfg.get("mode") == "duration":
+        clear_duration_and_switch_to_daily()
+    t["cfg_rev"] = int(cfg.get("_meta", {}).get("updated_at", 0))
+    return jsonify(t), 200
 
 
 @bp.get("/state")
 def state_snapshot():
-    cfg = load_config()
-    return _tick_response(cfg, minimal=True)
+    cfg = get_config()
+    t = compute_tick(cfg)
+    return (
+        jsonify(
+            {
+                "now_ms": t["now_ms"],
+                "target_ms": t["target_ms"],
+                "display_ms": t["display_ms"],
+                "signed_display_ms": t["signed_display_ms"],
+                "state": t["state"],
+                "mode": t["mode"],
+            }
+        ),
+        200,
+    )
 
 
 @bp.get("/debug/whoami")
 def dbg_whoami():
-    return jsonify({
-        "cwd": str(PROJECT_ROOT),
-        "static": str(_STATIC),
-        "config_path": str((PROJECT_ROOT / "config.json").resolve()),
-        "server_time": datetime.now(TZ).isoformat(),
-    }), 200
+    return (
+        jsonify(
+            {
+                "cwd": str(PROJECT_ROOT),
+                "static": str(_STATIC),
+                "config_path": str((PROJECT_ROOT / "config.json").resolve()),
+                "server_time": datetime.now(TZ).isoformat(),
+            }
+        ),
+        200,
+    )
 
 
 @bp.get("/debug/config")
 def dbg_config():
-    cfg = load_config()
+    write_test = request.args.get("write_test") == "1"
+    cfg = get_config()
     result = {
         "ok": True,
         "__config_path": str((PROJECT_ROOT / "config.json").resolve()),
-        "config": cfg,
     }
+    if write_test:
+        try:
+            cfg["_debug_touch"] = True
+            replace_config(cfg)
+            cfg.pop("_debug_touch", None)
+            replace_config(cfg)
+            result["write_test_ok"] = True
+        except Exception as e:
+            result["write_test_ok"] = False
+            result["error"] = str(e)
+    result["config"] = cfg
     return jsonify(result), 200
 
 
@@ -123,6 +150,7 @@ def dbg_selftest():
     now = datetime.now(TZ).replace(hour=9, minute=1, second=0, microsecond=0)
     target1 = compute_target_ms(cfg, now_ms=int(now.timestamp() * 1000))
     from datetime import datetime as _dt
+
     add("daily_overrun_window", _dt.fromtimestamp(target1 / 1000, tz=TZ).hour == 9)
 
     now2 = datetime.now(TZ)
