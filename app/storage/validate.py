@@ -1,6 +1,7 @@
 from typing import Any, Dict, Tuple
 from datetime import datetime
 
+
 def validate_config(cfg: Dict[str, Any]) -> Tuple[bool, str]:
     """Sjekk at config er gyldig."""
     m = cfg.get("mode")

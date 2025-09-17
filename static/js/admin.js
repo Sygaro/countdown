@@ -139,7 +139,9 @@ import { ui } from "/static/js/ui.js";
   // --- kontrastberegning ---
   function hexToRgb(h) {
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h.trim());
-    return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [230, 237, 243];
+    return m
+      ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)]
+      : [230, 237, 243];
   }
   function luminance([r, g, b]) {
     const a = [r, g, b].map((v) => {
@@ -158,7 +160,8 @@ import { ui } from "/static/js/ui.js";
   // --- patch og lagring ---
   function buildPatch() {
     return {
-      mode: document.querySelector("input[name=mode]:checked")?.value || "daily",
+      mode:
+        document.querySelector("input[name=mode]:checked")?.value || "daily",
       daily_time: val("daily_time"),
       once_at: val("once_at"),
       overlays: overlaysLocal,
@@ -238,7 +241,11 @@ import { ui } from "/static/js/ui.js";
 
   async function startDuration(minutes) {
     try {
-      await ui.post("/api/start-duration", { minutes }, { password: val("admin_password") });
+      await ui.post(
+        "/api/start-duration",
+        { minutes },
+        { password: val("admin_password") },
+      );
       ui.toast("Startet +" + minutes + " min", "ok");
     } catch (err) {
       ui.toast("Start feilet: " + err.message, "bad");
@@ -254,9 +261,11 @@ import { ui } from "/static/js/ui.js";
       if (!isFinite(m) || m <= 0) return ui.toast("Ugyldig varighet", "bad");
       startDuration(m);
     });
-    document.querySelectorAll("button[data-qs]").forEach((b) =>
-      b.addEventListener("click", () => startDuration(Number(b.dataset.qs))),
-    );
+    document
+      .querySelectorAll("button[data-qs]")
+      .forEach((b) =>
+        b.addEventListener("click", () => startDuration(Number(b.dataset.qs))),
+      );
 
     el("ov_add")?.addEventListener("click", addOverlay);
     el("ov_dup")?.addEventListener("click", dupOverlay);

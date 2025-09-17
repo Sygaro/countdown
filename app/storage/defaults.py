@@ -39,12 +39,7 @@ _DEFAULTS: Dict[str, Any] = {
     "color_over": "#9ad0ff",
     "hms_threshold_minutes": 60,
     "theme": {
-        "digits": {"size_vw": 14, "font_weight": 800, "letter_spacing_em": 0.06},
-        "messages": {
-            "primary": {"size_rem": 1.0, "weight": 600, "color": "#9aa4b2"},
-            "secondary": {"size_rem": 1.0, "weight": 400, "color": "#9aa4b2"},
-        },
-        "background": {
+        "background": {  # som før
             "mode": "solid",
             "solid": {"color": "#0b0f14"},
             "gradient": {"from": "#142033", "to": "#0b0f14", "angle_deg": 180},
@@ -54,6 +49,22 @@ _DEFAULTS: Dict[str, Any] = {
                 "opacity": 1.0,
                 "tint": {"color": "#000000", "opacity": 0.0},
             },
+        },
+        "digits": {  # som før
+            "size_vw": 14,
+            "font_weight": 800,
+            "letter_spacing_em": 0.06,
+        },
+        "messages": {  # som før
+            "primary": {"size_rem": 1.0, "weight": 600, "color": "#9aa4b2"},
+            "secondary": {"size_rem": 1.0, "weight": 400, "color": "#9aa4b2"},
+        },
+        # ▶▶ NYTT: canonical farger under theme.colors
+        "colors": {
+            "normal": "#e6edf3",
+            "warn": "#ffd166",
+            "alert": "#ff6b6b",
+            "over": "#9ad0ff",
         },
     },
     "admin_password": None,

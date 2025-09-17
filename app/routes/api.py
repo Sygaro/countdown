@@ -1,11 +1,20 @@
 # app/routes/api.py
+
 """
 REST-API for config og kontroll (brukes av admin-UI).
+Herdet: nekter tom/ugyldig JSON i POST /api/config og /api/replace-config.
 """
 from __future__ import annotations
+
+from typing import Optional, Dict, Any
+from werkzeug.exceptions import BadRequest
 from flask import Blueprint, request, jsonify
 
-from app.storage.api import get_config, patch_config, replace_config
+from app.storage.api import (
+    get_config as cfg_get_config,
+    patch_config as cfg_patch_config,
+    replace_config as cfg_replace_config,
+)
 from ..storage.duration import start_duration, stop_duration
 from ..countdown import compute_tick
 
@@ -15,17 +24,32 @@ bp = Blueprint("api", __name__)
 # --- helpers ---
 def _require_admin(req) -> bool:
     """Sjekk admin-passord hvis konfigurert."""
-    cfg = get_config()
+    cfg = cfg_get_config()
     pw = cfg.get("admin_password", "")
     if not pw:
         return True
-    return request.headers.get("X-Admin-Password") == pw
+    return req.headers.get("X-Admin-Password") == pw
+
+
+def _json_body_dict(required: bool = True) -> Optional[Dict[str, Any]]:
+    """
+    Les og valider at body er JSON-objekt. Returnerer dict eller None ved feil.
+    """
+    if required and not request.is_json:
+        return None
+    try:
+        data = request.get_json(silent=False)  # kaster BadRequest ved ugyldig JSON
+    except BadRequest:
+        return None
+    if not isinstance(data, dict):
+        return None
+    return data
 
 
 # --- routes ---
 @bp.get("/api/config")
 def get_config():
-    cfg = get_config()
+    cfg = cfg_get_config()
     tick = compute_tick(cfg)
     return jsonify({"config": cfg, "tick": tick}), 200
 
@@ -35,20 +59,46 @@ def post_config():
     if not _require_admin(request):
         return jsonify({"error": "unauthorized"}), 403
 
-    patch = request.get_json(silent=True) or {}
-    cfg = patch_config(patch)
+    patch = _json_body_dict(required=True)
+    if patch is None:
+        return (
+            jsonify(
+                {
+                    "error": "invalid or missing JSON body",
+                    "hint": "Set header Content-Type: application/json and send a JSON object.",
+                }
+            ),
+            400,
+        )
+    if not patch:
+        return jsonify({"error": "empty patch"}), 400
+
+    cfg = cfg_patch_config(patch)
     tick = compute_tick(cfg)
     return jsonify({"config": cfg, "tick": tick}), 200
 
 
 @bp.post("/api/replace-config")
-def post_replace_config():
+def post_cfg_replace_config():
     if not _require_admin(request):
         return jsonify({"error": "unauthorized"}), 403
 
-    new_cfg = request.get_json(silent=True) or {}
-    replace_config(new_cfg)
-    cfg = get_config()
+    new_cfg = _json_body_dict(required=True)
+    if new_cfg is None:
+        return (
+            jsonify(
+                {
+                    "error": "invalid or missing JSON body",
+                    "hint": "Set header Content-Type: application/json and send a JSON object.",
+                }
+            ),
+            400,
+        )
+    if not new_cfg:
+        return jsonify({"error": "empty config"}), 400
+
+    cfg_replace_config(new_cfg)
+    cfg = cfg_get_config()
     tick = compute_tick(cfg)
     return jsonify({"config": cfg, "tick": tick}), 200
 
@@ -58,13 +108,16 @@ def api_start_duration():
     if not _require_admin(request):
         return jsonify({"error": "unauthorized"}), 403
 
-    body = request.get_json(silent=True) or {}
+    body = _json_body_dict(required=True)
+    if body is None:
+        return jsonify({"error": "invalid or missing JSON body"}), 400
+
     minutes = int(body.get("minutes") or 0)
     if minutes <= 0:
         return jsonify({"error": "invalid minutes"}), 400
 
     start_duration(minutes)
-    cfg = get_config()
+    cfg = cfg_get_config()
     tick = compute_tick(cfg)
     return jsonify({"config": cfg, "tick": tick}), 200
 
@@ -75,7 +128,7 @@ def api_stop_duration():
         return jsonify({"error": "unauthorized"}), 403
 
     stop_duration()
-    cfg = get_config()
+    cfg = cfg_get_config()
     tick = compute_tick(cfg)
     return jsonify({"config": cfg, "tick": tick}), 200
 

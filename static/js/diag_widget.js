@@ -108,29 +108,48 @@
         document.getElementById("dw-state").textContent = j.state;
         document.getElementById("dw-phase").textContent = j.phase || "—";
         document.getElementById("dw-mode").textContent = j.mode;
-        document.getElementById("dw-blink").textContent = j.blink ? "true" : "false";
+        document.getElementById("dw-blink").textContent = j.blink
+          ? "true"
+          : "false";
         document.getElementById("dw-now").textContent = String(serverNow);
         document.getElementById("dw-cnow").textContent = String(clientNow);
 
-        const cls = Math.abs(delta) <= 300 ? "ok" : Math.abs(delta) <= 2000 ? "warn" : "bad";
-        document.getElementById("dw-delta").innerHTML = `<span class="${cls}">${delta} ms</span>`;
+        const cls =
+          Math.abs(delta) <= 300
+            ? "ok"
+            : Math.abs(delta) <= 2000
+              ? "warn"
+              : "bad";
+        document.getElementById("dw-delta").innerHTML =
+          `<span class="${cls}">${delta} ms</span>`;
 
-        document.getElementById("dw-tms").textContent = String(j.target_ms || 0);
+        document.getElementById("dw-tms").textContent = String(
+          j.target_ms || 0,
+        );
         document.getElementById("dw-thhmm").textContent = j.target_hhmm || "";
 
         // Display med minus-prefiks i overrun
         let sign = "";
-        if (typeof j.signed_display_ms === "number" && j.signed_display_ms < 0) {
+        if (
+          typeof j.signed_display_ms === "number" &&
+          j.signed_display_ms < 0
+        ) {
           sign = "-";
         } else if (j.state === "overrun" || j.phase === "over") {
           sign = "-";
         }
-        const dispMs = Math.abs(Number(j.signed_display_ms ?? j.display_ms ?? 0));
+        const dispMs = Math.abs(
+          Number(j.signed_display_ms ?? j.display_ms ?? 0),
+        );
         document.getElementById("dw-disp").textContent = sign + mmss(dispMs);
 
         document.getElementById("dw-warn").textContent = String(j.warn_ms || 0);
-        document.getElementById("dw-alert").textContent = String(j.alert_ms || 0);
-        document.getElementById("dw-overrun").textContent = String(j.overrun_ms || 0);
+        document.getElementById("dw-alert").textContent = String(
+          j.alert_ms || 0,
+        );
+        document.getElementById("dw-overrun").textContent = String(
+          j.overrun_ms || 0,
+        );
 
         raw.textContent = JSON.stringify(j, null, 2);
         status.textContent = `RTT ~${rtt} ms`;

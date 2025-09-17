@@ -1,0 +1,15 @@
+[tool.pylance]
+extraPaths = [
+    "./app",
+    "./scripts",
+    "./setup",
+    "./static",
+    "./tests",
+    "./tools",
+]
+
+[tool.poetry]  # (hvis du vil bruke poetry senere)
+name = "countdown"
+version = "0.1.2"
+description = "Countdown-system"
+authors = ["Reidar <din.epost@domene.no>"]

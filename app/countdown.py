@@ -9,6 +9,7 @@ from datetime import datetime, time as dtime, timedelta
 from typing import Any, Dict, Optional, TypedDict
 from .settings import TZ
 
+
 # --- Typing ---
 class Tick(TypedDict):
     now_ms: int
@@ -16,9 +17,9 @@ class Tick(TypedDict):
     target_hhmm: str
     display_ms: int
     signed_display_ms: int
-    state: str        # countdown | overrun | ended | idle | clock
-    mode: str         # daily | once | duration | clock
-    phase: str        # normal | warn | alert | over | ended | clock
+    state: str  # countdown | overrun | ended | idle | clock
+    mode: str  # daily | once | duration | clock
+    phase: str  # normal | warn | alert | over | ended | clock
     blink: bool
     warn_ms: int
     alert_ms: int

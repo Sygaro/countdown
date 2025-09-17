@@ -1,0 +1,14 @@
+{
+  "python.defaultInterpreterPath": "/home/reidar/countdown/venv/bin/python",
+  "python.analysis.venvPath": "/home/reidar/countdown",
+  "python.analysis.venv": "venv",
+  "python.analysis.extraPaths": [
+    "./app",
+    "./scripts",
+    "./static",
+    "./tests",
+    "./tools",
+  ],
+  "python.analysis.indexing": true,
+  "python.analysis.autoImportCompletions": true
+}

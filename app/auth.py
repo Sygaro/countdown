@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 from functools import wraps
 from flask import request, jsonify
-from app.storage.api import get_config, patch_config, replace_config
+from app.storage.api import get_config
 
 
 def require_password(fn):

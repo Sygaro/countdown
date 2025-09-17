@@ -3,17 +3,20 @@
 Sider + kompat-endepunkter + debug/selftest + view-heartbeat.
 """
 from __future__ import annotations
+
+from app.storage.api import get_config, replace_config
+
 from datetime import datetime, timedelta, timezone
 from flask import Blueprint, send_from_directory, jsonify, request
 
-from ..settings import PROJECT_ROOT, TZ
-from app.storage.api import get_config, patch_config, replace_config
-from ..storage.duration import clear_duration_and_switch_to_daily
+from ..settings import TZ, PROJECT_ROOT
 from ..countdown import compute_tick, compute_target_ms
+from ..storage.duration import clear_duration_and_switch_to_daily
+
 
 bp = Blueprint("pages", __name__)
+_STATIC = PROJECT_ROOT.joinpath("static").resolve()
 
-_STATIC = (PROJECT_ROOT / "static").resolve()
 
 # --- Enkelt in-memory heartbeat fra visningen (for Admin-synk) ---
 _LAST_VIEW_HEARTBEAT = {"rev": 0, "ts": None, "page": "view"}  # ts = aware datetime
@@ -74,10 +77,15 @@ def health():
 def tick():
     cfg = get_config()
     t = compute_tick(cfg)
-    if t["state"] == "ended" and cfg.get("mode") == "duration":
-        clear_duration_and_switch_to_daily()
-    t["cfg_rev"] = int(cfg.get("_meta", {}).get("updated_at", 0))
-    return jsonify(t), 200
+
+    # Hvis varighetsmodus er ferdig → gå tilbake til daily (eller clock) og beregn på nytt.
+    if cfg.get("mode") == "duration" and t.get("state") in ("ended", "idle"):
+        cfg = clear_duration_and_switch_to_daily()
+        t = compute_tick(cfg)
+
+    # Ikke mutér TypedDict-objektet; legg ekstra felt i responsen.
+    cfg_rev = int(cfg.get("_meta", {}).get("updated_at", 0))
+    return jsonify({**t, "cfg_rev": cfg_rev}), 200
 
 
 @bp.get("/state")

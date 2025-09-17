@@ -54,7 +54,11 @@ nav a:hover {
   color: var(--text);
 }
 .card {
-  background: linear-gradient(180deg, rgba(18, 24, 37, 0.9), rgba(12, 16, 24, 0.9));
+  background: linear-gradient(
+    180deg,
+    rgba(18, 24, 37, 0.9),
+    rgba(12, 16, 24, 0.9)
+  );
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -324,14 +328,12 @@ input[type="datetime-local"] {
   inset: 0;
   pointer-events: none;
   z-index: 50; /* ← over bakgrunn og det meste av innholdet */
-    isolation: isolate; /* stabil mix-blend-mode over bakgrunn/innhold */
-
+  isolation: isolate; /* stabil mix-blend-mode over bakgrunn/innhold */
 }
 .overlays .overlay-wrap {
   position: absolute;
   pointer-events: none;
-    display: inline-block;
-
+  display: inline-block;
 }
 .overlays .overlay-img {
   display: block;
@@ -379,7 +381,13 @@ input[type="datetime-local"] {
   bottom: 20px;
   padding: 8px 12px;
   border-radius: 10px;
-  font: 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font:
+    14px/1.2 system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Arial,
+    sans-serif;
   background: rgba(0, 0, 0, 0.75);
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.4);

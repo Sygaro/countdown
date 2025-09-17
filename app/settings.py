@@ -11,9 +11,7 @@ from zoneinfo import ZoneInfo
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 # Sti til config.json (kan overstyres med ENV)
-CONFIG_PATH = Path(
-    os.environ.get("COUNTDOWN_CONFIG", PROJECT_ROOT / "config.json")
-)
+CONFIG_PATH = Path(os.environ.get("COUNTDOWN_CONFIG", PROJECT_ROOT / "config.json"))
 
 # Tidssone (default: Europe/Oslo)
 TZ = ZoneInfo(os.environ.get("COUNTDOWN_TZ", "Europe/Oslo"))

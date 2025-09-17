@@ -15,9 +15,15 @@ def sanitize_overlays(seq) -> List[Dict[str, Any]]:
         return out
 
     allowed_pos = {
-        "top-left", "top-center", "top-right",
-        "center-left", "center", "center-right",
-        "bottom-left", "bottom-center", "bottom-right",
+        "top-left",
+        "top-center",
+        "top-right",
+        "center-left",
+        "center",
+        "center-right",
+        "bottom-left",
+        "bottom-center",
+        "bottom-right",
     }
 
     for idx, it in enumerate(seq, 1):
@@ -38,7 +44,9 @@ def sanitize_overlays(seq) -> List[Dict[str, Any]]:
             "offset_y_vmin": float(it.get("offset_y_vmin") or 2),
             "z_index": int(it.get("z_index") or 10),
             "visible_in": [
-                v for v in (it.get("visible_in") or ["countdown", "clock"]) if isinstance(v, str)
+                v
+                for v in (it.get("visible_in") or ["countdown", "clock"])
+                if isinstance(v, str)
             ],
             "tint": {
                 "color": str(tint.get("color") or "#000000"),

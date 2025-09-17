@@ -1,60 +1,29 @@
-from typing import Any, Dict
+# app/storage/api.py
+from __future__ import annotations
 import time
-from .io import load_config, replace_config
-from .utils import deep_merge
-from .defaults import get_defaults
+from typing import Any, Dict
+from .io import load_config as _load_config, replace_config as _replace_config
 
-def save_config_patch(patch: Dict[str, Any]) -> Dict[str, Any]:
-    """Oppdater deler av config (patch)."""
-    current = load_config()
-    deep_merge(current, patch or {})
-    return replace_config(current)
+__all__ = ["get_config", "patch_config", "replace_config"]
 
 
-def set_mode(
-    mode: str,
-    *,
-    daily_time: str = "",
-    once_at: str = "",
-    duration_minutes: int | None = None,
-    clock: Dict[str, Any] | None = None,
-) -> Dict[str, Any]:
-    cfg = load_config()
-    cfg["mode"] = mode
-    if mode == "daily":
-        if daily_time:
-            cfg["daily_time"] = daily_time
-        cfg["duration_started_ms"] = 0
-        cfg["once_at"] = ""
-    elif mode == "once":
-        cfg["once_at"] = once_at or ""
-        cfg["duration_started_ms"] = 0
-    elif mode == "duration":
-        if duration_minutes:
-            cfg["duration_minutes"] = int(duration_minutes)
-    elif mode == "clock":
-        if clock:
-            base = get_defaults()["clock"]
-            cfg["clock"] = deep_merge(base, clock)
-    else:
-        raise ValueError("Ugyldig mode")
-    return replace_config(cfg)
+def get_config() -> Dict[str, Any]:
+    return _load_config()
 
 
-def start_duration(minutes: int) -> Dict[str, Any]:
-    if minutes <= 0:
-        raise ValueError("minutes må være > 0")
-    now_ms = int(time.time() * 1000)
-    cfg = load_config()
-    cfg["mode"] = "duration"
-    cfg["duration_minutes"] = int(minutes)
-    cfg["duration_started_ms"] = now_ms
-    cfg["once_at"] = ""
-    return replace_config(cfg)
+def patch_config(patch: Dict[str, Any]) -> Dict[str, Any]:
+    cfg = _load_config()
+    for k, v in (patch or {}).items():
+        cfg[k] = v
+    cfg["_meta"] = cfg.get("_meta", {})
+    cfg["_meta"]["updated_at"] = int(time.time())
+    return _replace_config(cfg)
 
 
-def clear_duration_and_switch_to_daily() -> Dict[str, Any]:
-    cfg = load_config()
-    cfg["duration_started_ms"] = 0
-    cfg["mode"] = "daily"
-    return replace_config(cfg)
+def replace_config(new_cfg: Dict[str, Any]) -> Dict[str, Any]:
+    cfg = dict(new_cfg or {})
+    cfg["_meta"] = cfg.get("_meta", {})
+    cfg["_meta"]["version"] = cfg["_meta"].get("version", 1)
+    cfg["_meta"]["migrated_at"] = cfg["_meta"].get("migrated_at", int(time.time()))
+    cfg["_meta"]["updated_at"] = int(time.time())
+    return _replace_config(cfg)

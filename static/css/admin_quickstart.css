@@ -11,7 +11,12 @@
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
   padding: 14px;
   min-width: 260px;
-  font: 14px/1.35 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font:
+    14px/1.35 system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    sans-serif;
 }
 
 .aqs-row {

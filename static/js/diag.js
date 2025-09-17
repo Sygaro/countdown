@@ -39,12 +39,17 @@ import { ui } from "/static/js/ui.js";
 
     // display_ms og signed_display_ms
     let sign = "";
-    if (typeof tick.signed_display_ms === "number" && tick.signed_display_ms < 0) {
+    if (
+      typeof tick.signed_display_ms === "number" &&
+      tick.signed_display_ms < 0
+    ) {
       sign = "-";
     } else if (tick.state === "overrun" || tick.phase === "over") {
       sign = "-";
     }
-    const dispAbs = Math.abs(Number(tick.signed_display_ms ?? tick.display_ms ?? 0));
+    const dispAbs = Math.abs(
+      Number(tick.signed_display_ms ?? tick.display_ms ?? 0),
+    );
     el("dg-disp").textContent = sign + mmss(dispAbs);
 
     el("dg-warn").textContent = String(tick.warn_ms || 0);

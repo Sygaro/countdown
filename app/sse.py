@@ -16,7 +16,7 @@ import queue
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, Set
+from typing import Any, Iterable, Set
 
 from flask import Response, stream_with_context
 

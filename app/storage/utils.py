@@ -1,5 +1,6 @@
 from typing import Any, Dict
 
+
 def deep_merge(dst: Dict[str, Any], src: Dict[str, Any]) -> Dict[str, Any]:
     """Dyp merge av dict."""
     for k, v in (src or {}).items():
@@ -23,4 +24,3 @@ def clamp_float(x, default=1.0) -> float:
     except Exception:
         v = default
     return max(0.0, min(1.0, v))
-

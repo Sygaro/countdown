@@ -11,10 +11,11 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, Optional
 
-from app.storage.config import load_config, save_config, save_config_patch
+from app.storage.api import get_config, patch_config, replace_config
 
 
 # --- Modus-håndtering ---
+
 
 def set_mode(
     mode: str,
@@ -86,6 +87,7 @@ def start_duration(minutes: int) -> Dict[str, Any]:
         "once_at": "",
     }
     return patch_config(patch)
+
 
 def stop_duration() -> Dict[str, Any]:
     """
