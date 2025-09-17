@@ -146,7 +146,7 @@ def post_config():
       - X-Debug: 1  → inkluderer diff/dropped_keys
       - X-Dry-Run: 1 → simuler uten skriving
     """
-    # --- streng JSON ---
+    # --- krev ekte JSON-objekt ---
     if not request.is_json:
         abort(400, description="Content-Type må være application/json")
     try:
@@ -155,14 +155,16 @@ def post_config():
         abort(400, description="Ugyldig JSON i forespørselen")
     if not isinstance(payload, dict) or not payload:
         abort(400, description="Payload må være et ikke-tomt JSON-objekt")
-    payload.pop("_meta", None)  # _meta styres av backend
+
+    # rydd vekk felt vi *aldri* aksepterer direkte
+    payload.pop("_meta", None)
 
     debug = request.headers.get("X-Debug") == "1"
     dry_run = request.headers.get("X-Dry-Run") == "1"
 
-    cfg_before = get_config()  # les eksisterende
+    cfg_before = get_config()  # eksisterende konfig
 
-    # 1) Modus-håndtering (valgfritt)
+    # 1) Domenelogikk for modus (valgfritt)
     cfg_after_mode = deepcopy(cfg_before)
     if "mode" in payload:
         mode = str(payload.get("mode", "")).strip().lower()
@@ -183,13 +185,13 @@ def post_config():
     # 2) Full patch (ikke allow-list). Unngå å overskrive 'mode' direkte.
     patch = {k: v for k, v in payload.items() if k != "mode"}
 
-    # 3) Simuler sluttresultat (samme pipeline som i IO-laget)
+    # 3) Simuler sluttresultat (samme pipeline som IO-laget)
     try:
         simulated = _simulate_pipeline(cfg_after_mode, patch)
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
 
-    # 4) Skriv (alltid til disk når ikke dry-run) – dette eliminerer “200 uten lagring”
+    # 4) Persist (alltid, når ikke dry-run)
     if dry_run:
         cfg_after = simulated
         wrote = False
@@ -213,6 +215,7 @@ def post_config():
         }
 
     return jsonify(base), 200
+
 
 
 
