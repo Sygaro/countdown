@@ -1,6 +1,6 @@
 {
   "_migrated_at": 1757592465,
-  "_updated_at": 1757954456,
+  "_updated_at": 1758204542,
   "admin_password": "",
   "alert_minutes": 3,
   "blink_seconds": 55,
@@ -44,8 +44,8 @@
       "type": "image",
       "url": "https://freelogopng.com/images/all_img/1685901477apple-logo-transparent.png",
       "visible_in": [
-        "clock",
-        "countdown"
+        "countdown",
+        "clock"
       ],
       "z_index": 10
     },
@@ -64,7 +64,8 @@
       "type": "image",
       "url": "https://freelogopng.com/images/all_img/1681038472chatgpt-logo.png",
       "visible_in": [
-        "countdown"
+        "countdown",
+        "clock"
       ],
       "z_index": 10
     },
@@ -83,8 +84,8 @@
       "type": "image",
       "url": "https://freelogopng.com/images/all_img/1692440941ford-logo-transparent.png",
       "visible_in": [
-        "clock",
-        "countdown"
+        "countdown",
+        "clock"
       ],
       "z_index": 10
     },
@@ -103,8 +104,8 @@
       "type": "image",
       "url": "https://freelogopng.com/images/all_img/1685901477apple-logo-transparent.png",
       "visible_in": [
-        "clock",
-        "countdown"
+        "countdown",
+        "clock"
       ],
       "z_index": 10
     }
