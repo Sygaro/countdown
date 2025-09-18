@@ -111,7 +111,7 @@ ExecStart=__APP_DIR__/venv/bin/gunicorn wsgi:app \
   --bind 0.0.0.0:__PORT__ --workers 2 --threads 4 --timeout 0 \
   --access-logfile - --error-logfile -
 Environment=PYTHONUNBUFFERED=1
-StandardOutput=journal
+StandardOutput=null
 StandardError=journal
 Restart=always
 RestartSec=2
@@ -180,7 +180,7 @@ Environment=WPE_BACKEND_FDO_DRM_DEVICE=__DRM_DEV__
 Environment=COG_PLATFORM_DRM_OUTPUT=__ACTIVE_OUT__
 
 Environment=COG_PLATFORM_DRM_VIDEO_MODE=1920x1080
-Environment=COG_PLATFORM_DRM_MODE_MAX=1920x1080@60
+Environment=COG_PLATFORM_DRM_MODE_MAX=1920x1080@30
 Environment=COG_PLATFORM_DRM_NO_CURSOR=1
 
 ExecStartPre=/bin/sh -c 'for i in $(seq 1 150); do \
@@ -196,7 +196,7 @@ TTYPath=/dev/tty1
 TTYReset=yes
 TTYVHangup=yes
 StandardInput=tty
-StandardOutput=journal
+StandardOutput=null
 StandardError=journal
 
 Restart=always
@@ -223,16 +223,16 @@ systemctl enable --now kiosk-cog.service
 
 
 ### ─────────────────────────────────────────────────────────────────────────────
-### 6) KMS/Firmware: tving 1080p60 + hotplug (idempotent)
+### 6) KMS/Firmware: tving 1080p30 + hotplug (idempotent)
 ### ─────────────────────────────────────────────────────────────────────────────
-echo "==> Låser 1080p60 i kernel og sikrer HDMI-hotplug…"
+echo "==> Låser 1080p30 i kernel og sikrer HDMI-hotplug…"
 CMDLINE="/boot/firmware/cmdline.txt"
 CONF="/boot/firmware/config.txt"
 
-# Rydd duplikater og sett consoleblank + video=<ACTIVE_OUT>:1080p60
+# Rydd duplikater og sett consoleblank + video=<ACTIVE_OUT>:1080p30
 sed -i -E 's/ *video=HDMI-A-[12]:[^ ]*//g; s/(^| )consoleblank=0//g; s/  +/ /g; s/ *$//' "$CMDLINE"
 # legg til på slutten av linja
-sed -i "1s/$/ consoleblank=0 video=${ACTIVE_OUT}:1920x1080@60/" "$CMDLINE"
+sed -i "1s/$/ consoleblank=0 video=${ACTIVE_OUT}:1920x1080@30/" "$CMDLINE"
 
 # Legg (på nytt) et lite kiosk-blokk i config.txt (fjern tidligere blokk først)
 sed -i '/^# Kiosk tweaks (autogenerert)$/,$d' "$CONF"
@@ -242,7 +242,7 @@ cat >> "$CONF" <<'EOF'
 hdmi_force_hotplug=1
 disable_overscan=1
 hdmi_group=2
-hdmi_mode=82   # 1080p60
+hdmi_mode=82   # 1080p30
 hdmi_drive=2
 EOF
 

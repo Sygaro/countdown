@@ -16,11 +16,23 @@ from ..settings import TZ
 
 bp = Blueprint("admin", __name__)
 
+
 @bp.get("/config")
 def get_config():
     cfg = load_config()
     t = compute_tick(cfg)
-    return jsonify({"ok": True, "config": cfg, "tick": t, "server_time": datetime.now(TZ).isoformat()}), 200
+    return (
+        jsonify(
+            {
+                "ok": True,
+                "config": cfg,
+                "tick": t,
+                "server_time": datetime.now(TZ).isoformat(),
+            }
+        ),
+        200,
+    )
+
 
 @bp.post("/config")
 @require_password
@@ -41,10 +53,15 @@ def post_config():
     if "mode" in data:
         mode = str(data.get("mode")).strip().lower()
         daily_time = str(data.get("daily_time") or "")
-        once_at    = str(data.get("once_at") or "")
+        once_at = str(data.get("once_at") or "")
         duration_minutes = int(data.get("duration_minutes") or 0) or None
         try:
-            cfg = set_mode(mode, daily_time=daily_time, once_at=once_at, duration_minutes=duration_minutes)
+            cfg = set_mode(
+                mode,
+                daily_time=daily_time,
+                once_at=once_at,
+                duration_minutes=duration_minutes,
+            )
         except ValueError as e:
             return jsonify({"ok": False, "error": str(e)}), 400
     else:
@@ -53,9 +70,18 @@ def post_config():
     # 2) Andre felt (meldinger, varsler, admin)
     patch: dict = {}
     passthrough_keys = (
-        "message_primary","message_secondary","show_message_primary","show_message_secondary",
-        "warn_minutes","alert_minutes","blink_seconds","overrun_minutes","admin_password",
-        "daily_time","once_at","duration_minutes"  # tillat oppdatering uten å endre mode
+        "message_primary",
+        "message_secondary",
+        "show_message_primary",
+        "show_message_secondary",
+        "warn_minutes",
+        "alert_minutes",
+        "blink_seconds",
+        "overrun_minutes",
+        "admin_password",
+        "daily_time",
+        "once_at",
+        "duration_minutes",  # tillat oppdatering uten å endre mode
     )
     for k in passthrough_keys:
         if k in data:

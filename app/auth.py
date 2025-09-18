@@ -5,11 +5,13 @@ from functools import wraps
 from flask import request, jsonify
 from .storage import load_config
 
+
 def require_password(fn):
     """
     Krever X-Admin-Password header KUN hvis det finnes et passord i config
     og COUNTDOWN_DISABLE_AUTH != '1'.
     """
+
     @wraps(fn)
     def wrapper(*args, **kwargs):
         if os.environ.get("COUNTDOWN_DISABLE_AUTH") == "1":
@@ -24,4 +26,5 @@ def require_password(fn):
         if got == pw:
             return fn(*args, **kwargs)
         return jsonify({"error": "Unauthorized"}), 401
+
     return wrapper

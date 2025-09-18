@@ -6,7 +6,7 @@ import queue
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, Iterator, List, Optional, Set
+from typing import Dict, Iterable, Set
 
 from flask import Response, stream_with_context
 
@@ -112,7 +112,9 @@ def sse_stream(ping_interval: float = 15.0) -> Response:
                 except queue.Empty:
                     # Ping
                     last_ping = time.time()
-                    yield _format_sse({"id": 0, "type": "ping", "data": {"ts": last_ping}})
+                    yield _format_sse(
+                        {"id": 0, "type": "ping", "data": {"ts": last_ping}}
+                    )
         except (GeneratorExit, BrokenPipeError, ConnectionError):
             # Klienten dro — bare rydd
             pass
@@ -124,7 +126,7 @@ def sse_stream(ping_interval: float = 15.0) -> Response:
         mimetype="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",   # unbuffer ved evt. proxy
+            "X-Accel-Buffering": "no",  # unbuffer ved evt. proxy
             "Connection": "keep-alive",
         },
     )

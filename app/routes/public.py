@@ -8,19 +8,23 @@ from ..countdown import compute_tick
 
 bp = Blueprint("public", __name__)
 
+
 @bp.get("/")
 def index():
     return send_from_directory(STATIC_DIR, "index.html")
 
+
 @bp.get("/health")
 def health():
     return {"ok": True}
+
 
 @bp.get("/state")
 def state_snapshot():
     cfg = load_config()
     t = compute_tick(cfg)
     return jsonify(t), 200
+
 
 @bp.get("/tick")
 def tick():
