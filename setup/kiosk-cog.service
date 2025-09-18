@@ -1,5 +1,3 @@
-# /home/reidar/.config/systemd/user/countdown.service
-
 [Unit]
 Description=Kiosk (Cog on DRM/KMS) on tty1
 After=network-online.target systemd-user-sessions.service user@1000.service

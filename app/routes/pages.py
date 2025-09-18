@@ -16,6 +16,7 @@ _STATIC = (PROJECT_ROOT / "static").resolve()
 # --- Enkelt in-memory heartbeat fra visningen (for Admin-synk) ---
 _LAST_VIEW_HEARTBEAT = {"rev": 0, "ts": None, "page": "view"}  # ts = aware datetime
 
+
 @bp.post("/debug/view-heartbeat")
 def view_hb_post():
     try:
@@ -30,12 +31,15 @@ def view_hb_post():
     _LAST_VIEW_HEARTBEAT["ts"] = datetime.now(timezone.utc)
     return jsonify({"ok": True})
 
+
 @bp.get("/debug/view-heartbeat")
 def view_hb_get():
     hb = dict(_LAST_VIEW_HEARTBEAT)
     ts = hb.get("ts")
     hb["ts_iso"] = ts.isoformat() if ts else None
-    hb["age_seconds"] = (datetime.now(timezone.utc) - ts).total_seconds() if ts else None
+    hb["age_seconds"] = (
+        (datetime.now(timezone.utc) - ts).total_seconds() if ts else None
+    )
     return jsonify({"ok": True, "heartbeat": hb})
 
 
@@ -43,21 +47,26 @@ def view_hb_get():
 def index():
     return send_from_directory(_STATIC, "index.html")
 
+
 @bp.get("/admin")
 def admin():
     return send_from_directory(_STATIC, "admin.html")
+
 
 @bp.get("/diag")
 def diag():
     return send_from_directory(_STATIC, "diag.html")
 
+
 @bp.get("/about")
 def about():
     return send_from_directory(_STATIC, "about.html")
 
+
 @bp.get("/health")
 def health():
     return {"ok": True}
+
 
 @bp.get("/tick")
 def tick():
@@ -68,33 +77,49 @@ def tick():
     t["cfg_rev"] = int(cfg.get("_updated_at", 0))
     return jsonify(t), 200
 
+
 @bp.get("/state")
 def state_snapshot():
     cfg = load_config()
     t = compute_tick(cfg)
-    return jsonify({
-        "now_ms": t["now_ms"],
-        "target_ms": t["target_ms"],
-        "display_ms": t["display_ms"],
-        "signed_display_ms": t["signed_display_ms"],
-        "state": t["state"],
-        "mode": t["mode"],
-    }), 200
+    return (
+        jsonify(
+            {
+                "now_ms": t["now_ms"],
+                "target_ms": t["target_ms"],
+                "display_ms": t["display_ms"],
+                "signed_display_ms": t["signed_display_ms"],
+                "state": t["state"],
+                "mode": t["mode"],
+            }
+        ),
+        200,
+    )
+
 
 @bp.get("/debug/whoami")
 def dbg_whoami():
-    return jsonify({
-        "cwd": str(PROJECT_ROOT),
-        "static": str(_STATIC),
-        "config_path": str((PROJECT_ROOT / "config.json").resolve()),
-        "server_time": datetime.now(TZ).isoformat()
-    }), 200
+    return (
+        jsonify(
+            {
+                "cwd": str(PROJECT_ROOT),
+                "static": str(_STATIC),
+                "config_path": str((PROJECT_ROOT / "config.json").resolve()),
+                "server_time": datetime.now(TZ).isoformat(),
+            }
+        ),
+        200,
+    )
+
 
 @bp.get("/debug/config")
 def dbg_config():
     write_test = request.args.get("write_test") == "1"
     cfg = load_config()
-    result = {"ok": True, "__config_path": str((PROJECT_ROOT / "config.json").resolve())}
+    result = {
+        "ok": True,
+        "__config_path": str((PROJECT_ROOT / "config.json").resolve()),
+    }
     if write_test:
         try:
             cfg["_debug_touch"] = True
@@ -108,10 +133,12 @@ def dbg_config():
     result["config"] = cfg
     return jsonify(result), 200
 
+
 @bp.get("/debug/selftest")
 def dbg_selftest():
     tests = []
     ok_all = True
+
     def add(name: str, ok: bool, info: str = ""):
         nonlocal ok_all
         tests.append({"name": name, "ok": bool(ok), "info": info})
@@ -119,19 +146,20 @@ def dbg_selftest():
 
     cfg = {"mode": "daily", "daily_time": "09:00", "overrun_minutes": 2}
     now = datetime.now(TZ).replace(hour=9, minute=1, second=0, microsecond=0)
-    target1 = compute_target_ms(cfg, now_ms=int(now.timestamp()*1000))
+    target1 = compute_target_ms(cfg, now_ms=int(now.timestamp() * 1000))
     from datetime import datetime as _dt
-    add("daily_overrun_window", _dt.fromtimestamp(target1/1000, tz=TZ).hour == 9)
+
+    add("daily_overrun_window", _dt.fromtimestamp(target1 / 1000, tz=TZ).hour == 9)
 
     now2 = datetime.now(TZ)
     future = (now2 + timedelta(minutes=30)).replace(second=0, microsecond=0)
     cfg2 = {"mode": "once", "once_at": future.isoformat()}
-    target2 = compute_target_ms(cfg2, now_ms=int(now2.timestamp()*1000))
-    add("once_future", target2 == int(future.timestamp()*1000))
+    target2 = compute_target_ms(cfg2, now_ms=int(now2.timestamp() * 1000))
+    add("once_future", target2 == int(future.timestamp() * 1000))
 
-    start_ms = int(now2.timestamp()*1000)
+    start_ms = int(now2.timestamp() * 1000)
     cfg3 = {"mode": "duration", "duration_minutes": 10, "duration_started_ms": start_ms}
     target3 = compute_target_ms(cfg3, now_ms=start_ms)
-    add("duration_10min", target3 == start_ms + 10*60_000)
+    add("duration_10min", target3 == start_ms + 10 * 60_000)
 
     return jsonify({"ok": ok_all, "tests": tests}), 200

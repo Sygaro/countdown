@@ -16,52 +16,56 @@
   `;
 
   function injectStyle() {
-    if (document.getElementById('aqs-style')) return;
-    const el = document.createElement('style');
-    el.id = 'aqs-style';
+    if (document.getElementById("aqs-style")) return;
+    const el = document.createElement("style");
+    el.id = "aqs-style";
     el.textContent = STYLE;
     document.head.appendChild(el);
   }
 
   function toast(msg, ok) {
-    let t = document.getElementById('aqs-toast');
+    let t = document.getElementById("aqs-toast");
     if (!t) {
-      t = document.createElement('div');
-      t.id = 'aqs-toast';
-      t.className = 'aqs-toast';
+      t = document.createElement("div");
+      t.id = "aqs-toast";
+      t.className = "aqs-toast";
       document.body.appendChild(t);
     }
     t.textContent = msg;
-    t.style.background = ok ? '#184' : '#922';
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 1500);
+    t.style.background = ok ? "#184" : "#922";
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 1500);
   }
 
   async function postJSON(url, body) {
     const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-      cache: 'no-store'
+      cache: "no-store",
     });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    try { return await r.json(); } catch { return {}; }
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    try {
+      return await r.json();
+    } catch {
+      return {};
+    }
   }
 
   async function startMinutes(min) {
     const m = Math.max(1, Math.floor(Number(min)));
-    await postJSON('/api/start', { minutes: m });
-    toast('Startet +' + m + ' min', true);
+    await postJSON("/api/start", { minutes: m });
+    toast("Startet +" + m + " min", true);
   }
 
   function buildPanel() {
     const host =
-      document.querySelector('[data-admin-quickstart]') ||
-      document.getElementById('admin-quickstart');
+      document.querySelector("[data-admin-quickstart]") ||
+      document.getElementById("admin-quickstart");
 
     // Prioriter brukers container hvis funnet; ellers flytende kort
-    const panel = document.createElement('div');
-    panel.className = host ? '' : 'aqs-card';
+    const panel = document.createElement("div");
+    panel.className = host ? "" : "aqs-card";
     panel.innerHTML = `
       <div class="aqs-title">Start nedtelling</div>
       <div class="aqs-row">
@@ -78,12 +82,16 @@
 
     (host || document.body).appendChild(panel);
 
-    panel.querySelectorAll('button[data-min]').forEach((btn) => {
-      btn.addEventListener('click', () => startMinutes(btn.getAttribute('data-min')).catch(e => toast(e.message || String(e), false)));
+    panel.querySelectorAll("button[data-min]").forEach((btn) => {
+      btn.addEventListener("click", () =>
+        startMinutes(btn.getAttribute("data-min")).catch((e) =>
+          toast(e.message || String(e), false),
+        ),
+      );
     });
-    panel.querySelector('#aqs-start').addEventListener('click', () => {
-      const v = panel.querySelector('#aqs-custom').value;
-      startMinutes(v).catch(e => toast(e.message || String(e), false));
+    panel.querySelector("#aqs-start").addEventListener("click", () => {
+      const v = panel.querySelector("#aqs-custom").value;
+      startMinutes(v).catch((e) => toast(e.message || String(e), false));
     });
   }
 
@@ -92,8 +100,8 @@
     buildPanel();
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init, { once: true });
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once: true });
   } else {
     init();
   }

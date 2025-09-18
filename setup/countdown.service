@@ -1,3 +1,5 @@
+# /home/reidar/.config/systemd/user/countdown.service
+
 [Unit]
 Description=Countdown Flask via gunicorn
 After=network.target
@@ -14,6 +16,10 @@ StandardOutput=journal
 StandardError=journal
 Restart=always
 RestartSec=2
+
+# (valgfritt) gjør loggene synlige i både journal og konsoll
+# StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=default.target
