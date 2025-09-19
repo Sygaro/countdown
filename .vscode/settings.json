@@ -1,0 +1,6 @@
+{
+    "files.exclude": {
+        "**/.ruff_cache": true,
+        "**/.vscode": false
+    }
+}
