@@ -504,31 +504,28 @@
             wrap.appendChild(img);
 
             // tint (valgfritt) – klipp til logoens alfakanal
-            const tint = o.tint || {};
-            const tintOpacity = Math.max(0, Math.min(1, Number(tint.opacity ?? 0)));
-            if (tintOpacity > 0) {
-              const tintColor = (tint.color || "#000000").trim();
-              const blend = (tint.blend || "multiply").trim();
+const tint = o.tint || {};
+const tintOpacity = Math.max(0, Math.min(1, Number(tint.opacity ?? 0)));
+if (tintOpacity > 0) {
+  const tintColor = (tint.color || "#000000").trim();
+  const blend = (tint.blend || "multiply").trim();
 
-              const overlay = document.createElement("div");
-              overlay.className = "overlay-tint";
-              overlay.style.position = "absolute";
-              overlay.style.inset = "0";
-              overlay.style.backgroundColor = tintColor;
-              overlay.style.opacity = String(tintOpacity);
-              overlay.style.zIndex = String(z + 1);
-              overlay.style.mixBlendMode = blend;
+  const overlay = document.createElement("div");
+  overlay.className = "overlay-tint";
+  overlay.style.position = "absolute";
+  overlay.style.inset = "0";
+  overlay.style.backgroundColor = tintColor;
+  overlay.style.opacity = String(tintOpacity);
+  overlay.style.zIndex = String(z + 1);
+  overlay.style.mixBlendMode = blend;
 
-              // 👇 Bruk logoens ALFA som maske (ikke luminans)
-              overlay.style.webkitMaskImage = `url("${url}")`;
-              overlay.style.maskImage = `url("${url}")`;
-              // (resten – repeat/size/position – håndteres også av CSS-klassen)
+  // mask: bruk logoens alfa (no-repeat/contain/center tas av CSS-klassen)
+  overlay.style.webkitMaskImage = `url("${url}")`;
+  overlay.style.maskImage = `url("${url}")`;
 
-              // Sikre at WebKit ikke gjør "inverse cutout"
-              overlay.style.webkitMaskComposite = "source-over";
+  wrap.appendChild(overlay);
+}
 
-              wrap.appendChild(overlay);
-            }
 
             root.appendChild(wrap);
           }

@@ -27,7 +27,7 @@ TTYPath=/dev/tty1
 TTYReset=yes
 TTYVHangup=yes
 StandardInput=tty
-StandardOutput=journal
+StandardOutput=null
 StandardError=journal
 
 Restart=always

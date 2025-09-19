@@ -747,35 +747,39 @@
             ($("#clk_msg_primary").value = cfg?.clock?.message_primary || "");
           $("#clk_msg_secondary") &&
             ($("#clk_msg_secondary").value = cfg?.clock?.message_secondary || "");
-          // Overlays – bindings
-          $("#ov_select") &&
-            $("#ov_select").addEventListener("change", () => {
-              const cur = currentOverlay();
-              if (cur) fillOverlayFields(cur);
-            });
-          $("#ov_add") && $("#ov_add").addEventListener("click", addOverlay);
-          $("#ov_dup") && $("#ov_dup").addEventListener("click", dupOverlay);
-          $("#ov_del") && $("#ov_del").addEventListener("click", delOverlay);
+         // -- Overlays – bindings --
+  $("#ov_select") &&
+    $("#ov_select").addEventListener("change", () => {
+      const cur = currentOverlay();
+      if (cur) fillOverlayFields(cur);   // <- bare fylle feltene, ikke rebuild liste
+    });
 
-          [
-            "#ov_id",
-            "#ov_type",
-            "#ov_url",
-            "#ov_pos",
-            "#ov_size",
-            "#ov_opacity",
-            "#ov_z",
-            "#ov_off_vw",
-            "#ov_off_vh",
-            "#ov_in_clock",
-            "#ov_in_countdown",
-            "#ov_tint_color",
-            "#ov_tint_opacity",
-            "#ov_tint_blend", // ← NYTT
-          ].forEach((sel) => {
-            const el = $(sel);
-            el && el.addEventListener("input", commitOverlay);
-          });
+  $("#ov_add") && $("#ov_add").addEventListener("click", addOverlay);
+  $("#ov_dup") && $("#ov_dup").addEventListener("click", dupOverlay);
+  $("#ov_del") && $("#ov_del").addEventListener("click", delOverlay);
+
+  [
+    "#ov_id",
+    "#ov_type",
+    "#ov_url",
+    "#ov_pos",
+    "#ov_size",
+    "#ov_opacity",
+    "#ov_z",
+    "#ov_off_vw",
+    "#ov_off_vh",
+    "#ov_in_clock",
+    "#ov_in_countdown",
+    "#ov_tint_color",        // <- tint-feltene må også trigge commit
+    "#ov_tint_opacity",
+    "#ov_tint_blend",
+  ].forEach((sel) => {
+    const el = $(sel);
+    if (!el) return;
+    el.addEventListener("input", commitOverlay);
+    el.addEventListener("change", commitOverlay);
+  });
+
 
           updateClockContrastHint();
 
@@ -900,105 +904,94 @@
 
           return body;
         }
-        function ovSel() {
-          return document.getElementById("ov_select");
-        }
-        function ovIdx() {
-          return Math.max(0, ovSel().selectedIndex);
-        }
-        function currentOverlay() {
-          return overlaysLocal[ovIdx()] || null;
-        }
+        function ovSel() { return document.getElementById("ov_select"); }
+  function ovIdx() { return Math.max(0, ovSel().selectedIndex); }
+  function currentOverlay() { return overlaysLocal[ovIdx()] || null; }
 
-        function renderOverlaysUI(desiredIndex) {
-          const sel = ovSel();
-          if (!sel) return;
+  function renderOverlaysUI(desiredIndex) {
+    const sel = ovSel();
+    if (!sel) return;
 
-          // bevar eksisterende index hvis ikke eksplisitt gitt
-          const prev = Number.isInteger(desiredIndex) ? desiredIndex : sel.selectedIndex;
+    const prev = Number.isInteger(desiredIndex) ? desiredIndex : sel.selectedIndex;
+    sel.innerHTML = "";
+    overlaysLocal.forEach((o, i) => {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = o.id || `(overlay ${i + 1})`;
+      sel.appendChild(opt);
+    });
 
-          sel.innerHTML = "";
-          overlaysLocal.forEach((o, i) => {
-            const opt = document.createElement("option");
-            opt.value = String(i);
-            opt.textContent = o.id || `(overlay ${i + 1})`;
-            sel.appendChild(opt);
-          });
+    const idx = Math.max(0, Math.min(sel.options.length - 1, prev >= 0 ? prev : 0));
+    sel.selectedIndex = idx;
+    fillOverlayFields(overlaysLocal[idx] || overlayDefaults());
+  }
 
-          const idx = Math.max(0, Math.min(sel.options.length - 1, prev >= 0 ? prev : 0));
-          sel.selectedIndex = idx;
+  function fillOverlayFields(o) {
+    $("#ov_id").value = o.id || "";
+    $("#ov_type").value = o.type || "image";
+    $("#ov_url").value = o.url || "";
+    $("#ov_pos").value = o.position || "top-right";
+    $("#ov_size").value = String(o.size_vmin ?? 12);
+    $("#ov_opacity").value = String(o.opacity ?? 1);
+    $("#ov_z").value = String(o.z_index ?? 10);
+    $("#ov_off_vw").value = String(o.offset_vw ?? 2);
+    $("#ov_off_vh").value = String(o.offset_vh ?? 2);
+    $("#ov_in_clock").checked = !!(o.visible_in || []).includes("clock");
+    $("#ov_in_countdown").checked = !!(o.visible_in || []).some(v => v !== "clock");
+    $("#ov_tint_color").value = o?.tint?.color || "#000000";
+    $("#ov_tint_opacity").value = String(o?.tint?.opacity ?? 0);
+    $("#ov_tint_blend").value = o?.tint?.blend || "multiply";
+  }
 
-          const cur = overlaysLocal[idx] || overlayDefaults();
-          fillOverlayFields(cur);
-        }
+  function readOverlayFields() {
+    const vis = [];
+    if ($("#ov_in_clock").checked) vis.push("clock");
+    if ($("#ov_in_countdown").checked) vis.push("countdown");
+    return {
+      id: ($("#ov_id").value || "").trim(),
+      type: $("#ov_type").value || "image",
+      url: ($("#ov_url").value || "").trim(),
+      position: $("#ov_pos").value || "top-right",
+      size_vmin: Number($("#ov_size").value || "12"),
+      opacity: Number($("#ov_opacity").value || "1"),
+      z_index: Number($("#ov_z").value || "10"),
+      offset_vw: Number($("#ov_off_vw").value || "2"),
+      offset_vh: Number($("#ov_off_vh").value || "2"),
+      visible_in: vis.length ? vis : ["countdown","clock"],
+      tint: {                                        // <- tint med
+        color: $("#ov_tint_color").value || "#000000",
+        opacity: Number($("#ov_tint_opacity").value || "0"),
+        blend: $("#ov_tint_blend").value || "multiply"
+      }
+    };
+  }
 
-        function fillOverlayFields(o) {
-          $("#ov_id").value = o.id || "";
-          $("#ov_type").value = o.type || "image";
-          $("#ov_url").value = o.url || "";
-          $("#ov_pos").value = o.position || "top-right";
-          $("#ov_size").value = String(o.size_vmin ?? 12);
-          $("#ov_opacity").value = String(o.opacity ?? 1);
-          $("#ov_z").value = String(o.z_index ?? 10);
-          $("#ov_off_vw").value = String(o.offset_vw ?? 2);
-          $("#ov_off_vh").value = String(o.offset_vh ?? 2);
-          $("#ov_in_clock").checked = !!(o.visible_in || []).includes("clock");
-          $("#ov_in_countdown").checked = !!(o.visible_in || []).some((v) => v !== "clock");
-          $("#ov_tint_color").value = o?.tint?.color || "#000000";
-          $("#ov_tint_opacity").value = String(o?.tint?.opacity ?? 0);
-          $("#ov_tint_blend").value = o?.tint?.blend || "multiply";
-        }
+  function commitOverlay() {
+    if (!overlaysLocal.length) return;
+    overlaysLocal[ovIdx()] = readOverlayFields();
+    pushPreviewDebounced();
+  }
 
-        function readOverlayFields() {
-          const vis = [];
-          if ($("#ov_in_clock").checked) vis.push("clock");
-          if ($("#ov_in_countdown").checked) vis.push("countdown");
-          return {
-            id: ($("#ov_id").value || "").trim(),
-            type: $("#ov_type").value || "image",
-            url: ($("#ov_url").value || "").trim(),
-            position: $("#ov_pos").value || "top-right",
-            size_vmin: Number($("#ov_size").value || "12"),
-            opacity: Number($("#ov_opacity").value || "1"),
-            z_index: Number($("#ov_z").value || "10"),
-            offset_vw: Number($("#ov_off_vw").value || "2"),
-            offset_vh: Number($("#ov_off_vh").value || "2"),
-            visible_in: vis.length ? vis : ["countdown", "clock"],
-            tint: {
-              color: $("#ov_tint_color").value || "#000000",
-              opacity: Number($("#ov_tint_opacity").value || "0"),
-              blend: $("#ov_tint_blend").value || "multiply",
-            },
-          };
-        }
+  function addOverlay() {
+    overlaysLocal.push(overlayDefaults());
+    renderOverlaysUI(overlaysLocal.length - 1);        // <- velg ny
+    pushPreview();
+  }
 
-        function commitOverlay() {
-          if (!overlaysLocal.length) return;
-          overlaysLocal[ovIdx()] = readOverlayFields();
-          pushPreviewDebounced(); // live preview
-        }
+  function dupOverlay() {
+    const cur = currentOverlay();
+    if (!cur) return addOverlay();
+    overlaysLocal.push({ ...cur, id: `${cur.id}-copy` });
+    renderOverlaysUI(overlaysLocal.length - 1);        // <- velg kopi
+    pushPreview();
+  }
 
-        function addOverlay() {
-          overlaysLocal.push(overlayDefaults());
-          // velg ny (siste)
-          renderOverlaysUI(overlaysLocal.length - 1);
-          pushPreview();
-        }
-
-        function dupOverlay() {
-          const cur = currentOverlay();
-          if (!cur) return addOverlay();
-          overlaysLocal.push({ ...cur, id: `${cur.id}-copy` });
-          ovSel().selectedIndex = overlaysLocal.length - 1;
-          renderOverlaysUI();
-          pushPreview();
-        }
-        function delOverlay() {
-          if (!overlaysLocal.length) return;
-          overlaysLocal.splice(ovIdx(), 1);
-          renderOverlaysUI();
-          pushPreview();
-        }
+  function delOverlay() {
+    if (!overlaysLocal.length) return;
+    overlaysLocal.splice(ovIdx(), 1);
+    renderOverlaysUI(Math.min(ovIdx(), overlaysLocal.length - 1));
+    pushPreview();
+  }
 
         async function saveAll() {
           const body = buildPatch();
