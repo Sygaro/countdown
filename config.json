@@ -1,6 +1,6 @@
 {
   "_migrated_at": 1757592465,
-  "_updated_at": 1758310997,
+  "_updated_at": 1758313367,
   "admin_password": "",
   "alert_minutes": 3,
   "blink_seconds": 55,
@@ -26,8 +26,8 @@
   "message_primary": "Velkommen!",
   "message_secondary": "Vi starter kl:",
   "messages_position": "above",
-  "mode": "daily",
-  "once_at": "",
+  "mode": "once",
+  "once_at": "2025-09-20T22:22",
   "overlays": [
     {
       "id": "Apple_logo",
