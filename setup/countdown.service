@@ -12,13 +12,11 @@ ExecStart=/home/reidar/countdown/venv/bin/gunicorn wsgi:app \
   --bind 0.0.0.0:5000 --workers 2 --threads 4 --timeout 0 \
   --access-logfile - --error-logfile -
 Environment=PYTHONUNBUFFERED=1
-StandardOutput=journal
-StandardError=journal
 Restart=always
 RestartSec=2
 
 # (valgfritt) gjør loggene synlige i både journal og konsoll
-# StandardOutput=journal
+# StandardOutput=null
 StandardError=journal
 
 [Install]

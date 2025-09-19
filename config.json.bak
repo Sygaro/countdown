@@ -1,6 +1,6 @@
 {
   "_migrated_at": 1757592465,
-  "_updated_at": 1758309602,
+  "_updated_at": 1758309376,
   "admin_password": "",
   "alert_minutes": 3,
   "blink_seconds": 55,
@@ -20,13 +20,13 @@
   "color_over": "#9ad0ff",
   "color_warn": "#ffd166",
   "daily_time": "20:00",
-  "duration_minutes": 1,
-  "duration_started_ms": 1758309562942,
+  "duration_minutes": 20,
+  "duration_started_ms": 0,
   "hms_threshold_minutes": 60,
   "message_primary": "Velkommen!",
   "message_secondary": "Vi starter kl:",
   "messages_position": "above",
-  "mode": "duration",
+  "mode": "daily",
   "once_at": "",
   "overlays": [
     {
@@ -133,25 +133,25 @@
   "overrun_minutes": 30,
   "show_message_primary": true,
   "show_message_secondary": true,
-  "show_target_time": false,
+  "show_target_time": true,
   "target_time_after": "secondary",
   "theme": {
     "background": {
       "gradient": {
-        "angle_deg": 180,
-        "from": "#142033",
+        "angle_deg": 160,
+        "from": "#4b71c3",
         "to": "#0b0f14"
       },
       "image": {
         "fit": "cover",
-        "opacity": 1.0,
+        "opacity": 0.5,
         "tint": {
-          "color": "#000000",
-          "opacity": 0.4
+          "color": "#a75858",
+          "opacity": 0.0
         },
         "url": "https://picsum.photos/1600/900"
       },
-      "mode": "image",
+      "mode": "gradient",
       "solid": {
         "color": "#0b0f14"
       }
@@ -159,22 +159,22 @@
     "digits": {
       "font_weight": 800,
       "letter_spacing_em": 0.06,
-      "size_vw": 14
+      "size_vw": 10
     },
     "messages": {
       "primary": {
-        "color": "#9aa4b2",
+        "color": "#ebe7e0",
         "size_rem": 3.0,
-        "weight": 600
+        "weight": 500
       },
       "secondary": {
-        "color": "#9aa4b2",
+        "color": "#2871a9",
         "size_rem": 3.0,
-        "weight": 400
+        "weight": 900
       }
     }
   },
-  "use_blink": false,
-  "use_phase_colors": false,
+  "use_blink": true,
+  "use_phase_colors": true,
   "warn_minutes": 5
 }
