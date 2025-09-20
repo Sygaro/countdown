@@ -612,12 +612,23 @@
           return (hi + 0.05) / (lo + 0.05);
         };
         function currentPreviewBgColor() {
-          const bg = selBgMode();
-          if (bg === "solid") return val("#bg_solid_color", "#0b0f14");
-          if (bg === "gradient") return val("#bg_grad_to", "#0b0f14");
-          if (bg === "dynamic") return val("#bg_dyn_to", "#0e1a2f");
+          const bgMode = selBgMode();
+          if (bgMode === "solid") return val("#bg_solid_color", "#0b0f14");
+          if (bgMode === "gradient") return val("#bg_grad_to", "#0b0f14");
+          if (bgMode === "dynamic") {
+            const base = document.querySelector("#bg_dyn_base")?.value || "auto";
+            if (base === "solid") return val("#bg_solid_color", "#0b0f14");
+            if (base === "gradient") return val("#bg_grad_to", "#0b0f14");
+            if (base === "image") return val("#bg_img_tint", "#000000"); // tint brukes som bakgrunnsmål
+            // auto – prioritet: image → gradient → solid
+            const hasImg = val("#bg_img_url", "").trim().length > 0;
+            if (hasImg) return val("#bg_img_tint", "#000000");
+            const gradTo = val("#bg_grad_to", "");
+            return gradTo || val("#bg_solid_color", "#0b0f14");
+          }
           return val("#bg_img_tint", "#000000");
         }
+
         function updateDigitContrastHints() {
           const bg = currentPreviewBgColor();
           const set = (id, color) => {

@@ -246,29 +246,79 @@
           }
 
           if (mode === "dynamic") {
-            // 1) Base først (image -> gradient -> solid)
-            applyBase();
+            // Valgt base: auto | solid | gradient | image
+            const dyn = bg?.dynamic || {};
+            const basePref = (dyn.base_mode || "auto").toLowerCase();
 
-            // 2) Dynamisk lag på toppen
+            function applyBase(pref) {
+              const want = pref || "auto";
+              const hasImg = !!(bg?.image?.url || "").trim();
+              if (want === "image" || (want === "auto" && hasImg)) {
+                // (samme som i image-grenen)
+                const url = (bg?.image?.url || "").trim();
+                const fit = (bg?.image?.fit || "cover").toLowerCase();
+                const tintC = bg?.image?.tint?.color || null;
+                const tintO = Number(bg?.image?.tint?.opacity ?? 0);
+                const layers = [];
+                if (tintC && tintO > 0) {
+                  const rgba = hexToRgba(tintC, tintO);
+                  layers.push(`linear-gradient(${rgba}, ${rgba})`);
+                }
+                if (url) layers.push(`url("${url}")`);
+                if (layers.length) {
+                  el.style.backgroundImage = layers.join(", ");
+                  el.style.backgroundRepeat = "no-repeat, no-repeat";
+                  el.style.backgroundSize =
+                    (layers.length === 2 ? "auto, " : "") + (fit === "contain" ? "contain" : "cover");
+                  el.style.backgroundPosition = "center center, center center";
+                  el.style.backgroundColor = "transparent";
+                  return "image";
+                }
+              }
+              if (want === "gradient" || want === "auto") {
+                const from = bg?.gradient?.from || "#142033";
+                const to = bg?.gradient?.to || "#0b0f14";
+                const angle = Number(bg?.gradient?.angle_deg ?? 180);
+                el.style.backgroundImage = `linear-gradient(${angle}deg, ${from}, ${to})`;
+                el.style.backgroundRepeat = "no-repeat";
+                el.style.backgroundSize = "cover";
+                el.style.backgroundPosition = "center center";
+                el.style.backgroundColor = "transparent";
+                return "gradient";
+              }
+              // solid
+              el.style.backgroundColor = bg?.solid?.color || "#0b0f14";
+              el.style.backgroundImage = "none";
+              return "solid";
+            }
+
+            // 1) Base
+            applyBase(basePref);
+
+            // 2) Dynamisk lag
             ensureDynKeyframes();
             const layer = ensureDynLayer();
 
-            // Les parametre (med sikre defaults)
-            const dyn = bg?.dynamic || {};
             const from = dyn.from || "#16233a";
             const to = dyn.to || "#0e1a2f";
             const rotateS = Math.max(5, Math.min(600, Number(dyn.rotate_s ?? 60)));
             const blurPx = Math.max(0, Math.min(60, Number(dyn.blur_px ?? 18)));
             const opa = Math.max(0, Math.min(1, Number(dyn.opacity ?? 0.9)));
 
-            layer.style.background =
-              `radial-gradient(1200px 700px at 10% -10%, ${from} 0%, transparent 60%),` +
-              `radial-gradient(900px 600px at 110% 5%, ${to} 0%, transparent 65%),` +
-              `conic-gradient(from 220deg at 50% 50%, #0b0f1400 0%, #0e142000 25%, #0b0f1400 50%, #101a2a00 75%, #0b0f1400 100%)`;
-
+            // Dekning på store skjermer: bruk vmin/vmax og større inset
+            layer.style.position = "fixed";
+            layer.style.inset = "-24vmin"; // bedre margin i fullscreen
+            layer.style.zIndex = "0";
+            layer.style.pointerEvents = "none";
             layer.style.filter = `blur(${blurPx}px)`;
             layer.style.opacity = String(opa);
             layer.style.animation = `dynbg-rotate ${rotateS}s linear infinite`;
+
+            // Radialer med viewport-relative størrelser
+            layer.style.background =
+              `radial-gradient(60vmax 42vmax at 8% -10%, ${from} 0%, transparent 62%),` +
+              `radial-gradient(58vmax 40vmax at 108% 6%, ${to} 0%, transparent 64%),` +
+              `conic-gradient(from 220deg at 50% 50%, #0000 0%, #0000 25%, #0000 50%, #0000 75%, #0000 100%)`;
             return;
           }
 
