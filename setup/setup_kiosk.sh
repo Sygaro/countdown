@@ -67,6 +67,23 @@ usermod -aG video,render "$USER_NAME" || true
 mkdir -p /var/log/journal
 systemctl restart systemd-journald
 
+echo "==> Slår på NTP og venter-tjeneste for tidssynk…"
+
+# Slå på NTP via systemd-timesyncd (vanlig på Pi OS Lite)
+if systemctl list-unit-files | grep -q '^systemd-timesyncd.service'; then
+  sudo timedatectl set-ntp true || true
+  sudo systemctl enable --now systemd-timesyncd.service || true
+fi
+
+# Aktiver 'systemd-time-wait-sync' hvis den finnes (venter til klokke er synk’et)
+if systemctl list-unit-files | grep -q '^systemd-time-wait-sync.service'; then
+  sudo systemctl enable systemd-time-wait-sync.service || true
+  sudo systemctl start  systemd-time-wait-sync.service || true
+else
+  echo "   → systemd-time-wait-sync.service ikke tilgjengelig på dette imaget (hopper over)."
+fi
+
+
 ### ─────────────────────────────────────────────────────────────────────────────
 ### 2) requirements.txt + venv + pip install
 ### ─────────────────────────────────────────────────────────────────────────────
@@ -103,9 +120,14 @@ TMP="$(mktemp)"
 cat > "${TMP}" <<'UNIT'
 [Unit]
 Description=Countdown Flask via gunicorn
-After=network.target
+Wants=network-online.target time-sync.target
+After=network-online.target time-sync.target
 
 [Service]
+# Vent maks 60s på NTP-synk (beskyttelse hvis time-sync.target ikke oppfører seg)
+ExecStartPre=/bin/sh -c 'i=0; while [ $i -lt 60 ]; do \
+  s=$(timedatectl show -p NTPSynchronized --value 2>/dev/null || echo no); \
+  [ "$s" = "yes" ] && exit 0; sleep 1; i=$((i+1)); done; exit 0'
 WorkingDirectory=__APP_DIR__
 ExecStart=__APP_DIR__/venv/bin/gunicorn wsgi:app \
   --bind 0.0.0.0:__PORT__ --workers 2 --threads 4 --timeout 0 \
