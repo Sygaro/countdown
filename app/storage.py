@@ -73,9 +73,10 @@ _DEFAULTS: Dict[str, Any] = {
             "dynamic": {
                 "from": "#16233a",
                 "to": "#0e1a2f",
-                "rotate_s": 60,
-                "blur_px": 18,
-                "opacity": 0.9,
+                "rotate_s": 40,
+                "blur_px": 25,
+                "opacity": 0.8,
+                "base_mode": "auto",
             },
         },
     },
@@ -298,6 +299,10 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     dyn["opacity"] = _clamp01(
         opa, _DEFAULTS["theme"]["background"]["dynamic"]["opacity"]
     )
+    bm = str(dyn.get("base_mode", "auto")).lower()
+    if bm not in ("auto", "solid", "gradient", "image"):
+        bm = "auto"
+    dyn["base_mode"] = bm
 
     base_th["background"] = bg
     cfg["theme"] = base_th
