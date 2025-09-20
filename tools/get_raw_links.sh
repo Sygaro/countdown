@@ -2,7 +2,7 @@
 
 USER="Sygaro"
 REPO="countdown"
-BRANCH="fix/UI_backend"
+BRANCH="fix/overlay"
 
 # Sett default MAPPE hvis ingen argumenter
 MAPPE=${1:-""}

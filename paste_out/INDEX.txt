@@ -1,5 +1,0 @@
-# Index over filer og hvilken paste_NNN.txt de ligger i
-
-
-## paste_001.txt
-- static/index.html
