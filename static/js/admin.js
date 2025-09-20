@@ -1,198 +1,153 @@
-// static/js/admin.js
-import { ui } from "/static/js/ui.js";
+/* File: static/js/admin.js
+ * Purpose: Admin autosync (debounced), statusindikator, robust feil-/konflikthåndtering,
+ *          hurtigknapper og støtte for full erstatning av overlays via partner-modul.
+ * Exports: window.AdminSync = { postConfig, getConfig, applyConfigToForm }
+ * Replaces: static/js/admin.js
+ */
 
-(function () {
-  function el(id) {
-    return document.getElementById(id);
-  }
-  function val(id) {
-    var e = el(id);
-    return e ? e.value : "";
-  }
-  function setVal(id, v) {
-    var e = el(id);
-    if (e) e.value = v;
-  }
-  function setChecked(id, on) {
-    var e = el(id);
-    if (e) e.checked = !!on;
-  }
-  function numOr(v, d) {
-    var n = Number(v);
-    return isFinite(n) ? n : d;
-  }
+(() => {
+  "use strict";
 
-  var state = { password: "" };
+  const API = { config: "/api/config", defaults: "/api/defaults", startDuration: "/api/start-duration", stop: "/api/stop", status: "/api/status" };
+  const HEADERS = { "Content-Type": "application/json" };
+  const DEBOUNCE_MS = 250;
+  const RETRIES = [400, 800, 1500, 3000];
 
-  function loadConfig() {
-    return ui
-      .get("/api/config")
-      .then(function (resp) {
-        var cfg = resp.config || resp;
+  let latestConfig = null, lastSavedDraft = null, dirty = false, saving = false, retryIdx = 0, debTimer = null, passwordCache = null;
+  const $ = (s, r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
 
-        setChecked("show_primary", !!cfg.show_message_primary);
-        setChecked("show_secondary", !!cfg.show_message_secondary);
-        setVal("msg_primary", String(cfg.message_primary || ""));
-        setVal("msg_secondary", String(cfg.message_secondary || ""));
+  function ensureStatusEl(){ let el=$("#sync-status"); if(!el){ el=document.createElement("div"); el.id="sync-status"; el.style.cssText="position:fixed;right:12px;bottom:12px;padding:6px 10px;border-radius:6px;background:#0b0f14;color:#e6edf3;font:500 12px ui-sans-serif,system-ui;box-shadow:0 2px 10px rgba(0,0,0,.25);z-index:9999"; document.body.appendChild(el);} el.setAttribute("aria-live","polite"); return el;}
+  const statusEl = ensureStatusEl();
+  function setStatus(t,k="info"){ statusEl.textContent=t; statusEl.dataset.state=k; }
 
-        setVal("warn_minutes", String(isFinite(cfg.warn_minutes) ? cfg.warn_minutes : 4));
-        setVal("alert_minutes", String(isFinite(cfg.alert_minutes) ? cfg.alert_minutes : 2));
-        setVal("blink_seconds", String(isFinite(cfg.blink_seconds) ? cfg.blink_seconds : 10));
-        setVal("overrun_minutes", String(isFinite(cfg.overrun_minutes) ? cfg.overrun_minutes : 1));
+  const stableSig = (o)=>{try{return JSON.stringify(o,(_,v)=>(typeof v==="number"&&!Number.isFinite(v)?String(v):v));}catch{return JSON.stringify(o);}};
+  function debounce(fn,w=DEBOUNCE_MS){ return (...a)=>{ clearTimeout(debTimer); debTimer=setTimeout(()=>fn(...a),w); }; }
 
-        var hasDaily = !!cfg.daily_time;
-        el("mode-daily").checked = hasDaily;
-        el("mode-single").checked = !hasDaily;
-        setVal("daily_time", hasDaily ? cfg.daily_time || "" : "");
+  function readPassword(){ if (passwordCache) return passwordCache; const inp=$("#admin-password"); const v=(inp&&inp.value)||localStorage.getItem("admin_password")||""; passwordCache=v||null; return passwordCache;}
+  function withAdminHeader(init={}){ const h={...(init.headers||{}),...HEADERS}; const pw=readPassword(); if(pw) h["X-Admin-Password"]=pw; return {...init, headers:h};}
+  function toastError(m,long=false){ setStatus(`Feil: ${m}`,"error"); if(long){ statusEl.style.opacity="1"; setTimeout(()=>statusEl.style.opacity="",4000); } }
 
-        var iso = cfg.target_datetime || cfg.target_iso || "";
-        if (iso) {
-          try {
-            var dt = new Date(iso);
-            var off = dt.getTimezoneOffset();
-            var local = new Date(dt.getTime() - off * 60000);
-            setVal("single_dt", local.toISOString().slice(0, 16));
-          } catch (e) {
-            setVal("single_dt", "");
-          }
-        } else {
-          setVal("single_dt", "");
-        }
-
-        var badge = document.getElementById("cfg-path");
-        if (badge) badge.textContent = resp.__config_path || "(ukjent sti)";
-
-        ui.toast("Konfig lastet", "ok");
-      })
-      .catch(function (err) {
-        ui.toast(
-          "Kunne ikke laste /api/config: " + (err && err.message ? err.message : String(err)),
-          "bad",
-        );
-      });
-  }
-
-  function collectPatch() {
-    var patch = {
-      show_message_primary: !!el("show_primary").checked,
-      show_message_secondary: !!el("show_secondary").checked,
-      message_primary: val("msg_primary"),
-      message_secondary: val("msg_secondary"),
-      warn_minutes: numOr(val("warn_minutes"), 4),
-      alert_minutes: numOr(val("alert_minutes"), 2),
-      blink_seconds: numOr(val("blink_seconds"), 10),
-      overrun_minutes: numOr(val("overrun_minutes"), 1),
-    };
-
-    var daily = !!el("mode-daily").checked;
-    if (daily) {
-      patch.daily_time = val("daily_time") || "";
-      patch.target_datetime = "__clear__"; // rydder engangsmål
-    } else {
-      patch.daily_time = "";
-      var sdt = val("single_dt");
-      if (sdt) patch.target_datetime = sdt;
-    }
-    return patch;
-  }
-
-  function saveChanges() {
-    state.password = val("admin_password") || "";
-    var patch = collectPatch();
-    return ui
-      .post("/api/config", patch, { password: state.password })
-      .then(function () {
-        ui.toast("Lagret", "ok");
-        return loadConfig();
-      })
-      .catch(function (err) {
-        ui.toast("Lagre feilet: " + (err && err.message ? err.message : String(err)), "bad");
-      });
-  }
-
-  function startNow(minutes) {
-    state.password = val("admin_password") || "";
-    var m = minutes != null ? Number(minutes) : Number(val("start_minutes"));
-    if (!isFinite(m) || m <= 0) {
-      ui.toast("Ugyldig varighet", "bad");
-      return Promise.resolve();
-    }
-    return ui
-      .post("/api/start-duration", { minutes: Math.floor(m) }, { password: state.password })
-      .then(function () {
-        ui.toast("Startet +" + Math.floor(m) + " min", "ok");
-      })
-      .catch(function (err) {
-        ui.toast("Start feilet: " + (err && err.message ? err.message : String(err)), "bad");
-      });
-  }
-
-  function wire() {
-    var btnLoad = el("btn-load");
-    var btnSave = el("btn-save");
-    var btnStart = el("start_now");
-
-    if (btnLoad)
-      btnLoad.addEventListener("click", function () {
-        loadConfig();
-      });
-    if (btnSave)
-      btnSave.addEventListener("click", function () {
-        saveChanges();
-      });
-    if (btnStart)
-      btnStart.addEventListener("click", function () {
-        startNow();
-      });
-
-    Array.prototype.forEach.call(document.querySelectorAll("button[data-qs]"), function (b) {
-      b.addEventListener("click", function () {
-        startNow(b.getAttribute("data-qs"));
-      });
+  function readFormToPatch(root=document){
+    const out={};
+    $$("[data-bind]",root).forEach(input=>{
+      const path=input.dataset.bind?.trim(); if(!path) return;
+      const parts=path.split("."); let ref=out;
+      for(let i=0;i<parts.length-1;i++){ const p=parts[i]; if(!ref[p]||typeof ref[p]!=="object") ref[p]={}; ref=ref[p]; }
+      const last=parts[parts.length-1];
+      let v = input.type==="checkbox" ? !!input.checked : (input.type==="number" ? (input.value===""?"":Number(input.value)) : input.value);
+      if(input.dataset.type==="int") v=(v===""?"":parseInt(v,10));
+      if(input.dataset.type==="float") v=(v===""?"":parseFloat(v));
+      if(input.dataset.type==="bool") v=!!(input.type==="checkbox"?input.checked:(v===true||v==="true"));
+      ref[last]=v;
     });
+    return out;
+  }
 
-    // Debug
-    var sbox = document.getElementById("debug-status");
-    var dbgR = document.getElementById("btn-debug-refresh");
-    var dbgW = document.getElementById("btn-debug-write");
+  function applyConfigToForm(cfg,root=document){
+    $$("[data-bind]",root).forEach(input=>{
+      const path=input.dataset.bind?.trim(); if(!path) return;
+      const parts=path.split("."); let ref=cfg; for(let i=0;i<parts.length&&ref!=null;i++) ref=ref[parts[i]];
+      if(ref==null) return;
+      if(input.type==="checkbox") input.checked=!!ref; else input.value=`${ref}`;
+    });
+  }
 
-    function showDebug(write) {
-      var url = write ? "/debug/config?write_test=1" : "/debug/config";
-      fetch(url, { cache: "no-store" })
-        .then(function (r) {
-          return r.json();
-        })
-        .then(function (j) {
-          if (sbox) sbox.textContent = JSON.stringify(j, null, 2);
-          ui.toast(
-            write ? (j.write_test_ok ? "Skrivetest: OK" : "Skrivetest: FEIL") : "Status oppdatert",
-            write && !j.write_test_ok ? "bad" : "ok",
-          );
-        })
-        .catch(function (e) {
-          ui.toast("Debug-feil: " + (e && e.message ? e.message : String(e)), "bad");
-        });
+  function diffPatch(nv, ov){
+    if(!ov) return nv;
+    const out={};
+    function walk(a,b,dst){
+      const keys=new Set([...Object.keys(a||{}),...Object.keys(b||{})]); let changed=false;
+      for(const k of keys){
+        const va=a?a[k]:undefined, vb=b?b[k]:undefined;
+        if(Array.isArray(va)){ if(stableSig(va)!==stableSig(vb)){ dst[k]=va; changed=true; } }
+        else if(va && typeof va==="object"){ const child={}; const cc=walk(va, (vb&&typeof vb==="object")?vb:undefined, child); if(cc){ dst[k]=child; changed=true; } }
+        else { if(va!==vb){ dst[k]=va; changed=true; } }
+      }
+      return changed;
     }
-    if (dbgR)
-      dbgR.addEventListener("click", function () {
-        showDebug(false);
-      });
-    if (dbgW)
-      dbgW.addEventListener("click", function () {
-        showDebug(true);
-      });
+    return walk(nv,ov,out)?out:{};
   }
 
-  function init() {
-    ui.activateNav("/admin");
-    wire();
-    loadConfig();
-    console.info("[admin] initialized");
+  async function apiGetConfig(){
+    const res = await fetch(API.config, { method:"GET", headers:{Accept:"application/json"}, credentials:"same-origin" });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok || !data.ok) throw new Error(data.error || `GET /api/config ${res.status}`);
+    latestConfig=data.config||{}; lastSavedDraft=latestConfig; return data;
+  }
+  async function apiPostConfig(patch){
+    const res = await fetch(API.config, withAdminHeader({ method:"POST", credentials:"same-origin", body:JSON.stringify(patch) }));
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok || !data.ok) throw new Error(data.error || `POST /api/config ${res.status}`);
+    latestConfig=data.config||latestConfig; lastSavedDraft=latestConfig; return data;
+  }
+  async function apiStartDuration(minutes){
+    const res = await fetch(API.startDuration, withAdminHeader({ method:"POST", credentials:"same-origin", body:JSON.stringify({minutes}) }));
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok || !data.ok) throw new Error(data.error || `POST /api/start-duration ${res.status}`);
+    latestConfig=data.config||latestConfig; lastSavedDraft=latestConfig; return data;
+  }
+  async function apiStop(){
+    const res = await fetch(API.stop, withAdminHeader({ method:"POST", credentials:"same-origin" }));
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok || !data.ok) throw new Error(data.error || `POST /api/stop ${res.status}`);
+    latestConfig=data.config||latestConfig; lastSavedDraft=latestConfig; return data;
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init, { once: true });
-  } else {
-    init();
+  const syncNow = debounce(async ()=>{
+    try{
+      if(saving) return;
+      const draft = readFormToPatch(document);
+      let patch = diffPatch(draft, lastSavedDraft);
+      if(!patch || Object.keys(patch).length===0){ dirty=false; setStatus("Synk: oppdatert","ok"); return; }
+      if(Object.prototype.hasOwnProperty.call(patch,"overlays")) patch.overlays_mode = "replace";
+      saving=true; dirty=true; setStatus("Synk: lagrer …","saving");
+      await apiPostConfig(patch);
+      saving=false; dirty=false; retryIdx=0; setStatus("Synk: lagret ✔","ok");
+    }catch(err){
+      saving=false; dirty=true; setStatus("Synk: feil","error");
+      const wait=[400,800,1500,3000][Math.min(retryIdx++,3)];
+      setTimeout(syncNow, wait);
+    }
+  }, DEBOUNCE_MS);
+
+  function bindInputs(){ $$("[data-bind]").forEach(el=>{ el.addEventListener("input",syncNow,{passive:true}); el.addEventListener("change",syncNow,{passive:true}); }); }
+
+  async function handleAction(action){
+    try{
+      setStatus("Utfører …","saving");
+      if(action==="daily") await apiPostConfig({mode:"daily"});
+      else if(action==="clock") await apiPostConfig({mode:"clock"});
+      else if(action==="start-15") await apiStartDuration(15);
+      else if(action==="start-20") await apiStartDuration(20);
+      else if(action==="stop") await apiStop();
+      setStatus("OK ✔","ok"); applyConfigToForm(latestConfig);
+    }catch(err){ /* vises av overlay-modul også om ønskelig */ }
   }
+  function bindQuickActions(){ $$("[data-action]").forEach(btn=>btn.addEventListener("click",(e)=>{ const a=btn.dataset.action; if(!a) return; e.preventDefault(); handleAction(a); })); }
+
+  async function init(){
+    try{
+      setStatus("Laster …","loading");
+      const passInput=$("#admin-password");
+      if (passInput){
+        const persisted=localStorage.getItem("admin_password");
+        if(persisted && !passInput.value) passInput.value=persisted;
+        passInput.addEventListener("input",()=>{ passwordCache=passInput.value||null; if(passwordCache) localStorage.setItem("admin_password", passwordCache); else localStorage.removeItem("admin_password"); });
+      }
+      bindInputs(); bindQuickActions();
+      const {config}=await apiGetConfig();
+      applyConfigToForm(config);
+      setStatus("Klar","ready");
+
+      setInterval(async()=>{ try{ const r=await fetch(API.status,{headers:{Accept:"application/json"}}); if(!r.ok) return; }catch{} }, 15000);
+    }catch(err){ /* status allerede satt */ }
+  }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", init, {once:true}); else init();
+
+  // --- EXPOSE HOOKS for overlay module ---
+  window.AdminSync = {
+    postConfig: apiPostConfig,
+    getConfig: apiGetConfig,
+    applyConfigToForm,
+  };
 })();
