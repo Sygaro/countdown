@@ -50,24 +50,9 @@ body.bg-dyn::before {
   inset: -15%;
   z-index: -1;
   background:
-    radial-gradient(
-      1200px 700px at 10% -10%,
-      var(--bgdyn-from) 0%,
-      transparent 60%
-    ),
-    radial-gradient(
-      900px 600px at 110% 5%,
-      var(--bgdyn-to) 0%,
-      transparent 65%
-    ),
-    conic-gradient(
-      from 220deg at 50% 50%,
-      #0b0f14 0%,
-      #0e1420 25%,
-      #0b0f14 50%,
-      #101a2a 75%,
-      #0b0f14 100%
-    );
+    radial-gradient(1200px 700px at 10% -10%, var(--bgdyn-from) 0%, transparent 60%),
+    radial-gradient(900px 600px at 110% 5%, var(--bgdyn-to) 0%, transparent 65%),
+    conic-gradient(from 220deg at 50% 50%, #0b0f14 0%, #0e1420 25%, #0b0f14 50%, #101a2a 75%, #0b0f14 100%);
   filter: blur(var(--bgdyn-blur));
   opacity: var(--bgdyn-opacity);
   will-change: transform;
@@ -106,11 +91,7 @@ nav a:hover {
   color: var(--text);
 }
 .card {
-  background: linear-gradient(
-    180deg,
-    rgba(18, 24, 37, 0.9),
-    rgba(12, 16, 24, 0.9)
-  );
+  background: linear-gradient(180deg, rgba(18, 24, 37, 0.9), rgba(12, 16, 24, 0.9));
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);

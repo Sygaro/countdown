@@ -93,15 +93,11 @@
         warnMs = Number(t.warn_ms || 0);
         alertMs = Number(t.alert_ms || 0);
         overrunMs = Number(t.overrun_ms || 0);
-        blinkSeconds =
-          cfg && typeof cfg.blink_seconds === "number" ? cfg.blink_seconds : 10;
+        blinkSeconds = cfg && typeof cfg.blink_seconds === "number" ? cfg.blink_seconds : 10;
 
         // Oppdater targetMs kun ved reell endring (unngå mikrojitter)
         var tm = Number(t.target_ms || 0);
-        if (
-          targetMs === 0 ||
-          Math.abs(tm - targetMs) > CFG.targetChangeThresholdMs
-        ) {
+        if (targetMs === 0 || Math.abs(tm - targetMs) > CFG.targetChangeThresholdMs) {
           targetMs = tm;
         }
 
@@ -128,10 +124,7 @@
       var remaining = Math.max(1, slewEndPerf - nowPerf);
       var rate = pendingSlewMs / remaining;
       var add = rate * dt;
-      if (
-        Math.sign(add) !== Math.sign(pendingSlewMs) ||
-        Math.abs(add) >= Math.abs(pendingSlewMs)
-      ) {
+      if (Math.sign(add) !== Math.sign(pendingSlewMs) || Math.abs(add) >= Math.abs(pendingSlewMs)) {
         offsetMs += pendingSlewMs;
         pendingSlewMs = 0;
       } else {
@@ -170,11 +163,7 @@
     var totalSec = Math.max(0, Math.floor(show / 1000));
     var mm = Math.floor(totalSec / 60);
     var ss = totalSec % 60;
-    clockEl.textContent =
-      (sign || "") +
-      (mm < 10 ? "0" + mm : mm) +
-      ":" +
-      (ss < 10 ? "0" + ss : ss);
+    clockEl.textContent = (sign || "") + (mm < 10 ? "0" + mm : mm) + ":" + (ss < 10 ? "0" + ss : ss);
 
     setMode(mode);
     setBlink(!!blink);

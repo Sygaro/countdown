@@ -7,12 +7,7 @@
   const de = doc.documentElement;
 
   function isSupported() {
-    return !!(
-      de.requestFullscreen ||
-      de.webkitRequestFullscreen ||
-      de.mozRequestFullScreen ||
-      de.msRequestFullscreen
-    );
+    return !!(de.requestFullscreen || de.webkitRequestFullscreen || de.mozRequestFullScreen || de.msRequestFullscreen);
   }
   function inFullscreen() {
     return !!(
@@ -24,24 +19,13 @@
   }
   function requestFS() {
     const el = de;
-    (
-      el.requestFullscreen ||
-      el.webkitRequestFullscreen ||
-      el.mozRequestFullScreen ||
-      el.msRequestFullscreen
-    ).call(el);
+    (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen).call(el);
   }
 
   function isKioskEnvironment() {
     const ua = (navigator.userAgent || "").toLowerCase();
-    const isWPE =
-      ua.includes("wpe") ||
-      ua.includes("cog") ||
-      ua.includes("webkit wpe") ||
-      ua.includes("wpewebkit");
-    const displayModeFS =
-      window.matchMedia &&
-      window.matchMedia("(display-mode: fullscreen)").matches;
+    const isWPE = ua.includes("wpe") || ua.includes("cog") || ua.includes("webkit wpe") || ua.includes("wpewebkit");
+    const displayModeFS = window.matchMedia && window.matchMedia("(display-mode: fullscreen)").matches;
     // Hvis API ikke støttes, antar vi også at vi er i "kiosk" (ingen vits i å vise knapp).
     return isWPE || displayModeFS || !isSupported();
   }

@@ -60,9 +60,7 @@
 
   const stableSig = (o) => {
     try {
-      return JSON.stringify(o, (_, v) =>
-        typeof v === "number" && !Number.isFinite(v) ? String(v) : v,
-      );
+      return JSON.stringify(o, (_, v) => (typeof v === "number" && !Number.isFinite(v) ? String(v) : v));
     } catch {
       return JSON.stringify(o);
     }
@@ -77,8 +75,7 @@
   function readPassword() {
     if (passwordCache) return passwordCache;
     const inp = $("#admin-password");
-    const v =
-      (inp && inp.value) || localStorage.getItem("admin_password") || "";
+    const v = (inp && inp.value) || localStorage.getItem("admin_password") || "";
     passwordCache = v || null;
     return passwordCache;
   }
@@ -119,10 +116,7 @@
             : input.value;
       if (input.dataset.type === "int") v = v === "" ? "" : parseInt(v, 10);
       if (input.dataset.type === "float") v = v === "" ? "" : parseFloat(v);
-      if (input.dataset.type === "bool")
-        v = !!(input.type === "checkbox"
-          ? input.checked
-          : v === true || v === "true");
+      if (input.dataset.type === "bool") v = !!(input.type === "checkbox" ? input.checked : v === true || v === "true");
       ref[last] = v;
     });
     return out;
@@ -157,11 +151,7 @@
           }
         } else if (va && typeof va === "object") {
           const child = {};
-          const cc = walk(
-            va,
-            vb && typeof vb === "object" ? vb : undefined,
-            child,
-          );
+          const cc = walk(va, vb && typeof vb === "object" ? vb : undefined, child);
           if (cc) {
             dst[k] = child;
             changed = true;
@@ -185,8 +175,7 @@
       credentials: "same-origin",
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok)
-      throw new Error(data.error || `GET /api/config ${res.status}`);
+    if (!res.ok || !data.ok) throw new Error(data.error || `GET /api/config ${res.status}`);
     latestConfig = data.config || {};
     lastSavedDraft = latestConfig;
     return data;
@@ -201,8 +190,7 @@
       }),
     );
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok)
-      throw new Error(data.error || `POST /api/config ${res.status}`);
+    if (!res.ok || !data.ok) throw new Error(data.error || `POST /api/config ${res.status}`);
     latestConfig = data.config || latestConfig;
     lastSavedDraft = latestConfig;
     return data;
@@ -217,20 +205,15 @@
       }),
     );
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok)
-      throw new Error(data.error || `POST /api/start-duration ${res.status}`);
+    if (!res.ok || !data.ok) throw new Error(data.error || `POST /api/start-duration ${res.status}`);
     latestConfig = data.config || latestConfig;
     lastSavedDraft = latestConfig;
     return data;
   }
   async function apiStop() {
-    const res = await fetch(
-      API.stop,
-      withAdminHeader({ method: "POST", credentials: "same-origin" }),
-    );
+    const res = await fetch(API.stop, withAdminHeader({ method: "POST", credentials: "same-origin" }));
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok)
-      throw new Error(data.error || `POST /api/stop ${res.status}`);
+    if (!res.ok || !data.ok) throw new Error(data.error || `POST /api/stop ${res.status}`);
     latestConfig = data.config || latestConfig;
     lastSavedDraft = latestConfig;
     return data;
@@ -246,8 +229,7 @@
         setStatus("Synk: oppdatert", "ok");
         return;
       }
-      if (Object.prototype.hasOwnProperty.call(patch, "overlays"))
-        patch.overlays_mode = "replace";
+      if (Object.prototype.hasOwnProperty.call(patch, "overlays")) patch.overlays_mode = "replace";
       saving = true;
       dirty = true;
       setStatus("Synk: lagrer …", "saving");
@@ -306,8 +288,7 @@
         if (persisted && !passInput.value) passInput.value = persisted;
         passInput.addEventListener("input", () => {
           passwordCache = passInput.value || null;
-          if (passwordCache)
-            localStorage.setItem("admin_password", passwordCache);
+          if (passwordCache) localStorage.setItem("admin_password", passwordCache);
           else localStorage.removeItem("admin_password");
         });
       }
@@ -329,8 +310,7 @@
       /* status allerede satt */
     }
   }
-  if (document.readyState === "loading")
-    document.addEventListener("DOMContentLoaded", init, { once: true });
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
   else init();
 
   // --- EXPOSE HOOKS for overlay module ---

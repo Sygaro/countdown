@@ -32,12 +32,7 @@
         <button id="btn_save" class="primary">Lagre</button>
         <button id="btn_refresh">Hent config</button>
         <button id="btn_reset_view">Tilbakestill visning</button>
-        <span
-          id="sync_pill"
-          class="pill dot off"
-          title="Synk: —"
-          aria-label="Synkestatus"
-        ></span>
+        <span id="sync_pill" class="pill dot off" title="Synk: —" aria-label="Synkestatus"></span>
       </div>
     </div>
 
@@ -45,24 +40,15 @@
       <!-- Modus -->
       <section class="card">
         <h2>Modus</h2>
-        <label
-          ><input type="radio" name="mode" value="daily" /> Daglig
-          klokkeslett</label
-        >
+        <label><input type="radio" name="mode" value="daily" /> Daglig klokkeslett</label>
         <input id="daily_time" type="time" step="60" />
 
         <br />
         <label><input type="radio" name="mode" value="clock" /> Klokke</label>
         <br />
-        <label
-          ><input type="radio" name="mode" value="duration" /> Varighet (manuell
-          start)</label
-        >
+        <label><input type="radio" name="mode" value="duration" /> Varighet (manuell start)</label>
         <br />
-        <label
-          ><input type="radio" name="mode" value="once" />
-          Engangs-tidspunkt</label
-        >
+        <label><input type="radio" name="mode" value="once" /> Engangs-tidspunkt</label>
         <input id="once_at" type="datetime-local" />
         <p class="hint">Velg én modus. Lagre for at endring skal gjelde.</p>
         <p id="active_mode" class="muted">Aktiv modus: —</p>
@@ -77,10 +63,7 @@
           <button class="preset" data-min="15">+15 min</button>
           <button class="preset" data-min="20">+20 min</button>
           <button class="preset" data-min="30">+30 min</button>
-          <label
-            >Varighet (minutter)
-            <input id="start_minutes" type="number" min="1" step="1" value="10"
-          /></label>
+          <label>Varighet (minutter) <input id="start_minutes" type="number" min="1" step="1" value="10" /></label>
           <button id="btn_start" class="primary">Start nedtelling nå</button>
           <button id="btn_stop">Stopp</button>
         </div>
@@ -92,36 +75,19 @@
         <h2>Meldinger</h2>
 
         <div class="row">
-          <label
-            ><input id="show_message_primary" type="checkbox" /> Vis
-            hovedmelding</label
-          >
+          <label><input id="show_message_primary" type="checkbox" /> Vis hovedmelding</label>
         </div>
-        <textarea
-          id="message_primary"
-          rows="2"
-          placeholder="Velkommen !"
-        ></textarea>
+        <textarea id="message_primary" rows="2" placeholder="Velkommen !"></textarea>
 
         <div class="row">
-          <label
-            ><input id="show_message_secondary" type="checkbox" /> Vis sekundær
-            melding</label
-          >
-          <input
-            id="message_secondary"
-            type="text"
-            placeholder="Vi starter igjen kl:"
-          />
+          <label><input id="show_message_secondary" type="checkbox" /> Vis sekundær melding</label>
+          <input id="message_secondary" type="text" placeholder="Vi starter igjen kl:" />
         </div>
 
         <hr style="opacity: 0.15" />
 
         <div class="row">
-          <label
-            ><input id="show_target_time" type="checkbox" /> Vis
-            mål-klokkeslett</label
-          >
+          <label><input id="show_target_time" type="checkbox" /> Vis mål-klokkeslett</label>
           <label>
             Plassering av mål-klokkeslett
             <select id="target_time_after">
@@ -141,25 +107,13 @@
         <!-- Klokkemodus – egne meldinger (flyttet fra Klokke-kortet) -->
         <h3 style="margin-top: 0.25rem">Klokkemodus – meldinger</h3>
         <div class="row">
-          <label
-            ><input id="clk_use_own_msgs" type="checkbox" /> Meldinger i
-            klokkemodus</label
-          >
+          <label><input id="clk_use_own_msgs" type="checkbox" /> Meldinger i klokkemodus</label>
         </div>
-        <textarea
-          id="clk_msg_primary"
-          rows="2"
-          placeholder="(valgfri) Klokkens hovedmelding"
-        ></textarea>
-        <input
-          id="clk_msg_secondary"
-          type="text"
-          placeholder="(valgfri) Klokkens sekundærmelding"
-        />
+        <textarea id="clk_msg_primary" rows="2" placeholder="(valgfri) Klokkens hovedmelding"></textarea>
+        <input id="clk_msg_secondary" type="text" placeholder="(valgfri) Klokkens sekundærmelding" />
         <p class="hint" style="margin-top: 0.25rem">
           Klokken bruker temaets bakgrunn (Theme → Background).
-          <code>vmin</code> gir konsistent størrelse i både stående og liggende
-          format.
+          <code>vmin</code> gir konsistent størrelse i både stående og liggende format.
         </p>
 
         <hr style="opacity: 0.15" />
@@ -173,13 +127,7 @@
           <strong>Hovedmelding</strong>
           <label
             >Størrelse (rem)
-            <input
-              id="theme_p_size"
-              type="number"
-              step="0.1"
-              min="0.6"
-              max="6.0"
-            />
+            <input id="theme_p_size" type="number" step="0.1" min="0.6" max="6.0" />
           </label>
           <label
             >Vekt
@@ -201,13 +149,7 @@
           <strong>Sekundær</strong>
           <label
             >Størrelse (rem)
-            <input
-              id="theme_s_size"
-              type="number"
-              step="0.1"
-              min="0.6"
-              max="6.0"
-            />
+            <input id="theme_s_size" type="number" step="0.1" min="0.6" max="6.0" />
           </label>
           <label
             >Vekt
@@ -250,14 +192,8 @@
         </div>
 
         <div class="row">
-          <label
-            ><input id="use_phase_colors" type="checkbox" /> Fargelegg ved
-            gult/rødt</label
-          >
-          <label
-            ><input id="use_blink" type="checkbox" /> Blink de siste
-            sekundene</label
-          >
+          <label><input id="use_phase_colors" type="checkbox" /> Fargelegg ved gult/rødt</label>
+          <label><input id="use_blink" type="checkbox" /> Blink de siste sekundene</label>
         </div>
 
         <hr style="opacity: 0.15" />
@@ -266,19 +202,11 @@
         <div class="row">
           <label
             >Tidsformat → H:MM:SS når over (min)
-            <input
-              id="hms_threshold_minutes"
-              type="number"
-              min="0"
-              max="720"
-              step="1"
-              value="60"
-            />
+            <input id="hms_threshold_minutes" type="number" min="0" max="720" step="1" value="60" />
           </label>
         </div>
         <div class="help" style="margin-top: 0.25rem">
-          Terskel: ved ≥ verdi vises <strong>H:MM:SS</strong>, ellers
-          <strong>MM:SS</strong> (70→2:00:00, 300→120:00).
+          Terskel: ved ≥ verdi vises <strong>H:MM:SS</strong>, ellers <strong>MM:SS</strong> (70→2:00:00, 300→120:00).
         </div>
       </section>
 
@@ -345,87 +273,37 @@
           </label>
           <button id="btn_apply_preset">Bruk preset</button>
         </div>
-        <label
-          ><input type="radio" name="bg_mode" value="solid" /> Ensfarget</label
-        >
-        <label
-          ><input type="radio" name="bg_mode" value="gradient" />Gradient</label
-        >
-        <label
-          ><input type="radio" name="bg_mode" value="dynamic" /> Dynamisk</label
-        >
+        <label><input type="radio" name="bg_mode" value="solid" /> Ensfarget</label>
+        <label><input type="radio" name="bg_mode" value="gradient" />Gradient</label>
+        <label><input type="radio" name="bg_mode" value="dynamic" /> Dynamisk</label>
         <label><input type="radio" name="bg_mode" value="image" /> Bilde</label>
-
         <div id="bg_solid_cfg">
-          <label
-            >Farge <input id="bg_solid_color" type="color" value="#0b0f14"
-          /></label>
+          <label>Farge <input id="bg_solid_color" type="color" value="#0b0f14" /></label>
         </div>
         <div id="bg_grad_cfg">
-          <label
-            >Fra <input id="bg_grad_from" type="color" value="#142033"
-          /></label>
-          <label
-            >Til <input id="bg_grad_to" type="color" value="#0b0f14"
-          /></label>
-          <label
-            >Vinkel (°)
-            <input
-              id="bg_grad_angle"
-              type="number"
-              min="0"
-              max="360"
-              step="1"
-              value="180"
-          /></label>
+          <label>Fra <input id="bg_grad_from" type="color" value="#142033" /></label>
+          <label>Til <input id="bg_grad_to" type="color" value="#0b0f14" /></label>
+          <label>Vinkel (°) <input id="bg_grad_angle" type="number" min="0" max="360" step="1" value="180" /></label>
         </div>
         <div id="bg_dyn_cfg">
-          <label
-            >Fra <input id="bg_dyn_from" type="color" value="#16233a"
-          /></label>
-          <label
-            >Til <input id="bg_dyn_to" type="color" value="#0e1a2f"
-          /></label>
+          <label>Fra <input id="bg_dyn_from" type="color" value="#16233a" /></label>
+          <label>Til <input id="bg_dyn_to" type="color" value="#0e1a2f" /></label>
           <label
             >Rotasjon (s per runde)
-            <input
-              id="bg_dyn_rotate"
-              type="number"
-              min="5"
-              max="600"
-              step="1"
-              value="60"
-            />
+            <input id="bg_dyn_rotate" type="number" min="5" max="600" step="1" value="60" />
           </label>
           <label
             >Blur (px)
-            <input
-              id="bg_dyn_blur"
-              type="number"
-              min="0"
-              max="60"
-              step="1"
-              value="18"
-            />
+            <input id="bg_dyn_blur" type="number" min="0" max="60" step="1" value="18" />
           </label>
           <label
             >Opacity (0–1)
-            <input
-              id="bg_dyn_opacity"
-              type="number"
-              min="0"
-              max="1"
-              step="0.05"
-              value="0.9"
-            />
+            <input id="bg_dyn_opacity" type="number" min="0" max="1" step="0.05" value="0.9" />
           </label>
         </div>
 
         <div id="bg_img_cfg">
-          <label
-            >Bilde-URL
-            <input id="bg_img_url" type="url" placeholder="https://..."
-          /></label>
+          <label>Bilde-URL <input id="bg_img_url" type="url" placeholder="https://..." /></label>
           <label
             >Fit
             <select id="bg_img_fit">
@@ -433,28 +311,10 @@
               <option>contain</option>
             </select>
           </label>
+          <label>Opacity (0–1) <input id="bg_img_op" type="number" min="0" max="1" step="0.05" value="1" /></label>
+          <label>Tint-farge <input id="bg_img_tint" type="color" value="#000000" /></label>
           <label
-            >Opacity (0–1)
-            <input
-              id="bg_img_op"
-              type="number"
-              min="0"
-              max="1"
-              step="0.05"
-              value="1"
-          /></label>
-          <label
-            >Tint-farge <input id="bg_img_tint" type="color" value="#000000"
-          /></label>
-          <label
-            >Tint-opacity (0–1)
-            <input
-              id="bg_img_tint_op"
-              type="number"
-              min="0"
-              max="1"
-              step="0.05"
-              value="0"
+            >Tint-opacity (0–1) <input id="bg_img_tint_op" type="number" min="0" max="1" step="0.05" value="0"
           /></label>
         </div>
       </section>
@@ -480,47 +340,13 @@
               <option value="image">Bilde</option>
             </select>
           </label>
-          <label
-            >URL
-            <input
-              id="ov_url"
-              type="url"
-              placeholder="/static/img/logo.svg"
-              size="36"
-          /></label>
+          <label>URL <input id="ov_url" type="url" placeholder="/static/img/logo.svg" size="36" /></label>
         </div>
 
         <div class="row">
-          <label
-            >Størrelse (vmin)
-            <input
-              id="ov_size"
-              type="number"
-              step="1"
-              min="2"
-              max="200"
-              value="30"
-          /></label>
-          <label
-            >Opacity (0–1)
-            <input
-              id="ov_opacity"
-              type="number"
-              step="0.05"
-              min="0"
-              max="1"
-              value="1"
-          /></label>
-          <label
-            >Z-index
-            <input
-              id="ov_z"
-              type="number"
-              step="1"
-              min="1"
-              max="999"
-              value="10"
-          /></label>
+          <label>Størrelse (vmin) <input id="ov_size" type="number" step="1" min="2" max="200" value="30" /></label>
+          <label>Opacity (0–1) <input id="ov_opacity" type="number" step="0.05" min="0" max="1" value="1" /></label>
+          <label>Z-index <input id="ov_z" type="number" step="1" min="1" max="999" value="10" /></label>
         </div>
 
         <div class="row">
@@ -538,14 +364,8 @@
               <option value="bottom-right">Nedre høyre</option>
             </select>
           </label>
-          <label
-            >Offset X (vw)
-            <input id="ov_off_vw" type="number" step="0.5" value="2"
-          /></label>
-          <label
-            >Offset Y (vh)
-            <input id="ov_off_vh" type="number" step="0.5" value="2"
-          /></label>
+          <label>Offset X (vw) <input id="ov_off_vw" type="number" step="0.5" value="2" /></label>
+          <label>Offset Y (vh) <input id="ov_off_vh" type="number" step="0.5" value="2" /></label>
           <div class="row">
             <label
               >Tint farge
@@ -553,14 +373,7 @@
             </label>
             <label
               >Tint opacity (0–1)
-              <input
-                id="ov_tint_opacity"
-                type="number"
-                step="0.05"
-                min="0"
-                max="1"
-                value="0"
-              />
+              <input id="ov_tint_opacity" type="number" step="0.05" min="0" max="1" value="0" />
             </label>
             <label
               >Blend-modus
@@ -577,13 +390,8 @@
         </div>
 
         <div class="row">
-          <label
-            ><input id="ov_in_clock" type="checkbox" /> Vis i klokkemodus</label
-          >
-          <label
-            ><input id="ov_in_countdown" type="checkbox" checked /> Vis i
-            nedtelling</label
-          >
+          <label><input id="ov_in_clock" type="checkbox" /> Vis i klokkemodus</label>
+          <label><input id="ov_in_countdown" type="checkbox" checked /> Vis i nedtelling</label>
         </div>
       </section>
 
@@ -591,30 +399,17 @@
       <section class="card">
         <h2>Klokke</h2>
         <div class="row">
-          <label
-            ><input id="clk_with_seconds" type="checkbox" /> Vis sekunder</label
-          >
+          <label><input id="clk_with_seconds" type="checkbox" /> Vis sekunder</label>
 
           <label
             >Farge
             <input id="clk_color" type="color" value="#e6edf3" />
-            <small
-              id="clk_contrast"
-              class="hint"
-              style="margin-left: 0.5rem"
-            ></small>
+            <small id="clk_contrast" class="hint" style="margin-left: 0.5rem"></small>
           </label>
 
           <label
             >Størrelse (vmin)
-            <input
-              id="clk_size_vmin"
-              type="number"
-              min="6"
-              max="60"
-              step="1"
-              value="12"
-            />
+            <input id="clk_size_vmin" type="number" min="6" max="60" step="1" value="12" />
           </label>
 
           <label
@@ -702,8 +497,7 @@
           defaultsCache = null;
 
         // -------- helpers --------
-        const val = (sel, def = "") =>
-          document.querySelector(sel)?.value ?? def;
+        const val = (sel, def = "") => document.querySelector(sel)?.value ?? def;
         const checked = (sel) => !!document.querySelector(sel)?.checked;
         const num = (sel, def = 0) => {
           const v = parseFloat(val(sel, ""));
@@ -767,10 +561,8 @@
           if (pwd) h["X-Admin-Password"] = pwd;
           return h;
         }
-        const selMode = () =>
-          $$("input[name=mode]:checked")[0]?.value || "daily";
-        const selBgMode = () =>
-          $$("input[name=bg_mode]:checked")[0]?.value || "solid";
+        const selMode = () => $$("input[name=mode]:checked")[0]?.value || "daily";
+        const selBgMode = () => $$("input[name=bg_mode]:checked")[0]?.value || "solid";
 
         function lock() {
           const m = selMode();
@@ -783,18 +575,10 @@
           if (onceAt) onceAt.disabled = m !== "once";
 
           // Bakgrunn (visning)
-          $("#bg_solid_cfg") &&
-            ($("#bg_solid_cfg").style.display =
-              bg === "solid" ? "block" : "none");
-          $("#bg_grad_cfg") &&
-            ($("#bg_grad_cfg").style.display =
-              bg === "gradient" ? "block" : "none");
-          $("#bg_img_cfg") &&
-            ($("#bg_img_cfg").style.display =
-              bg === "image" ? "block" : "none");
-          $("#bg_dyn_cfg") &&
-            ($("#bg_dyn_cfg").style.display =
-              bg === "dynamic" ? "block" : "none");
+          $("#bg_solid_cfg") && ($("#bg_solid_cfg").style.display = bg === "solid" ? "block" : "none");
+          $("#bg_grad_cfg") && ($("#bg_grad_cfg").style.display = bg === "gradient" ? "block" : "none");
+          $("#bg_img_cfg") && ($("#bg_img_cfg").style.display = bg === "image" ? "block" : "none");
+          $("#bg_dyn_cfg") && ($("#bg_dyn_cfg").style.display = bg === "dynamic" ? "block" : "none");
 
           // Klokke-felter er valgfrie – hvis de finnes, deaktiver utenom clock-modus
           const isClock = m === "clock";
@@ -811,19 +595,13 @@
         }
         // -------- kontrast-hint (som før) --------
         const hexToRgb = (h) => {
-          const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(
-            (h || "").trim(),
-          );
-          return m
-            ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)]
-            : [230, 237, 243];
+          const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((h || "").trim());
+          return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [230, 237, 243];
         };
         const luminance = ([r, g, b]) => {
           const a = [r, g, b].map((v) => {
             v /= 255;
-            return v <= 0.03928
-              ? v / 12.92
-              : Math.pow((v + 0.055) / 1.055, 2.4);
+            return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
           });
           return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
         };
@@ -863,10 +641,8 @@
             el.textContent = `${ratio.toFixed(2)}${ratio >= 3 ? " ✔" : " ⚠"}`;
             el.style.color = ratio >= 3 ? "#69db7c" : "#ffd166";
           };
-          $("#m_contrast_p") &&
-            set("#m_contrast_p", val("#theme_p_color", "#9aa4b2"));
-          $("#m_contrast_s") &&
-            set("#m_contrast_s", val("#theme_s_color", "#9aa4b2"));
+          $("#m_contrast_p") && set("#m_contrast_p", val("#theme_p_color", "#9aa4b2"));
+          $("#m_contrast_s") && set("#m_contrast_s", val("#theme_s_color", "#9aa4b2"));
         }
 
         function updateClockContrastHint() {
@@ -884,140 +660,83 @@
           lastCfg = cfg;
 
           // Modus + info
-          ($(`input[name=mode][value=${cfg.mode || "daily"}]`) || {}).checked =
-            true;
+          ($(`input[name=mode][value=${cfg.mode || "daily"}]`) || {}).checked = true;
           $("#daily_time") && ($("#daily_time").value = cfg.daily_time || "");
-          $("#once_at") &&
-            ($("#once_at").value = (cfg.once_at || "").replace("Z", ""));
+          $("#once_at") && ($("#once_at").value = (cfg.once_at || "").replace("Z", ""));
           $("#active_mode") &&
             ($("#active_mode").textContent =
               `Aktiv modus: ${cfg.mode} · Fase: ${tick?.mode || "—"} (${tick?.state || "—"})`);
 
           // Meldinger
-          $("#show_message_primary") &&
-            ($("#show_message_primary").checked = !!cfg.show_message_primary);
-          $("#show_message_secondary") &&
-            ($("#show_message_secondary").checked =
-              !!cfg.show_message_secondary);
-          $("#message_primary") &&
-            ($("#message_primary").value = cfg.message_primary || "");
-          $("#message_secondary") &&
-            ($("#message_secondary").value = cfg.message_secondary || "");
+          $("#show_message_primary") && ($("#show_message_primary").checked = !!cfg.show_message_primary);
+          $("#show_message_secondary") && ($("#show_message_secondary").checked = !!cfg.show_message_secondary);
+          $("#message_primary") && ($("#message_primary").value = cfg.message_primary || "");
+          $("#message_secondary") && ($("#message_secondary").value = cfg.message_secondary || "");
 
           // Varsler/blink
-          $("#warn_minutes") &&
-            ($("#warn_minutes").value = cfg.warn_minutes ?? 4);
-          $("#alert_minutes") &&
-            ($("#alert_minutes").value = cfg.alert_minutes ?? 2);
-          $("#blink_seconds") &&
-            ($("#blink_seconds").value = cfg.blink_seconds ?? 10);
-          $("#overrun_minutes") &&
-            ($("#overrun_minutes").value = cfg.overrun_minutes ?? 1);
+          $("#warn_minutes") && ($("#warn_minutes").value = cfg.warn_minutes ?? 4);
+          $("#alert_minutes") && ($("#alert_minutes").value = cfg.alert_minutes ?? 2);
+          $("#blink_seconds") && ($("#blink_seconds").value = cfg.blink_seconds ?? 10);
+          $("#overrun_minutes") && ($("#overrun_minutes").value = cfg.overrun_minutes ?? 1);
 
           // Visning/oppførsel
-          $("#use_phase_colors") &&
-            ($("#use_phase_colors").checked = !!cfg.use_phase_colors);
+          $("#use_phase_colors") && ($("#use_phase_colors").checked = !!cfg.use_phase_colors);
           $("#use_blink") && ($("#use_blink").checked = !!cfg.use_blink);
-          $("#color_normal") &&
-            ($("#color_normal").value = cfg.color_normal || "#e6edf3");
-          $("#color_warn") &&
-            ($("#color_warn").value = cfg.color_warn || "#ffd166");
-          $("#color_alert") &&
-            ($("#color_alert").value = cfg.color_alert || "#ff6b6b");
-          $("#color_over") &&
-            ($("#color_over").value = cfg.color_over || "#9ad0ff");
-          $("#show_target_time") &&
-            ($("#show_target_time").checked = !!cfg.show_target_time);
-          $("#target_time_after") &&
-            ($("#target_time_after").value =
-              cfg.target_time_after || "secondary");
-          $("#messages_position") &&
-            ($("#messages_position").value = cfg.messages_position || "below");
-          $("#hms_threshold_minutes") &&
-            ($("#hms_threshold_minutes").value =
-              cfg.hms_threshold_minutes ?? 60);
+          $("#color_normal") && ($("#color_normal").value = cfg.color_normal || "#e6edf3");
+          $("#color_warn") && ($("#color_warn").value = cfg.color_warn || "#ffd166");
+          $("#color_alert") && ($("#color_alert").value = cfg.color_alert || "#ff6b6b");
+          $("#color_over") && ($("#color_over").value = cfg.color_over || "#9ad0ff");
+          $("#show_target_time") && ($("#show_target_time").checked = !!cfg.show_target_time);
+          $("#target_time_after") && ($("#target_time_after").value = cfg.target_time_after || "secondary");
+          $("#messages_position") && ($("#messages_position").value = cfg.messages_position || "below");
+          $("#hms_threshold_minutes") && ($("#hms_threshold_minutes").value = cfg.hms_threshold_minutes ?? 60);
 
           // Theme
           const p = cfg?.theme?.messages?.primary || {};
           const s = cfg?.theme?.messages?.secondary || {};
-          $("#theme_p_size") &&
-            ($("#theme_p_size").value = String(p.size_rem ?? 1.0));
-          $("#theme_p_weight") &&
-            ($("#theme_p_weight").value = String(p.weight ?? 600));
-          $("#theme_p_color") &&
-            ($("#theme_p_color").value = String(p.color ?? "#9aa4b2"));
-          $("#theme_s_size") &&
-            ($("#theme_s_size").value = String(s.size_rem ?? 1.0));
-          $("#theme_s_weight") &&
-            ($("#theme_s_weight").value = String(s.weight ?? 400));
-          $("#theme_s_color") &&
-            ($("#theme_s_color").value = String(s.color ?? "#9aa4b2"));
-          $("#digits_size_preset") &&
-            ($("#digits_size_preset").value = String(
-              cfg?.theme?.digits?.size_vw ?? 14,
-            ));
+          $("#theme_p_size") && ($("#theme_p_size").value = String(p.size_rem ?? 1.0));
+          $("#theme_p_weight") && ($("#theme_p_weight").value = String(p.weight ?? 600));
+          $("#theme_p_color") && ($("#theme_p_color").value = String(p.color ?? "#9aa4b2"));
+          $("#theme_s_size") && ($("#theme_s_size").value = String(s.size_rem ?? 1.0));
+          $("#theme_s_weight") && ($("#theme_s_weight").value = String(s.weight ?? 400));
+          $("#theme_s_color") && ($("#theme_s_color").value = String(s.color ?? "#9aa4b2"));
+          $("#digits_size_preset") && ($("#digits_size_preset").value = String(cfg?.theme?.digits?.size_vw ?? 14));
           // Overlays
-          overlaysLocal = Array.isArray(cfg.overlays)
-            ? JSON.parse(JSON.stringify(cfg.overlays))
-            : [];
+          overlaysLocal = Array.isArray(cfg.overlays) ? JSON.parse(JSON.stringify(cfg.overlays)) : [];
           renderOverlaysUI();
 
           // Bakgrunn (visningen)
           const bg = cfg?.theme?.background || {};
-          (
-            $(`input[name=bg_mode][value=${bg.mode || "solid"}]`) || {}
-          ).checked = true;
-          $("#bg_solid_color") &&
-            ($("#bg_solid_color").value = bg.solid?.color || "#0b0f14");
-          $("#bg_grad_from") &&
-            ($("#bg_grad_from").value = bg.gradient?.from || "#142033");
-          $("#bg_grad_to") &&
-            ($("#bg_grad_to").value = bg.gradient?.to || "#0b0f14");
-          $("#bg_grad_angle") &&
-            ($("#bg_grad_angle").value = bg.gradient?.angle_deg ?? 180);
+          ($(`input[name=bg_mode][value=${bg.mode || "solid"}]`) || {}).checked = true;
+          $("#bg_solid_color") && ($("#bg_solid_color").value = bg.solid?.color || "#0b0f14");
+          $("#bg_grad_from") && ($("#bg_grad_from").value = bg.gradient?.from || "#142033");
+          $("#bg_grad_to") && ($("#bg_grad_to").value = bg.gradient?.to || "#0b0f14");
+          $("#bg_grad_angle") && ($("#bg_grad_angle").value = bg.gradient?.angle_deg ?? 180);
           $("#bg_img_url") && ($("#bg_img_url").value = bg.image?.url || "");
-          $("#bg_img_fit") &&
-            ($("#bg_img_fit").value = bg.image?.fit || "cover");
+          $("#bg_img_fit") && ($("#bg_img_fit").value = bg.image?.fit || "cover");
           $("#bg_img_op") && ($("#bg_img_op").value = bg.image?.opacity ?? 1);
-          $("#bg_img_tint") &&
-            ($("#bg_img_tint").value = bg.image?.tint?.color || "#000000");
-          $("#bg_img_tint_op") &&
-            ($("#bg_img_tint_op").value = bg.image?.tint?.opacity ?? 0);
+          $("#bg_img_tint") && ($("#bg_img_tint").value = bg.image?.tint?.color || "#000000");
+          $("#bg_img_tint_op") && ($("#bg_img_tint_op").value = bg.image?.tint?.opacity ?? 0);
+          $("#bg_dyn_base") && ($("#bg_dyn_base").value = bg.dynamic?.base_mode || "auto");
 
           // Dynamic
-          $("#bg_dyn_from") &&
-            ($("#bg_dyn_from").value = bg.dynamic?.from || "#16233a");
-          $("#bg_dyn_to") &&
-            ($("#bg_dyn_to").value = bg.dynamic?.to || "#0e1a2f");
-          $("#bg_dyn_rotate") &&
-            ($("#bg_dyn_rotate").value = bg.dynamic?.rotate_s ?? 60);
-          $("#bg_dyn_blur") &&
-            ($("#bg_dyn_blur").value = bg.dynamic?.blur_px ?? 18);
-          $("#bg_dyn_opacity") &&
-            ($("#bg_dyn_opacity").value = bg.dynamic?.opacity ?? 0.9);
+          $("#bg_dyn_from") && ($("#bg_dyn_from").value = bg.dynamic?.from || "#16233a");
+          $("#bg_dyn_to") && ($("#bg_dyn_to").value = bg.dynamic?.to || "#0e1a2f");
+          $("#bg_dyn_rotate") && ($("#bg_dyn_rotate").value = bg.dynamic?.rotate_s ?? 60);
+          $("#bg_dyn_blur") && ($("#bg_dyn_blur").value = bg.dynamic?.blur_px ?? 18);
+          $("#bg_dyn_opacity") && ($("#bg_dyn_opacity").value = bg.dynamic?.opacity ?? 0.9);
 
           // Ny: klokke (top-level) – hvis feltene finnes
           const clk = cfg?.clock || {};
-          $("#clk_with_seconds") &&
-            ($("#clk_with_seconds").checked = !!clk.with_seconds);
+          $("#clk_with_seconds") && ($("#clk_with_seconds").checked = !!clk.with_seconds);
           $("#clk_color") && ($("#clk_color").value = clk.color || "#e6edf3");
-          $("#clk_size_vmin") &&
-            ($("#clk_size_vmin").value = clk.size_vmin ?? 12);
-          $("#clk_position") &&
-            ($("#clk_position").value = clk.position || "center");
-          $("#clk_msg_position") &&
-            ($("#clk_msg_position").value =
-              cfg?.clock?.messages_position || "right");
-          $("#clk_msg_align") &&
-            ($("#clk_msg_align").value =
-              cfg?.clock?.messages_align || "center");
-          $("#clk_use_own_msgs") &&
-            ($("#clk_use_own_msgs").checked = !!cfg?.clock?.use_clock_messages);
-          $("#clk_msg_primary") &&
-            ($("#clk_msg_primary").value = cfg?.clock?.message_primary || "");
-          $("#clk_msg_secondary") &&
-            ($("#clk_msg_secondary").value =
-              cfg?.clock?.message_secondary || "");
+          $("#clk_size_vmin") && ($("#clk_size_vmin").value = clk.size_vmin ?? 12);
+          $("#clk_position") && ($("#clk_position").value = clk.position || "center");
+          $("#clk_msg_position") && ($("#clk_msg_position").value = cfg?.clock?.messages_position || "right");
+          $("#clk_msg_align") && ($("#clk_msg_align").value = cfg?.clock?.messages_align || "center");
+          $("#clk_use_own_msgs") && ($("#clk_use_own_msgs").checked = !!cfg?.clock?.use_clock_messages);
+          $("#clk_msg_primary") && ($("#clk_msg_primary").value = cfg?.clock?.message_primary || "");
+          $("#clk_msg_secondary") && ($("#clk_msg_secondary").value = cfg?.clock?.message_secondary || "");
           // -- Overlays – bindings --
           $("#ov_select") &&
             $("#ov_select").addEventListener("change", () => {
@@ -1134,10 +853,7 @@
             show_target_time: checked("#show_target_time"),
             target_time_after: val("#target_time_after", "secondary"),
             messages_position: val("#messages_position", "below"),
-            hms_threshold_minutes: parseInt(
-              val("#hms_threshold_minutes", "60"),
-              10,
-            ),
+            hms_threshold_minutes: parseInt(val("#hms_threshold_minutes", "60"), 10),
 
             // theme (digits/messages/bg)
             theme: {
@@ -1202,9 +918,7 @@
           const sel = ovSel();
           if (!sel) return;
 
-          const prev = Number.isInteger(desiredIndex)
-            ? desiredIndex
-            : sel.selectedIndex;
+          const prev = Number.isInteger(desiredIndex) ? desiredIndex : sel.selectedIndex;
           sel.innerHTML = "";
           overlaysLocal.forEach((o, i) => {
             const opt = document.createElement("option");
@@ -1213,10 +927,7 @@
             sel.appendChild(opt);
           });
 
-          const idx = Math.max(
-            0,
-            Math.min(sel.options.length - 1, prev >= 0 ? prev : 0),
-          );
+          const idx = Math.max(0, Math.min(sel.options.length - 1, prev >= 0 ? prev : 0));
           sel.selectedIndex = idx;
           fillOverlayFields(overlaysLocal[idx] || overlayDefaults());
         }
@@ -1232,9 +943,7 @@
           $("#ov_off_vw").value = String(o.offset_vw ?? 2);
           $("#ov_off_vh").value = String(o.offset_vh ?? 2);
           $("#ov_in_clock").checked = !!(o.visible_in || []).includes("clock");
-          $("#ov_in_countdown").checked = !!(o.visible_in || []).some(
-            (v) => v !== "clock",
-          );
+          $("#ov_in_countdown").checked = !!(o.visible_in || []).some((v) => v !== "clock");
           $("#ov_tint_color").value = o?.tint?.color || "#000000";
           $("#ov_tint_opacity").value = String(o?.tint?.opacity ?? 0);
           $("#ov_tint_blend").value = o?.tint?.blend || "multiply";
@@ -1307,19 +1016,13 @@
             showStatusToast("Lagret ✔", "ok", 1400);
           } catch (e) {
             // ✖ feil
-            showStatusToast(
-              "Feil ved lagring: " + (e?.message || e),
-              "error",
-              4000,
-            );
+            showStatusToast("Feil ved lagring: " + (e?.message || e), "error", 4000);
             throw e; // behold eksisterende feilflyt
           }
         }
 
         function getPreviewWin() {
-          return (
-            document.getElementById("preview_frame")?.contentWindow || null
-          );
+          return document.getElementById("preview_frame")?.contentWindow || null;
         }
 
         function pushPreview() {
@@ -1340,9 +1043,7 @@
         });
 
         // Kjør én gang når admin åpner siden og første config er lastet
-        document.addEventListener("DOMContentLoaded", () =>
-          setTimeout(pushPreview, 50),
-        );
+        document.addEventListener("DOMContentLoaded", () => setTimeout(pushPreview, 50));
 
         // Send en gang når preview-iframe er ferdig lastet
         function hookPreviewLoad() {
@@ -1372,13 +1073,10 @@
             // push umiddelbart til preview
             pushPreview();
             // radio-knappen i "Modus"-kortet holdes i sync:
-            const radio = document.querySelector(
-              `input[name=mode][value=${newMode}]`,
-            );
+            const radio = document.querySelector(`input[name=mode][value=${newMode}]`);
             if (radio) radio.checked = true;
           } catch (e) {
-            $("#save_status").textContent =
-              `Feil: kunne ikke sette modus (${e})`;
+            $("#save_status").textContent = `Feil: kunne ikke sette modus (${e})`;
           } finally {
             setTimeout(() => ($("#save_status").textContent = ""), 3000);
           }
@@ -1386,10 +1084,7 @@
 
         // -------- start/stopp varighet (uendret) --------
         async function startDuration(argMinutes) {
-          const minutes =
-            argMinutes != null
-              ? Number(argMinutes)
-              : parseInt(val("#start_minutes", "0"), 10);
+          const minutes = argMinutes != null ? Number(argMinutes) : parseInt(val("#start_minutes", "0"), 10);
 
           if (!Number.isFinite(minutes) || minutes <= 0) {
             alert("Ugyldig varighet");
@@ -1440,8 +1135,7 @@
             $("#bg_dyn_opacity") && ($("#bg_dyn_opacity").value = 0.9);
           } else if (p === "photo-tint") {
             ($(`input[name=bg_mode][value=image]`) || {}).checked = true;
-            $("#bg_img_url") &&
-              ($("#bg_img_url").value = "https://picsum.photos/1600/900");
+            $("#bg_img_url") && ($("#bg_img_url").value = "https://picsum.photos/1600/900");
             $("#bg_img_fit") && ($("#bg_img_fit").value = "cover");
             $("#bg_img_op") && ($("#bg_img_op").value = 1);
             $("#bg_img_tint") && ($("#bg_img_tint").value = "#000000");
@@ -1461,8 +1155,7 @@
             const hb = js.heartbeat || {};
             const age = hb.age_seconds ?? 9999;
             const viewRev = hb.rev || 0;
-            const cfgRev =
-              lastCfg && lastCfg._updated_at ? lastCfg._updated_at : 0;
+            const cfgRev = lastCfg && lastCfg._updated_at ? lastCfg._updated_at : 0;
 
             let detailed = "",
               cls = "off";
@@ -1491,9 +1184,7 @@
         }
 
         // -------- events --------
-        $$("input[name=mode]").forEach((el) =>
-          el.addEventListener("change", lock),
-        );
+        $$("input[name=mode]").forEach((el) => el.addEventListener("change", lock));
         $$("input[name=bg_mode]").forEach((el) =>
           el.addEventListener("change", () => {
             lock();
@@ -1501,14 +1192,7 @@
             updateMessageContrastHints();
           }),
         );
-        [
-          "color_normal",
-          "color_warn",
-          "color_alert",
-          "color_over",
-          "theme_p_color",
-          "theme_s_color",
-        ].forEach((id) => {
+        ["color_normal", "color_warn", "color_alert", "color_over", "theme_p_color", "theme_s_color"].forEach((id) => {
           const e = document.getElementById(id);
           e &&
             e.addEventListener("input", () => {
@@ -1524,68 +1208,44 @@
             await startDuration(m); // 👉 start umiddelbart
           }),
         );
-        $("#btn_apply_preset") &&
-          $("#btn_apply_preset").addEventListener("click", applyPreset);
-        $("#btn_save") &&
-          $("#btn_save").addEventListener("click", () =>
-            saveAll().catch((e) => alert(e.message)),
-          );
+        $("#btn_apply_preset") && $("#btn_apply_preset").addEventListener("click", applyPreset);
+        $("#btn_save") && $("#btn_save").addEventListener("click", () => saveAll().catch((e) => alert(e.message)));
         $("#btn_refresh") &&
-          $("#btn_refresh").addEventListener("click", () =>
-            loadAll().catch((e) => alert(e.message)),
-          );
+          $("#btn_refresh").addEventListener("click", () => loadAll().catch((e) => alert(e.message)));
         $("#btn_reset_view") &&
           $("#btn_reset_view").addEventListener("click", () =>
             fetchDefaults().then((d) => {
               const M = d.theme.messages,
                 B = d.theme.background,
                 D = d.theme.digits;
-              $("#digits_size_preset") &&
-                ($("#digits_size_preset").value = String(D.size_vw));
-              $("#theme_p_size") &&
-                ($("#theme_p_size").value = String(M.primary.size_rem));
-              $("#theme_p_weight") &&
-                ($("#theme_p_weight").value = String(M.primary.weight));
-              $("#theme_p_color") &&
-                ($("#theme_p_color").value = M.primary.color);
-              $("#theme_s_size") &&
-                ($("#theme_s_size").value = String(M.secondary.size_rem));
-              $("#theme_s_weight") &&
-                ($("#theme_s_weight").value = String(M.secondary.weight));
-              $("#theme_s_color") &&
-                ($("#theme_s_color").value = M.secondary.color);
+              $("#digits_size_preset") && ($("#digits_size_preset").value = String(D.size_vw));
+              $("#theme_p_size") && ($("#theme_p_size").value = String(M.primary.size_rem));
+              $("#theme_p_weight") && ($("#theme_p_weight").value = String(M.primary.weight));
+              $("#theme_p_color") && ($("#theme_p_color").value = M.primary.color);
+              $("#theme_s_size") && ($("#theme_s_size").value = String(M.secondary.size_rem));
+              $("#theme_s_weight") && ($("#theme_s_weight").value = String(M.secondary.weight));
+              $("#theme_s_color") && ($("#theme_s_color").value = M.secondary.color);
               ($(`input[name=bg_mode][value=${B.mode}]`) || {}).checked = true;
-              $("#bg_solid_color") &&
-                ($("#bg_solid_color").value = B.solid.color);
-              $("#bg_grad_from") &&
-                ($("#bg_grad_from").value = B.gradient.from);
+              $("#bg_solid_color") && ($("#bg_solid_color").value = B.solid.color);
+              $("#bg_grad_from") && ($("#bg_grad_from").value = B.gradient.from);
               $("#bg_grad_to") && ($("#bg_grad_to").value = B.gradient.to);
-              $("#bg_grad_angle") &&
-                ($("#bg_grad_angle").value = B.gradient.angle_deg);
+              $("#bg_grad_angle") && ($("#bg_grad_angle").value = B.gradient.angle_deg);
               $("#bg_img_url") && ($("#bg_img_url").value = B.image.url);
               $("#bg_img_fit") && ($("#bg_img_fit").value = B.image.fit);
               $("#bg_img_op") && ($("#bg_img_op").value = B.image.opacity);
-              $("#bg_img_tint") &&
-                ($("#bg_img_tint").value = B.image.tint.color);
-              $("#bg_img_tint_op") &&
-                ($("#bg_img_tint_op").value = B.image.tint.opacity);
+              $("#bg_img_tint") && ($("#bg_img_tint").value = B.image.tint.color);
+              $("#bg_img_tint_op") && ($("#bg_img_tint_op").value = B.image.tint.opacity);
               lock();
               updateDigitContrastHints();
               updateMessageContrastHints();
             }),
           );
         $("#btn_start") &&
-          $("#btn_start").addEventListener("click", () =>
-            startDuration().catch((e) => alert(e.message)),
-          );
-        $("#btn_stop") &&
-          $("#btn_stop").addEventListener("click", () =>
-            stopDuration().catch((e) => alert(e.message)),
-          );
+          $("#btn_start").addEventListener("click", () => startDuration().catch((e) => alert(e.message)));
+        $("#btn_stop") && $("#btn_stop").addEventListener("click", () => stopDuration().catch((e) => alert(e.message)));
 
         const clkColorEl = document.getElementById("clk_color");
-        clkColorEl &&
-          clkColorEl.addEventListener("input", updateClockContrastHint);
+        clkColorEl && clkColorEl.addEventListener("input", updateClockContrastHint);
 
         // Når bakgrunnsmodus/farger endres -> oppdater klokke-kontrast
         $$("input[name=bg_mode]").forEach((el) =>
@@ -1596,20 +1256,13 @@
             updateClockContrastHint();
           }),
         );
-        [
-          "#bg_solid_color",
-          "#bg_grad_from",
-          "#bg_grad_to",
-          "#bg_img_tint",
-          "#bg_img_tint_op",
-        ].forEach((sel) => {
+        ["#bg_solid_color", "#bg_grad_from", "#bg_grad_to", "#bg_img_tint", "#bg_img_tint_op"].forEach((sel) => {
           const e = document.querySelector(sel);
           e && e.addEventListener("input", updateClockContrastHint);
         });
 
         // Egen-tekst toggle
-        $("#clk_use_own_msgs") &&
-          $("#clk_use_own_msgs").addEventListener("change", lock);
+        $("#clk_use_own_msgs") && $("#clk_use_own_msgs").addEventListener("change", lock);
 
         // Mode-knapper (Daglig/Klokke) i toppbaren
         $$(".mode-btn").forEach((b) => {
@@ -1635,12 +1288,7 @@
 
     <!-- Fast forhåndsvisning på høyre side -->
     <aside id="preview_dock" aria-label="Live forhåndsvisning">
-      <iframe
-        id="preview_frame"
-        src="/?preview=1"
-        title="Live preview"
-        loading="eager"
-      ></iframe>
+      <iframe id="preview_frame" src="/?preview=1" title="Live preview" loading="eager"></iframe>
     </aside>
     <script src="/static/js/admin.js" defer></script>
     <script src="/static/js/admin_overlays.js" defer></script>

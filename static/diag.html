@@ -42,9 +42,7 @@
         padding: 4px 8px;
       }
       .mono {
-        font-family:
-          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-          "Liberation Mono", monospace;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
       }
     </style>
   </head>
@@ -66,21 +64,8 @@
         <div id="phase" class="muted">fase: — · state: —</div>
         <div id="meta" class="muted">mål: — · nå: —</div>
         <div id="both" class="muted">format: — / —</div>
-        <pre
-          id="live"
-          class="mono"
-          style="margin-top: 0.5rem; max-height: 30vh; overflow: auto"
-        >
-(live)</pre
-        >
-        <div
-          style="
-            margin-top: 0.5rem;
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-          "
-        >
+        <pre id="live" class="mono" style="margin-top: 0.5rem; max-height: 30vh; overflow: auto">(live)</pre>
+        <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; align-items: center">
           <button id="refresh">Oppdater</button>
           <span id="lat" class="chip">latency: — ms</span>
         </div>
@@ -88,14 +73,7 @@
 
       <section class="card">
         <h2>Debug</h2>
-        <div
-          style="
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-            margin-bottom: 0.5rem;
-          "
-        >
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem">
           <button id="btn_who">/debug/whoami</button>
           <button id="btn_cfg">/api/config</button>
           <button id="btn_self">/debug/selftest</button>
@@ -137,19 +115,12 @@
           const dt = performance.now() - t0;
           const both = fmtBoth(t.signed_display_ms);
           document.getElementById("countdown").textContent = both.mmss;
-          document.getElementById("phase").textContent =
-            `fase: ${t.mode} · state: ${t.state}`;
+          document.getElementById("phase").textContent = `fase: ${t.mode} · state: ${t.state}`;
           document.getElementById("meta").textContent =
             `mål: ${t.target_hhmm || t.target_ms} · nå: ${new Date(t.now_ms).toLocaleTimeString()}`;
-          document.getElementById("both").textContent =
-            `format: ${both.hms} / ${both.mmss}`;
-          document.getElementById("lat").textContent =
-            `latency: ${dt.toFixed(0)} ms`;
-          document.getElementById("live").textContent = JSON.stringify(
-            t,
-            null,
-            2,
-          );
+          document.getElementById("both").textContent = `format: ${both.hms} / ${both.mmss}`;
+          document.getElementById("lat").textContent = `latency: ${dt.toFixed(0)} ms`;
+          document.getElementById("live").textContent = JSON.stringify(t, null, 2);
         }
         async function selftest() {
           const r = await fetch("/debug/selftest");
@@ -166,39 +137,19 @@
         async function dump(url) {
           const r = await fetch(url);
           const js = await r.json();
-          document.getElementById("raw").textContent = JSON.stringify(
-            js,
-            null,
-            2,
-          );
+          document.getElementById("raw").textContent = JSON.stringify(js, null, 2);
         }
 
-        document
-          .getElementById("refresh")
-          .addEventListener("click", () => poll().catch(console.error));
-        document
-          .getElementById("run_selftest")
-          .addEventListener("click", () => selftest().catch(console.error));
-        document
-          .getElementById("btn_who")
-          .addEventListener("click", () =>
-            dump("/debug/whoami").catch(console.error),
-          );
-        document
-          .getElementById("btn_cfg")
-          .addEventListener("click", () =>
-            dump("/api/config").catch(console.error),
-          );
+        document.getElementById("refresh").addEventListener("click", () => poll().catch(console.error));
+        document.getElementById("run_selftest").addEventListener("click", () => selftest().catch(console.error));
+        document.getElementById("btn_who").addEventListener("click", () => dump("/debug/whoami").catch(console.error));
+        document.getElementById("btn_cfg").addEventListener("click", () => dump("/api/config").catch(console.error));
         document
           .getElementById("btn_self")
-          .addEventListener("click", () =>
-            dump("/debug/selftest").catch(console.error),
-          );
+          .addEventListener("click", () => dump("/debug/selftest").catch(console.error));
         document
           .getElementById("btn_hb")
-          .addEventListener("click", () =>
-            dump("/debug/view-heartbeat").catch(console.error),
-          );
+          .addEventListener("click", () => dump("/debug/view-heartbeat").catch(console.error));
 
         poll().catch(console.error);
         setInterval(poll, 1000);

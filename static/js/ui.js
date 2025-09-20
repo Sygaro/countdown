@@ -26,17 +26,14 @@ export const ui = (function () {
       el.style.background = "rgba(0,0,0,.75)";
       el.style.color = "#fff";
       el.style.borderRadius = "10px";
-      el.style.font =
-        "14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      el.style.font = "14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial";
       el.style.zIndex = "9999";
       el.style.transition = "opacity .25s ease";
       el.style.opacity = "0";
       document.body.appendChild(el);
     }
     el.textContent = String(msg);
-    el.style.border =
-      "1px solid " +
-      (tone === "bad" ? "rgba(255,80,80,.6)" : "rgba(255,255,255,.4)");
+    el.style.border = "1px solid " + (tone === "bad" ? "rgba(255,80,80,.6)" : "rgba(255,255,255,.4)");
     el.style.opacity = "1";
     setTimeout(function () {
       el.style.opacity = "0";
