@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 
 from flask import Blueprint, request, jsonify, Response, current_app
 
@@ -28,8 +28,10 @@ bp = Blueprint("api", __name__, url_prefix="/api")
 
 # === Utilities =================================================================
 
+
 def _now_iso() -> str:
     return datetime.now(TZ).isoformat()
+
 
 def _json_ok(payload: Dict[str, Any], status: int = 200) -> Response:
     """Suksessrespons – legger alltid på server_time."""
@@ -39,7 +41,14 @@ def _json_ok(payload: Dict[str, Any], status: int = 200) -> Response:
     resp.headers["Cache-Control"] = "no-store"
     return resp
 
-def _json_err(message: str, *, status: int = 400, code: str | None = None, extra: Dict[str, Any] | None = None) -> Response:
+
+def _json_err(
+    message: str,
+    *,
+    status: int = 400,
+    code: str | None = None,
+    extra: Dict[str, Any] | None = None,
+) -> Response:
     """Feilrespons – ensartet format for alle feiltyper."""
     data = {"ok": False, "error": message, "server_time": _now_iso()}
     if code:
@@ -51,12 +60,14 @@ def _json_err(message: str, *, status: int = 400, code: str | None = None, extra
     resp.headers["Cache-Control"] = "no-store"
     return resp
 
+
 def _is_json_request() -> bool:
     ctype = request.headers.get("Content-Type", "")
     return "application/json" in ctype.lower() or request.is_json
 
 
 # === Routes: defaults/config ===================================================
+
 
 @bp.get("/defaults")
 def api_defaults() -> Response:
@@ -75,14 +86,19 @@ def api_get_config() -> Response:
 
 
 @bp.post("/config")
+@require_password
 def api_post_config() -> Response:
     # Behold kontrakt: POST /config kan bytte mode *eller* patche felt.
     if not _is_json_request():
-        return _json_err("expected application/json", status=415, code="unsupported_media_type")
+        return _json_err(
+            "expected application/json", status=415, code="unsupported_media_type"
+        )
 
     data = request.get_json(silent=True) or {}
     if not isinstance(data, dict):
-        return _json_err("payload must be a JSON object", status=400, code="bad_request")
+        return _json_err(
+            "payload must be a JSON object", status=400, code="bad_request"
+        )
 
     try:
         # 1) Eventuelt bytte modus
@@ -93,7 +109,9 @@ def api_post_config() -> Response:
                 daily_time=str(data.get("daily_time") or ""),
                 once_at=str(data.get("once_at") or ""),
                 duration_minutes=_coerce_int_or_none(data.get("duration_minutes")),
-                clock=(data.get("clock") if isinstance(data.get("clock"), dict) else None),
+                clock=(
+                    data.get("clock") if isinstance(data.get("clock"), dict) else None
+                ),
             )
         else:
             cfg = load_config()
@@ -143,17 +161,23 @@ def api_post_config() -> Response:
 
 # === Routes: duration controls =================================================
 
+
 @bp.post("/start-duration")
+@require_password
 def api_start_duration() -> Response:
     if not _is_json_request():
-        return _json_err("expected application/json", status=415, code="unsupported_media_type")
+        return _json_err(
+            "expected application/json", status=415, code="unsupported_media_type"
+        )
 
     data = request.get_json(silent=True) or {}
     minutes_raw = data.get("minutes", None)
     minutes = _coerce_positive_int(minutes_raw)
 
     if minutes is None:
-        return _json_err("'minutes' must be a positive integer", status=400, code="validation_error")
+        return _json_err(
+            "'minutes' must be a positive integer", status=400, code="validation_error"
+        )
 
     try:
         cfg = start_duration(minutes)
@@ -190,6 +214,7 @@ def status() -> Response:
 
 # === Local coercion helpers ====================================================
 
+
 def _coerce_int_or_none(v: Any) -> int | None:
     if v in (None, ""):
         return None
@@ -197,6 +222,7 @@ def _coerce_int_or_none(v: Any) -> int | None:
         return int(v)
     except (TypeError, ValueError):
         return None
+
 
 def _coerce_positive_int(v: Any) -> int | None:
     try:

@@ -40,7 +40,8 @@
       ua.includes("webkit wpe") ||
       ua.includes("wpewebkit");
     const displayModeFS =
-      window.matchMedia && window.matchMedia("(display-mode: fullscreen)").matches;
+      window.matchMedia &&
+      window.matchMedia("(display-mode: fullscreen)").matches;
     // Hvis API ikke støttes, antar vi også at vi er i "kiosk" (ingen vits i å vise knapp).
     return isWPE || displayModeFS || !isSupported();
   }
@@ -83,6 +84,9 @@
   }
 
   function init() {
+    // Unngå duplikat: hvis siden har egen knapp (#btn_fullscreen), ikke injiser ny
+    if (document.getElementById("btn_fullscreen")) return;
+
     if (isKioskEnvironment()) {
       const btn = ensureButton();
       btn.style.display = "none";

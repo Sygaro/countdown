@@ -8,8 +8,8 @@
 
   function overlayIsVisible(ov, mode /* "countdown" | "clock" */) {
     const v = ov && ov.visible_in;
-    if (!Array.isArray(v)) return true;     // backwards compat: mangler => vis
-    if (v.length === 0) return false;       // eksplisitt tom => skjul overalt
+    if (!Array.isArray(v)) return true; // backwards compat: mangler => vis
+    if (v.length === 0) return false; // eksplisitt tom => skjul overalt
     return v.includes(mode);
   }
 
@@ -20,7 +20,10 @@
   window.addEventListener("overlays:updated", () => {
     // Foretrukket: hvis admin-preview har en render-funksjon
     if (typeof window.renderPreview === "function") {
-      try { window.renderPreview(); return; } catch {}
+      try {
+        window.renderPreview();
+        return;
+      } catch {}
     }
     // Fallback: skjul/vis DOM-noder i #overlays etter data-overlay-id
     try {
@@ -29,7 +32,7 @@
       if (!cfg || !Array.isArray(cfg.overlays)) return;
 
       const layer = document.getElementById("overlays") || document.body;
-      cfg.overlays.forEach(ov => {
+      cfg.overlays.forEach((ov) => {
         const el = layer.querySelector(`[data-overlay-id="${ov.id}"]`);
         if (!el) return;
         el.style.display = overlayIsVisible(ov, mode) ? "" : "none";

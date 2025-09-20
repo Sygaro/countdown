@@ -37,22 +37,29 @@
       <section class="card">
         <h2>Hva er dette?</h2>
         <p>
-          Countdown er en liten, robust visningsapp for Raspberry Pi (kiosk) med fokus på enkel
-          drift.
+          Countdown er en liten, robust visningsapp for Raspberry Pi (kiosk) med
+          fokus på enkel drift.
         </p>
         <ul>
           <li>
-            <strong>Modi:</strong> daglig tidspunkt, engangs-tidspunkt, varighet, <em>klokke</em>
+            <strong>Modi:</strong> daglig tidspunkt, engangs-tidspunkt,
+            varighet, <em>klokke</em>
           </li>
           <li>
-            <strong>Tema:</strong> farger, meldinger, størrelser, bakgrunn (solid/gradient/bilde m/
-            tint)
+            <strong>Tema:</strong> farger, meldinger, størrelser, bakgrunn
+            (solid/gradient/bilde m/ tint)
           </li>
           <li>
-            <strong>Live-oppdatering:</strong> endringer i admin slår inn i visning uten refresh
+            <strong>Live-oppdatering:</strong> endringer i admin slår inn i
+            visning uten refresh
           </li>
-          <li><strong>Kiosk-vennlig:</strong> fullscreen-knapp auto-skjules i fullscreen</li>
-          <li><strong>Konfig:</strong> lagres atomisk i <code>config.json</code></li>
+          <li>
+            <strong>Kiosk-vennlig:</strong> fullscreen-knapp auto-skjules i
+            fullscreen
+          </li>
+          <li>
+            <strong>Konfig:</strong> lagres atomisk i <code>config.json</code>
+          </li>
         </ul>
       </section>
 
@@ -74,12 +81,18 @@
         <h2>Endepunkter</h2>
         <ul>
           <li>
-            <code>GET /</code> visning · <code>/admin</code> · <code>/diag</code> ·
+            <code>GET /</code> visning · <code>/admin</code> ·
+            <code>/diag</code> ·
             <code>/about</code>
           </li>
           <li><code>GET /api/config</code> → <em>{ ok, config, tick }</em></li>
-          <li><code>POST /api/config</code> → lagre/patch konfig (inkl. bytte modus)</li>
-          <li><code>POST /api/start-duration</code> → <em>{"minutes": N}</em></li>
+          <li>
+            <code>POST /api/config</code> → lagre/patch konfig (inkl. bytte
+            modus)
+          </li>
+          <li>
+            <code>POST /api/start-duration</code> → <em>{"minutes": N}</em>
+          </li>
           <li><code>GET /tick</code> → status (for visning/diagnose)</li>
           <li><code>GET /health</code> → 200 OK</li>
         </ul>

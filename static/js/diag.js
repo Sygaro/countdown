@@ -5,7 +5,8 @@ let timer = null;
 let paused = false;
 
 function signMmss(signedMs) {
-  if (typeof signedMs === "number" && signedMs < 0) return "-" + ui.mmss(Math.abs(signedMs));
+  if (typeof signedMs === "number" && signedMs < 0)
+    return "-" + ui.mmss(Math.abs(signedMs));
   return ui.mmss(Math.abs(Number(signedMs || 0)));
 }
 
@@ -34,7 +35,8 @@ async function once() {
   ui.qs("#thhmm").textContent = j.target_hhmm || "–";
   ui.qs("#disp").textContent = signMmss(signed);
   ui.qs("#mode").textContent = `${j.mode || "–"} / ${j.state || "–"}`;
-  ui.qs("#wao").textContent = `${j.warn_ms || 0} / ${j.alert_ms || 0} / ${j.overrun_ms || 0}`;
+  ui.qs("#wao").textContent =
+    `${j.warn_ms || 0} / ${j.alert_ms || 0} / ${j.overrun_ms || 0}`;
   ui.qs("#cfgp").textContent = j.__config_path || "–";
   ui.qs("#raw").textContent = JSON.stringify(j, null, 2);
 }

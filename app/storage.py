@@ -70,6 +70,13 @@ _DEFAULTS: Dict[str, Any] = {
                 "opacity": 1.0,
                 "tint": {"color": "#000000", "opacity": 0.0},
             },
+            "dynamic": {
+                "from": "#16233a",
+                "to": "#0e1a2f",
+                "rotate_s": 60,
+                "blur_px": 18,
+                "opacity": 0.9,
+            },
         },
     },
     "admin_password": None,
@@ -78,8 +85,10 @@ _DEFAULTS: Dict[str, Any] = {
 _LEGACY_REMOVE = {"target_ms", "target_iso", "target_datetime"}
 _HHMM_RE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 
+
 def get_defaults() -> Dict[str, Any]:
     return json.loads(json.dumps(_DEFAULTS))
+
 
 def _atomic_write(path: str, data: Dict[str, Any]) -> None:
     dirpath = os.path.dirname(path) or "."
@@ -99,6 +108,7 @@ def _atomic_write(path: str, data: Dict[str, Any]) -> None:
         except Exception:
             pass
 
+
 def _deep_merge(dst: Dict[str, Any], src: Dict[str, Any]) -> Dict[str, Any]:
     for k, v in (src or {}).items():
         if isinstance(v, dict) and isinstance(dst.get(k), dict):
@@ -107,9 +117,11 @@ def _deep_merge(dst: Dict[str, Any], src: Dict[str, Any]) -> Dict[str, Any]:
             dst[k] = v
     return dst
 
+
 def _merge_defaults(cfg: Dict[str, Any]) -> Dict[str, Any]:
     merged = get_defaults()
     return _deep_merge(merged, cfg or {})
+
 
 def _strip_legacy(cfg: Dict[str, Any]) -> Dict[str, Any]:
     for k in list(cfg.keys()):
@@ -147,6 +159,7 @@ def _strip_legacy(cfg: Dict[str, Any]) -> Dict[str, Any]:
             cfg["screen"] = None
     return cfg
 
+
 def _coerce_bool(v, default: bool) -> bool:
     if isinstance(v, bool):
         return v
@@ -158,12 +171,14 @@ def _coerce_bool(v, default: bool) -> bool:
             return False
     return default
 
+
 def _clamp01(x, d=1.0) -> float:
     try:
         v = float(x)
     except Exception:
         v = d
     return max(0.0, min(1.0, v))
+
 
 def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     def _i(v, d=None):
@@ -174,11 +189,19 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         except Exception:
             return d
 
-    for k in ("warn_minutes","alert_minutes","blink_seconds","overrun_minutes","duration_minutes","duration_started_ms","hms_threshold_minutes"):
+    for k in (
+        "warn_minutes",
+        "alert_minutes",
+        "blink_seconds",
+        "overrun_minutes",
+        "duration_minutes",
+        "duration_started_ms",
+        "hms_threshold_minutes",
+    ):
         if k in cfg:
             cfg[k] = _i(cfg[k], _DEFAULTS.get(k, 0))
 
-    for k in ("message_primary","message_secondary","daily_time","once_at"):
+    for k in ("message_primary", "message_secondary", "daily_time", "once_at"):
         if cfg.get(k) is None:
             cfg[k] = ""
 
@@ -191,12 +214,20 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     ):
         cfg[k] = _coerce_bool(cfg.get(k, d), d)
 
-    for k in ("target_time_after","messages_position","color_normal","color_warn","color_alert","color_over"):
+    for k in (
+        "target_time_after",
+        "messages_position",
+        "color_normal",
+        "color_warn",
+        "color_alert",
+        "color_over",
+    ):
         if cfg.get(k) is None:
             cfg[k] = _DEFAULTS[k]
 
     th = cfg.get("theme") or {}
-    base_th = get_defaults()["theme"]; _deep_merge(base_th, th)
+    base_th = get_defaults()["theme"]
+    _deep_merge(base_th, th)
 
     dg = base_th.get("digits", {})
     try:
@@ -206,7 +237,7 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     base_th["digits"] = dg
 
     msg = base_th.get("messages", {})
-    for key in ("primary","secondary"):
+    for key in ("primary", "secondary"):
         m = msg.get(key) or {}
         try:
             sz = float(m.get("size_rem", 1.0) or 1.0)
@@ -226,21 +257,43 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
 
     bg = base_th.get("background", {})
     mode = (bg.get("mode") or "solid").lower()
-    if mode not in ("solid","gradient","image"):
+    if mode not in ("solid", "gradient", "image", "dynamic"):
         mode = "solid"
     bg["mode"] = mode
+
     try:
         ang = int(bg.get("gradient", {}).get("angle_deg", 180))
     except Exception:
         ang = 180
-    bg.setdefault("gradient", {}); bg["gradient"]["angle_deg"] = max(0, min(360, ang))
+    bg.setdefault("solid", {})
+    bg.setdefault("gradient", {})
+    bg["gradient"]["angle_deg"] = max(0, min(360, ang))
+    bg.setdefault("dynamic", {})
     bg.setdefault("image", {})
     bg["image"]["opacity"] = _clamp01(bg["image"].get("opacity", 1.0), 1.0)
     bg["image"]["fit"] = bg["image"].get("fit") or "cover"
     bg["image"].setdefault("tint", {})
-    bg["image"]["tint"]["opacity"] = _clamp01(bg["image"]["tint"].get("opacity", 0.0), 0.0)
+    bg["image"]["tint"]["opacity"] = _clamp01(
+        bg["image"]["tint"].get("opacity", 0.0), 0.0
+    )
     if isinstance(bg["image"].get("url"), str):
         bg["image"]["url"] = bg["image"]["url"].strip()
+    
+    dyn = bg["dynamic"]
+    # farger – bruk defaults hvis tomt/ugyldig
+    if not isinstance(dyn.get("from"), str) or not dyn.get("from"):
+        dyn["from"] = _DEFAULTS["theme"]["background"]["dynamic"]["from"]
+    if not isinstance(dyn.get("to"), str) or not dyn.get("to"):
+        dyn["to"] = _DEFAULTS["theme"]["background"]["dynamic"]["to"]
+    # tallfelt – bruk eksisterende _i fra starten av _coerce
+    rot = _i(dyn.get("rotate_s"), _DEFAULTS["theme"]["background"]["dynamic"]["rotate_s"])
+    blur = _i(dyn.get("blur_px"), _DEFAULTS["theme"]["background"]["dynamic"]["blur_px"])
+    opa = dyn.get("opacity", _DEFAULTS["theme"]["background"]["dynamic"]["opacity"])
+    dyn["rotate_s"] = max(5, min(600, rot))
+    dyn["blur_px"]  = max(0, min(60,  blur))
+    dyn["opacity"]  = _clamp01(opa, _DEFAULTS["theme"]["background"]["dynamic"]["opacity"])
+
+    base_th["background"] = bg
     cfg["theme"] = base_th
 
     clk = cfg.get("clock") or {}
@@ -259,17 +312,25 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         sz = 12
     clk["size_vmin"] = max(6, min(30, sz))
     pos = (clk.get("position") or "center").strip().lower()
-    if pos not in ("center","top-left","top-right","bottom-left","bottom-right","top-center","bottom-center"):
+    if pos not in (
+        "center",
+        "top-left",
+        "top-right",
+        "bottom-left",
+        "bottom-right",
+        "top-center",
+        "bottom-center",
+    ):
         pos = "center"
     clk["position"] = pos
     mp = (clk.get("messages_position") or "right").strip().lower()
-    if mp not in ("right","left","above","below"):
+    if mp not in ("right", "left", "above", "below"):
         mp = "right"
     clk["messages_position"] = mp
     ma = (clk.get("messages_align") or "center").strip().lower()
-    if ma not in ("start","center","end"):
+    if ma not in ("start", "center", "end"):
         ma = "center"
-    for key in ("message_primary","message_secondary"):
+    for key in ("message_primary", "message_secondary"):
         v = clk.get(key, "")
         clk[key] = v if isinstance(v, str) else ("" if v is None else str(v))
     cfg["clock"] = clk
@@ -284,6 +345,7 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     if not cfg.get("admin_password"):
         cfg["admin_password"] = None
     return cfg
+
 
 def _validate(cfg: Dict[str, Any]) -> Tuple[bool, str]:
     m = cfg.get("mode")
@@ -310,17 +372,21 @@ def _validate(cfg: Dict[str, Any]) -> Tuple[bool, str]:
             return False, "duration_minutes må være > 0"
     return True, ""
 
+
 def _clean_by_mode(cfg: Dict[str, Any]) -> Dict[str, Any]:
     m = cfg.get("mode")
     if m == "daily":
-        cfg["once_at"] = ""; cfg["duration_started_ms"] = 0
+        cfg["once_at"] = ""
+        cfg["duration_started_ms"] = 0
     elif m == "once":
         cfg["duration_started_ms"] = 0
     elif m == "duration":
         cfg["once_at"] = ""
     elif m == "clock":
-        cfg["once_at"] = ""; cfg["duration_started_ms"] = 0
+        cfg["once_at"] = ""
+        cfg["duration_started_ms"] = 0
     return cfg
+
 
 def _sanitize_overlays(seq: Any) -> List[Dict[str, Any]]:
     """
@@ -335,12 +401,18 @@ def _sanitize_overlays(seq: Any) -> List[Dict[str, Any]]:
         return out
 
     ALLOWED_POS = {
-        "top-left","top-center","top-right",
-        "center-left","center","center-right",
-        "bottom-left","bottom-center","bottom-right",
+        "top-left",
+        "top-center",
+        "top-right",
+        "center-left",
+        "center",
+        "center-right",
+        "bottom-left",
+        "bottom-center",
+        "bottom-right",
     }
-    ALLOWED_VISIBLE = {"countdown","clock"}
-    ALLOWED_URL_SCHEMES = ("http://","https://","data:")
+    ALLOWED_VISIBLE = {"countdown", "clock"}
+    ALLOWED_URL_SCHEMES = ("http://", "https://", "data:")
 
     for idx, it in enumerate(seq, start=1):
         if not isinstance(it, dict):
@@ -350,53 +422,65 @@ def _sanitize_overlays(seq: Any) -> List[Dict[str, Any]]:
 
         url = str(it.get("url") or "").strip()
         if url and not url.startswith(ALLOWED_URL_SCHEMES):
-            if url.startswith("//"): url = "https:" + url
-            elif ":" in url: url = ""
+            if url.startswith("//"):
+                url = "https:" + url
+            elif ":" in url:
+                url = ""
 
         pos = str(it.get("position") or "top-right").strip().lower()
-        if pos not in ALLOWED_POS: pos = "top-right"
+        if pos not in ALLOWED_POS:
+            pos = "top-right"
 
         # --- visible_in presist ---
         if "visible_in" in it:
             src = it.get("visible_in")
             if src is None:
-                vis: List[str] = []              # eksplisitt None → [] (helt skjult)
+                vis: List[str] = []  # eksplisitt None → [] (helt skjult)
             elif isinstance(src, list):
                 vis = [v for v in src if isinstance(v, str) and v in ALLOWED_VISIBLE]
                 # bevar ev. tom liste
             else:
-                vis = ["countdown","clock"]
+                vis = ["countdown", "clock"]
         else:
-            vis = ["countdown","clock"]
+            vis = ["countdown", "clock"]
 
         def _f(v: Any, d: float) -> float:
-            try: return float(v)
-            except Exception: return d
+            try:
+                return float(v)
+            except Exception:
+                return d
 
-        try: z_index = int(it.get("z_index") or 10)
-        except Exception: z_index = 10
+        try:
+            z_index = int(it.get("z_index") or 10)
+        except Exception:
+            z_index = 10
 
         tint = it.get("tint") or {}
-        out.append({
-            "id": str(it.get("id") or f"logo-{idx}"),
-            "type": "image",
-            "url": url,
-            "position": pos,
-            "size_vmin": max(2.0, min(200.0, _f(it.get("size_vmin"), 12.0))),
-            "opacity": max(0.0, min(1.0, _f(it.get("opacity"), 1.0))),
-            "offset_vw": _f(it.get("offset_vw"), 2.0),
-            "offset_vh": _f(it.get("offset_vh"), 2.0),
-            "z_index": max(-9999, min(9999, z_index)),
-            "visible_in": vis,  # kan være []
-            "tint": {
-                "color": str(tint.get("color") or "#000000"),
-                "opacity": max(0.0, min(1.0, float(tint.get("opacity") or 0.0))),
-                "blend": str(tint.get("blend") or "multiply").lower(),
-            },
-        })
+        out.append(
+            {
+                "id": str(it.get("id") or f"logo-{idx}"),
+                "type": "image",
+                "url": url,
+                "position": pos,
+                "size_vmin": max(2.0, min(200.0, _f(it.get("size_vmin"), 12.0))),
+                "opacity": max(0.0, min(1.0, _f(it.get("opacity"), 1.0))),
+                "offset_vw": _f(it.get("offset_vw"), 2.0),
+                "offset_vh": _f(it.get("offset_vh"), 2.0),
+                "z_index": max(-9999, min(9999, z_index)),
+                "visible_in": vis,  # kan være []
+                "tint": {
+                    "color": str(tint.get("color") or "#000000"),
+                    "opacity": max(0.0, min(1.0, float(tint.get("opacity") or 0.0))),
+                    "blend": str(tint.get("blend") or "multiply").lower(),
+                },
+            }
+        )
     return out
 
-def _merge_overlays_by_id(old_list: Any, new_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+
+def _merge_overlays_by_id(
+    old_list: Any, new_list: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
     old: List[Dict[str, Any]] = old_list if isinstance(old_list, list) else []
     by_id: Dict[str, Dict[str, Any]] = {
         (cast(Dict[str, Any], o).get("id") or f"_idx{i}"): dict(cast(Dict[str, Any], o))
@@ -407,6 +491,7 @@ def _merge_overlays_by_id(old_list: Any, new_list: List[Dict[str, Any]]) -> List
         n = {**n, "id": nid}
         by_id[nid] = n
     return list(by_id.values())
+
 
 def load_config() -> Dict[str, Any]:
     path = str(CONFIG_PATH)
@@ -426,6 +511,7 @@ def load_config() -> Dict[str, Any]:
         cfg = _merge_defaults(cfg)
     return _clean_by_mode(cfg)
 
+
 def replace_config(new_cfg: Dict[str, Any]) -> Dict[str, Any]:
     cfg_in = _merge_defaults(_strip_legacy(new_cfg))
     if "overlays" in new_cfg:
@@ -442,6 +528,7 @@ def replace_config(new_cfg: Dict[str, Any]) -> Dict[str, Any]:
     _atomic_write(str(CONFIG_PATH), cfg)
     return cfg
 
+
 def save_config_patch(patch: Dict[str, Any]) -> Dict[str, Any]:
     current = load_config()
     merged = _merge_defaults(current)
@@ -456,7 +543,9 @@ def save_config_patch(patch: Dict[str, Any]) -> Dict[str, Any]:
             merged["overlays"] = new_ov  # respekter også []
         else:
             if new_ov:
-                merged["overlays"] = _merge_overlays_by_id(merged.get("overlays"), new_ov)
+                merged["overlays"] = _merge_overlays_by_id(
+                    merged.get("overlays"), new_ov
+                )
 
         patch = dict(patch)
         patch.pop("overlays", None)
@@ -465,26 +554,41 @@ def save_config_patch(patch: Dict[str, Any]) -> Dict[str, Any]:
     _deep_merge(merged, patch or {})
     return replace_config(merged)
 
-def set_mode(mode: str, *, daily_time: str = "", once_at: str = "", duration_minutes: int | None = None, clock: Dict[str, Any] | None = None) -> Dict[str, Any]:
+
+def set_mode(
+    mode: str,
+    *,
+    daily_time: str = "",
+    once_at: str = "",
+    duration_minutes: int | None = None,
+    clock: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
     cfg = load_config()
     cfg["mode"] = mode
     if mode == "daily":
-        if daily_time: cfg["daily_time"] = daily_time
-        cfg["duration_started_ms"] = 0; cfg["once_at"] = ""
+        if daily_time:
+            cfg["daily_time"] = daily_time
+        cfg["duration_started_ms"] = 0
+        cfg["once_at"] = ""
     elif mode == "once":
-        cfg["once_at"] = once_at or ""; cfg["duration_started_ms"] = 0
+        cfg["once_at"] = once_at or ""
+        cfg["duration_started_ms"] = 0
     elif mode == "duration":
-        if duration_minutes: cfg["duration_minutes"] = int(duration_minutes)
+        if duration_minutes:
+            cfg["duration_minutes"] = int(duration_minutes)
     elif mode == "clock":
         if clock:
             base = _merge_defaults({"clock": {}})["clock"]
-            cfg["clock"] = base; _deep_merge(cfg["clock"], clock)
+            cfg["clock"] = base
+            _deep_merge(cfg["clock"], clock)
     else:
         raise ValueError("Ugyldig mode")
     return replace_config(cfg)
 
+
 def start_duration(minutes: int) -> Dict[str, Any]:
-    if minutes <= 0: raise ValueError("minutes må være > 0")
+    if minutes <= 0:
+        raise ValueError("minutes må være > 0")
     now_ms = int(time.time() * 1000)
     cfg = load_config()
     cfg["mode"] = "duration"
@@ -492,6 +596,7 @@ def start_duration(minutes: int) -> Dict[str, Any]:
     cfg["duration_started_ms"] = now_ms
     cfg["once_at"] = ""
     return replace_config(cfg)
+
 
 def clear_duration_and_switch_to_daily() -> Dict[str, Any]:
     cfg = load_config()
