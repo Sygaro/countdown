@@ -1,0 +1,3789 @@
+===== BEGIN FILE =====
+PATH: app/__init__.py
+LINES: 23
+CHUNK: 1/1
+SHA256: b6bb4fb4725e267312ffd5fdfb41947108ab432291842fbb7504b7215fa5289a
+----- BEGIN CODE -----
+# app/__init__.py
+from __future__ import annotations
+from flask import Flask
+from .settings import PROJECT_ROOT
+
+
+def create_app() -> Flask:
+    # Hvorfor: sikre at /static peker på prosjektets root/static (ikke app/static)
+    app = Flask(
+        __name__,
+        static_folder=str((PROJECT_ROOT / "static").resolve()),
+        static_url_path="/static",
+    )
+
+    # Blueprints
+    from .routes.pages import bp as pages_bp
+    from .routes.api import bp as api_bp
+
+    app.register_blueprint(pages_bp)
+    app.register_blueprint(api_bp)
+
+    return app
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: app/auth.py
+LINES: 31
+CHUNK: 1/1
+SHA256: be9e78fa64c7fd2687214f1da5fce3bbf98d57e3521fd6c38e7e5c0c8c429bf0
+----- BEGIN CODE -----
+# app/auth.py
+from __future__ import annotations
+import os
+from functools import wraps
+from flask import request, jsonify
+from .storage import load_config
+
+
+def require_password(fn):
+    """
+    Krever X-Admin-Password header KUN hvis det finnes et passord i config
+    og COUNTDOWN_DISABLE_AUTH != '1'.
+    """
+
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if os.environ.get("COUNTDOWN_DISABLE_AUTH") == "1":
+            return fn(*args, **kwargs)  # hvorfor: eksplisitt bypass i drift/feilsøking
+
+        cfg = load_config()
+        pw = str(cfg.get("admin_password") or "").strip()
+        if pw == "":
+            return fn(*args, **kwargs)  # hvorfor: tomt passord = ingen auth
+
+        got = request.headers.get("X-Admin-Password", "")
+        if got == pw:
+            return fn(*args, **kwargs)
+        return jsonify({"error": "Unauthorized"}), 401
+
+    return wrapper
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: app/countdown.py
+LINES: 154
+CHUNK: 1/1
+SHA256: 12f1587ab87257488288b0dcdf7b2e0eb38d1541ea9721d193967223fab24228
+----- BEGIN CODE -----
+# app/countdown.py
+"""
+Target-beregning + tick.
+Ny kanonisk 'clock'-modus (tidligere 'screen').
+"""
+from __future__ import annotations
+import time as _t
+from datetime import datetime, time as dtime, timedelta
+from typing import Any, Dict, Optional
+from .settings import TZ
+
+_MONO0_NS = _t.monotonic_ns()
+_WALL0_MS = int(_t.time() * 1000)
+
+
+def _now_ms() -> int:
+    return _WALL0_MS + (_t.monotonic_ns() - _MONO0_NS) // 1_000_000
+
+
+def _parse_hhmm(hhmm: str) -> dtime:
+    hh, mm = hhmm.strip().split(":", 1)
+    return dtime(hour=int(hh), minute=int(mm), tzinfo=TZ)
+
+
+def _ms_from_dt(dt: datetime) -> int:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=TZ)
+    return int(dt.astimezone(TZ).timestamp() * 1000)
+
+
+def _next_daily_target_with_overrun(
+    hhmm: str, now_dt: datetime, overrun_ms: int
+) -> int:
+    t = _parse_hhmm(hhmm)
+    today = now_dt.replace(hour=t.hour, minute=t.minute, second=0, microsecond=0)
+    if now_dt <= today:
+        return _ms_from_dt(today)
+    if (now_dt - today) <= timedelta(milliseconds=overrun_ms):
+        return _ms_from_dt(today)
+    return _ms_from_dt(today + timedelta(days=1))
+
+
+def compute_target_ms(cfg: Dict[str, Any], *, now_ms: Optional[int] = None) -> int:
+    now_ms = now_ms if now_ms is not None else _now_ms()
+    mode = cfg.get("mode", "daily")
+
+    if mode == "clock":
+        return 0
+
+    if mode == "daily":
+        hhmm = (cfg.get("daily_time") or "").strip()
+        if not hhmm:
+            return 0
+        overrun_ms = int(cfg.get("overrun_minutes", 1)) * 60_000
+        return _next_daily_target_with_overrun(
+            hhmm, datetime.fromtimestamp(now_ms / 1000, tz=TZ), overrun_ms
+        )
+
+    if mode == "once":
+        s = (cfg.get("once_at") or "").strip()
+        if not s:
+            return 0
+        try:
+            dt = datetime.fromisoformat(s)
+            return _ms_from_dt(dt)
+        except Exception:
+            return 0
+
+    if mode == "duration":
+        start_ms = int(cfg.get("duration_started_ms") or 0)
+        mins = int(cfg.get("duration_minutes") or 0)
+        if start_ms <= 0 or mins <= 0:
+            return 0
+        return start_ms + mins * 60_000
+
+    return 0
+
+
+def compute_tick(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    now_ms = _now_ms()
+    mode_cfg = cfg.get("mode", "daily")
+
+    if mode_cfg == "clock":
+        return {
+            "now_ms": now_ms,
+            "target_ms": 0,
+            "target_hhmm": "",
+            "display_ms": 0,
+            "signed_display_ms": 0,
+            "state": "clock",
+            "mode": "clock",
+            "blink": False,
+            "warn_ms": 0,
+            "alert_ms": 0,
+            "overrun_ms": 0,
+        }
+
+    target_ms = compute_target_ms(cfg, now_ms=now_ms)
+    warn_ms = int(cfg.get("warn_minutes", 4)) * 60_000
+    alert_ms = int(cfg.get("alert_minutes", 2)) * 60_000
+    blink_s = int(cfg.get("blink_seconds", 10))
+
+    signed = target_ms - now_ms
+    if target_ms <= 0:
+        state = "idle"
+        phase = "ended"
+        blink = False
+        display_ms = 0
+    else:
+        if signed > 0:
+            state = "countdown"
+            phase = (
+                "alert"
+                if signed <= alert_ms
+                else ("warn" if signed <= warn_ms else "normal")
+            )
+            blink = signed <= blink_s * 1000
+            display_ms = signed
+        else:
+            overrun_ms = int(cfg.get("overrun_minutes", 1)) * 60_000
+            if -signed <= overrun_ms:
+                state = "overrun"
+                phase = "over"
+                blink = False
+                display_ms = max(0, overrun_ms + signed)
+            else:
+                state = "ended"
+                phase = "ended"
+                blink = False
+                display_ms = 0
+
+    target_hhmm = ""
+    if target_ms > 0:
+        try:
+            target_hhmm = datetime.fromtimestamp(target_ms / 1000, tz=TZ).strftime(
+                "%H:%M"
+            )
+        except Exception:
+            target_hhmm = ""
+
+    return {
+        "now_ms": now_ms,
+        "target_ms": target_ms,
+        "target_hhmm": target_hhmm,
+        "display_ms": int(max(0, display_ms)),
+        "signed_display_ms": int(signed),
+        "state": state,
+        "mode": phase,
+        "blink": bool(blink),
+        "warn_ms": warn_ms,
+        "alert_ms": alert_ms,
+        "overrun_ms": int(cfg.get("overrun_minutes", 1)) * 60_000,
+    }
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: app/models.py
+LINES: 48
+CHUNK: 1/1
+SHA256: 9f98076cf757808bf4b9f661b2eeb2aea4011d882a8abd0a43939b30938d7cbd
+----- BEGIN CODE -----
+from __future__ import annotations
+from dataclasses import dataclass, field
+from typing import Optional, Dict, Any
+
+
+@dataclass
+class Config:
+    # Kjernetid – bruk én av disse: daily_time (HH:MM) eller target_datetime (ISO8601)
+    daily_time: Optional[str] = None
+    target_datetime: Optional[str] = None
+
+    # UI-innstillinger
+    message_primary: str = ""
+    message_secondary: str = ""
+    show_message_primary: bool = True
+    show_message_secondary: bool = False
+
+    # Farger/varsler (minutter/sekunder)
+    warn_minutes: int = 3
+    alert_minutes: int = 1
+    blink_seconds: int = 15  # blink siste N sekunder før mål
+
+    # Etter tiden er passert – hvor lenge vises minus (overrun)
+    overrun_minutes: int = 5
+
+    # Admin-passord (plain, behold eksisterende mekanisme om du har)
+    admin_password: Optional[str] = None
+
+    # Andre frie felt bevares her
+    extra: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        base = {
+            "daily_time": self.daily_time,
+            "target_datetime": self.target_datetime,
+            "message_primary": self.message_primary,
+            "message_secondary": self.message_secondary,
+            "show_message_primary": self.show_message_primary,
+            "show_message_secondary": self.show_message_secondary,
+            "warn_minutes": self.warn_minutes,
+            "alert_minutes": self.alert_minutes,
+            "blink_seconds": self.blink_seconds,
+            "overrun_minutes": self.overrun_minutes,
+            "admin_password": self.admin_password,
+        }
+        base.update(self.extra)
+        return base
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: app/routes/admin.py
+LINES: 116
+CHUNK: 1/1
+SHA256: 9d4861a49cc986e1c3e2b5329e0270ff5adb344606693b2bf6566d16e8aa5b22
+----- BEGIN CODE -----
+# app/routes/admin.py
+from __future__ import annotations
+
+from datetime import datetime
+from flask import Blueprint, request, jsonify, abort
+
+from ..auth import require_password
+from ..storage import (
+    load_config,
+    save_config_patch,
+    set_mode,
+    start_duration,
+)
+from ..countdown import compute_tick
+from ..settings import TZ
+
+bp = Blueprint("admin", __name__)
+
+
+@bp.get("/config")
+def get_config():
+    cfg = load_config()
+    t = compute_tick(cfg)
+    return (
+        jsonify(
+            {
+                "ok": True,
+                "config": cfg,
+                "tick": t,
+                "server_time": datetime.now(TZ).isoformat(),
+            }
+        ),
+        200,
+    )
+
+
+@bp.post("/config")
+@require_password
+def post_config():
+    """
+    Lagrer innstillinger OG/ELLER bytter modus.
+    Forventer JSON. Felt som støttes:
+      - mode: "daily"|"once"|"duration"
+      - daily_time, once_at, duration_minutes
+      - messages/varsler: message_primary, message_secondary, show_message_*, warn_minutes, alert_minutes, blink_seconds, overrun_minutes
+      - admin_password (valgfritt)
+    """
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        abort(400, "Payload må være JSON-objekt")
+
+    # 1) Hvis eksplisitt modus oppgis, sett den først (med tilhørende felt)
+    if "mode" in data:
+        mode = str(data.get("mode")).strip().lower()
+        daily_time = str(data.get("daily_time") or "")
+        once_at = str(data.get("once_at") or "")
+        duration_minutes = int(data.get("duration_minutes") or 0) or None
+        try:
+            cfg = set_mode(
+                mode,
+                daily_time=daily_time,
+                once_at=once_at,
+                duration_minutes=duration_minutes,
+            )
+        except ValueError as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
+    else:
+        cfg = load_config()
+
+    # 2) Andre felt (meldinger, varsler, admin)
+    patch: dict = {}
+    passthrough_keys = (
+        "message_primary",
+        "message_secondary",
+        "show_message_primary",
+        "show_message_secondary",
+        "warn_minutes",
+        "alert_minutes",
+        "blink_seconds",
+        "overrun_minutes",
+        "admin_password",
+        "daily_time",
+        "once_at",
+        "duration_minutes",  # tillat oppdatering uten å endre mode
+    )
+    for k in passthrough_keys:
+        if k in data:
+            patch[k] = data[k]
+    if patch:
+        try:
+            cfg = save_config_patch(patch)
+        except ValueError as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
+
+    t = compute_tick(cfg)
+    return jsonify({"ok": True, "config": cfg, "tick": t}), 200
+
+
+@bp.post("/start-duration")
+@require_password
+def post_start_duration():
+    """
+    Start varighetsmodus umiddelbart.
+    Body: {"minutes": 10}
+    """
+    data = request.get_json(silent=True) or {}
+    try:
+        minutes = int(data.get("minutes"))
+    except Exception:
+        abort(400, "'minutes' må være et heltall")
+    if minutes <= 0:
+        abort(400, "'minutes' må være > 0")
+    cfg = start_duration(minutes)
+    t = compute_tick(cfg)
+    return jsonify({"ok": True, "config": cfg, "tick": t}), 200
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: app/routes/api.py
+LINES: 209
+CHUNK: 1/1
+SHA256: 3c86f6a20f2155731b558b49459aa2d70484bf3aed68d1d693c10997faa39466
+----- BEGIN CODE -----
+# File: app/routes/api.py
+# Purpose: REST-API for config (GET/POST) + kontrollendepunkter. Robust JSON-parsing,
+#          konsistent feilmeldingsformat, tydelige statuskoder, og server_time i alle svar.
+# Replaces: app/routes/api.py
+# Notes: Avhenger av storage-funksjoner og require_password-dekoratør. Endepunktkontrakter beholdt.
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any, Dict, Tuple
+
+from flask import Blueprint, request, jsonify, Response, current_app
+
+from ..settings import TZ
+from ..storage import (
+    load_config,
+    save_config_patch,
+    set_mode,
+    start_duration,
+    clear_duration_and_switch_to_daily,
+    get_defaults,
+)
+from ..countdown import compute_tick
+from ..auth import require_password
+
+bp = Blueprint("api", __name__, url_prefix="/api")
+
+
+# === Utilities =================================================================
+
+def _now_iso() -> str:
+    return datetime.now(TZ).isoformat()
+
+def _json_ok(payload: Dict[str, Any], status: int = 200) -> Response:
+    """Suksessrespons – legger alltid på server_time."""
+    data = {"ok": True, "server_time": _now_iso(), **payload}
+    resp = jsonify(data)
+    resp.status_code = status
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+def _json_err(message: str, *, status: int = 400, code: str | None = None, extra: Dict[str, Any] | None = None) -> Response:
+    """Feilrespons – ensartet format for alle feiltyper."""
+    data = {"ok": False, "error": message, "server_time": _now_iso()}
+    if code:
+        data["code"] = code
+    if extra:
+        data.update(extra)
+    resp = jsonify(data)
+    resp.status_code = status
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+def _is_json_request() -> bool:
+    ctype = request.headers.get("Content-Type", "")
+    return "application/json" in ctype.lower() or request.is_json
+
+
+# === Routes: defaults/config ===================================================
+
+@bp.get("/defaults")
+def api_defaults() -> Response:
+    return _json_ok({"defaults": get_defaults()})
+
+
+@bp.get("/config")
+def api_get_config() -> Response:
+    try:
+        cfg = load_config()
+        tick = compute_tick(cfg)
+        return _json_ok({"config": cfg, "tick": tick})
+    except Exception:
+        current_app.logger.exception("GET /api/config failed")
+        return _json_err("internal error", status=500, code="internal_error")
+
+
+@bp.post("/config")
+def api_post_config() -> Response:
+    # Behold kontrakt: POST /config kan bytte mode *eller* patche felt.
+    if not _is_json_request():
+        return _json_err("expected application/json", status=415, code="unsupported_media_type")
+
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return _json_err("payload must be a JSON object", status=400, code="bad_request")
+
+    try:
+        # 1) Eventuelt bytte modus
+        if "mode" in data:
+            mode = str(data.get("mode") or "").strip().lower()
+            cfg = set_mode(
+                mode,
+                daily_time=str(data.get("daily_time") or ""),
+                once_at=str(data.get("once_at") or ""),
+                duration_minutes=_coerce_int_or_none(data.get("duration_minutes")),
+                clock=(data.get("clock") if isinstance(data.get("clock"), dict) else None),
+            )
+        else:
+            cfg = load_config()
+
+        # 2) Patch/merge øvrige felt (idempotent)
+        passthrough = (
+            "message_primary",
+            "message_secondary",
+            "show_message_primary",
+            "show_message_secondary",
+            "warn_minutes",
+            "alert_minutes",
+            "blink_seconds",
+            "overrun_minutes",
+            "admin_password",
+            "daily_time",
+            "once_at",
+            "duration_minutes",
+            "theme",
+            "color_normal",
+            "color_warn",
+            "color_alert",
+            "color_over",
+            "show_target_time",
+            "target_time_after",
+            "messages_position",
+            "use_blink",
+            "use_phase_colors",
+            "hms_threshold_minutes",
+            "clock",
+            "overlays",
+        )
+        patch = {k: data[k] for k in passthrough if k in data}
+        if patch:
+            cfg = save_config_patch(patch)
+
+        tick = compute_tick(cfg)
+        return _json_ok({"config": cfg, "tick": tick})
+
+    except ValueError as e:
+        # Valideringsfeil fra storage
+        return _json_err(str(e), status=400, code="validation_error")
+    except Exception:
+        current_app.logger.exception("POST /api/config failed")
+        return _json_err("internal error", status=500, code="internal_error")
+
+
+# === Routes: duration controls =================================================
+
+@bp.post("/start-duration")
+def api_start_duration() -> Response:
+    if not _is_json_request():
+        return _json_err("expected application/json", status=415, code="unsupported_media_type")
+
+    data = request.get_json(silent=True) or {}
+    minutes_raw = data.get("minutes", None)
+    minutes = _coerce_positive_int(minutes_raw)
+
+    if minutes is None:
+        return _json_err("'minutes' must be a positive integer", status=400, code="validation_error")
+
+    try:
+        cfg = start_duration(minutes)
+        tick = compute_tick(cfg)
+        return _json_ok({"config": cfg, "tick": tick})
+    except ValueError as e:
+        return _json_err(str(e), status=400, code="validation_error")
+    except Exception:
+        current_app.logger.exception("POST /api/start-duration failed")
+        return _json_err("internal error", status=500, code="internal_error")
+
+
+@bp.post("/stop")
+@require_password
+def stop() -> Response:
+    try:
+        cfg = clear_duration_and_switch_to_daily()
+        tick = compute_tick(cfg)
+        return _json_ok({"config": cfg, "tick": tick})
+    except Exception:
+        current_app.logger.exception("POST /api/stop failed")
+        return _json_err("internal error", status=500, code="internal_error")
+
+
+@bp.get("/status")
+def status() -> Response:
+    try:
+        cfg = load_config()
+        return _json_ok(compute_tick(cfg))
+    except Exception:
+        current_app.logger.exception("GET /api/status failed")
+        return _json_err("internal error", status=500, code="internal_error")
+
+
+# === Local coercion helpers ====================================================
+
+def _coerce_int_or_none(v: Any) -> int | None:
+    if v in (None, ""):
+        return None
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None
+
+def _coerce_positive_int(v: Any) -> int | None:
+    try:
+        iv = int(v) if not (isinstance(v, str) and not v.strip()) else None
+    except (TypeError, ValueError):
+        iv = None
+    if iv is None or iv <= 0:
+        return None
+    return iv
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: app/routes/pages.py
+LINES: 166
+CHUNK: 1/1
+SHA256: 16a757c0f90bcb243154453d52d104555356241956372d82c5a26b66b524f8a5
+----- BEGIN CODE -----
+# app/routes/pages.py
+"""
+Sider + kompat-endepunkter + debug/selftest + view-heartbeat.
+"""
+from __future__ import annotations
+from datetime import datetime, timedelta, timezone
+from flask import Blueprint, send_from_directory, jsonify, request
+from ..settings import PROJECT_ROOT, TZ
+from ..storage import load_config, clear_duration_and_switch_to_daily, replace_config
+from ..countdown import compute_tick, compute_target_ms
+
+bp = Blueprint("pages", __name__)
+
+_STATIC = (PROJECT_ROOT / "static").resolve()
+
+# --- Enkelt in-memory heartbeat fra visningen (for Admin-synk) ---
+_LAST_VIEW_HEARTBEAT = {"rev": 0, "ts": None, "page": "view"}  # ts = aware datetime
+
+
+@bp.post("/debug/view-heartbeat")
+def view_hb_post():
+    try:
+        data = request.get_json(silent=True) or {}
+        rev = int(data.get("rev") or 0)
+        page = str(data.get("page") or "view")
+    except Exception:
+        rev = 0
+        page = "view"
+    _LAST_VIEW_HEARTBEAT["rev"] = rev
+    _LAST_VIEW_HEARTBEAT["page"] = page
+    _LAST_VIEW_HEARTBEAT["ts"] = datetime.now(timezone.utc)
+    return jsonify({"ok": True})
+
+
+@bp.get("/debug/view-heartbeat")
+def view_hb_get():
+    hb = dict(_LAST_VIEW_HEARTBEAT)
+    ts = hb.get("ts")
+    hb["ts_iso"] = ts.isoformat() if ts else None
+    hb["age_seconds"] = (
+        (datetime.now(timezone.utc) - ts).total_seconds() if ts else None
+    )
+    return jsonify({"ok": True, "heartbeat": hb})
+
+
+@bp.get("/")
+def index():
+    return send_from_directory(_STATIC, "index.html")
+
+
+@bp.get("/admin")
+def admin():
+    return send_from_directory(_STATIC, "admin.html")
+
+
+@bp.get("/diag")
+def diag():
+    return send_from_directory(_STATIC, "diag.html")
+
+
+@bp.get("/about")
+def about():
+    return send_from_directory(_STATIC, "about.html")
+
+
+@bp.get("/health")
+def health():
+    return {"ok": True}
+
+
+@bp.get("/tick")
+def tick():
+    cfg = load_config()
+    t = compute_tick(cfg)
+    if t["state"] == "ended" and cfg.get("mode") == "duration":
+        clear_duration_and_switch_to_daily()
+    t["cfg_rev"] = int(cfg.get("_updated_at", 0))
+    return jsonify(t), 200
+
+
+@bp.get("/state")
+def state_snapshot():
+    cfg = load_config()
+    t = compute_tick(cfg)
+    return (
+        jsonify(
+            {
+                "now_ms": t["now_ms"],
+                "target_ms": t["target_ms"],
+                "display_ms": t["display_ms"],
+                "signed_display_ms": t["signed_display_ms"],
+                "state": t["state"],
+                "mode": t["mode"],
+            }
+        ),
+        200,
+    )
+
+
+@bp.get("/debug/whoami")
+def dbg_whoami():
+    return (
+        jsonify(
+            {
+                "cwd": str(PROJECT_ROOT),
+                "static": str(_STATIC),
+                "config_path": str((PROJECT_ROOT / "config.json").resolve()),
+                "server_time": datetime.now(TZ).isoformat(),
+            }
+        ),
+        200,
+    )
+
+
+@bp.get("/debug/config")
+def dbg_config():
+    write_test = request.args.get("write_test") == "1"
+    cfg = load_config()
+    result = {
+        "ok": True,
+        "__config_path": str((PROJECT_ROOT / "config.json").resolve()),
+    }
+    if write_test:
+        try:
+            cfg["_debug_touch"] = True
+            replace_config(cfg)
+            cfg.pop("_debug_touch", None)
+            replace_config(cfg)
+            result["write_test_ok"] = True
+        except Exception as e:
+            result["write_test_ok"] = False
+            result["error"] = str(e)
+    result["config"] = cfg
+    return jsonify(result), 200
+
+
+@bp.get("/debug/selftest")
+def dbg_selftest():
+    tests = []
+    ok_all = True
+
+    def add(name: str, ok: bool, info: str = ""):
+        nonlocal ok_all
+        tests.append({"name": name, "ok": bool(ok), "info": info})
+        ok_all = ok_all and ok
+
+    cfg = {"mode": "daily", "daily_time": "09:00", "overrun_minutes": 2}
+    now = datetime.now(TZ).replace(hour=9, minute=1, second=0, microsecond=0)
+    target1 = compute_target_ms(cfg, now_ms=int(now.timestamp() * 1000))
+    from datetime import datetime as _dt
+
+    add("daily_overrun_window", _dt.fromtimestamp(target1 / 1000, tz=TZ).hour == 9)
+
+    now2 = datetime.now(TZ)
+    future = (now2 + timedelta(minutes=30)).replace(second=0, microsecond=0)
+    cfg2 = {"mode": "once", "once_at": future.isoformat()}
+    target2 = compute_target_ms(cfg2, now_ms=int(now2.timestamp() * 1000))
+    add("once_future", target2 == int(future.timestamp() * 1000))
+
+    start_ms = int(now2.timestamp() * 1000)
+    cfg3 = {"mode": "duration", "duration_minutes": 10, "duration_started_ms": start_ms}
+    target3 = compute_target_ms(cfg3, now_ms=start_ms)
+    add("duration_10min", target3 == start_ms + 10 * 60_000)
+
+    return jsonify({"ok": ok_all, "tests": tests}), 200
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: app/routes/public.py
+LINES: 43
+CHUNK: 1/1
+SHA256: 801a4aa332f6a23377a32080d344b434656e88b0c61217ed434d2798fc0e3448
+----- BEGIN CODE -----
+# app/routes/public.py
+from __future__ import annotations
+
+from flask import Blueprint, send_from_directory, jsonify
+from ..settings import STATIC_DIR
+from ..storage import load_config, clear_duration_and_switch_to_daily
+from ..countdown import compute_tick
+
+bp = Blueprint("public", __name__)
+
+
+@bp.get("/")
+def index():
+    return send_from_directory(STATIC_DIR, "index.html")
+
+
+@bp.get("/health")
+def health():
+    return {"ok": True}
+
+
+@bp.get("/state")
+def state_snapshot():
+    cfg = load_config()
+    t = compute_tick(cfg)
+    return jsonify(t), 200
+
+
+@bp.get("/tick")
+def tick():
+    """
+    Brukes av diagnose/admin for å polle status.
+    Når varighetsmodus er ferdig, reverter automatisk til Daglig.
+    """
+    cfg = load_config()
+    t = compute_tick(cfg)
+    if t["state"] == "ended":
+        # Hvis vi var i duration og den er ferdig -> bytt til daily.
+        if cfg.get("mode") == "duration":
+            clear_duration_and_switch_to_daily()
+            # NB: svarer likevel med 'ended' nå; neste poll viser daglig target.
+    return jsonify(t), 200
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: app/settings.py
+LINES: 12
+CHUNK: 1/1
+SHA256: fd4983c4929b43abf203c62b7b053b490256a8d83d2b23fa26b157ccccbffd87
+----- BEGIN CODE -----
+# app/settings.py
+"""
+Grunninnstillinger (baner og TZ).
+"""
+from __future__ import annotations
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+CONFIG_PATH = PROJECT_ROOT / "config.json"
+TZ = ZoneInfo("Europe/Oslo")
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: app/sse.py
+LINES: 133
+CHUNK: 1/1
+SHA256: df02bfaa93b9553e112d2a5ee102c97701f0c8c80fff1f912a3884c24f0329c7
+----- BEGIN CODE -----
+# /home/reidar/countdown/app/sse.py
+from __future__ import annotations
+
+import json
+import queue
+import threading
+import time
+from dataclasses import dataclass, field
+from typing import Dict, Iterable, Set
+
+from flask import Response, stream_with_context
+
+__all__ = ["publish", "sse_stream"]
+
+# Intern global tilstand for SSE
+_subscribers: Set["SSEQueue"] = set()
+_sub_lock = threading.Lock()
+_event_id = 0
+
+
+@dataclass
+class SSEQueue:
+    q: "queue.Queue[Dict]"
+    created: float = field(default_factory=time.time)
+
+    def put_nowait(self, item: Dict) -> None:
+        try:
+            self.q.put_nowait(item)
+        except queue.Full:
+            # Dropper gammel kø og lager ny for å ikke henge hele strømmen
+            with _sub_lock:
+                _subscribers.discard(self)
+            # Ikke reiser videre — klienten vil typisk reconnecte
+            try:
+                while True:
+                    self.q.get_nowait()
+            except queue.Empty:
+                pass
+
+
+def _new_queue(maxsize: int = 100) -> SSEQueue:
+    sq = SSEQueue(queue.Queue(maxsize=maxsize))
+    with _sub_lock:
+        _subscribers.add(sq)
+    return sq
+
+
+def _remove_queue(sq: SSEQueue) -> None:
+    with _sub_lock:
+        _subscribers.discard(sq)
+
+
+def publish(event: Dict) -> None:
+    """
+    Publiser en hendelse til alle abonnenter.
+    Forventer et dict som i minimum har 'type' (streng).
+    Tillegger 'ts' (epoch sek) og auto-inkrementert 'id' på wiresiden.
+    """
+    global _event_id
+    etype = event.get("type") or "message"
+    payload = dict(event)
+    payload.setdefault("ts", time.time())
+
+    with _sub_lock:
+        _event_id += 1
+        eid = _event_id
+        # Kopi for å iterere trygt
+        targets = list(_subscribers)
+
+    wire = {
+        "id": eid,
+        "type": etype,
+        "data": payload,
+    }
+
+    for sub in targets:
+        sub.put_nowait(wire)
+
+
+def _format_sse(wire: Dict) -> str:
+    """
+    Gjør om internt event til SSE-linjer.
+    Bruker 'event: <type>' og JSON i 'data:'.
+    """
+    eid = wire.get("id", 0)
+    etype = wire.get("type", "message")
+    data = wire.get("data", {})
+    body = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
+    # NB: to blanke linjer avslutter en event-chunk
+    return f"id: {eid}\nevent: {etype}\ndata: {body}\n\n"
+
+
+def sse_stream(ping_interval: float = 15.0) -> Response:
+    """
+    Flask-respons som holder en SSE-strøm åpen.
+    Sender 'retry' først, så periodiske 'ping' for å holde forbindelsen varm.
+    """
+
+    @stream_with_context
+    def gen() -> Iterable[str]:
+        sq = _new_queue()
+        try:
+            # Tving header-flush tidlig og sett klientens auto-retry
+            yield "retry: 15000\n\n"
+
+            last_ping = time.time()
+            while True:
+                timeout = max(0.1, ping_interval - (time.time() - last_ping))
+                try:
+                    wire = sq.q.get(timeout=timeout)
+                    yield _format_sse(wire)
+                except queue.Empty:
+                    # Ping
+                    last_ping = time.time()
+                    yield _format_sse(
+                        {"id": 0, "type": "ping", "data": {"ts": last_ping}}
+                    )
+        except (GeneratorExit, BrokenPipeError, ConnectionError):
+            # Klienten dro — bare rydd
+            pass
+        finally:
+            _remove_queue(sq)
+
+    return Response(
+        gen(),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # unbuffer ved evt. proxy
+            "Connection": "keep-alive",
+        },
+    )
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: app/storage.py
+LINES: 501
+CHUNK: 1/1
+SHA256: 976c2266bf64ca5fa8e2a47323301b28013d79b87cbac97b88350fdcc8c7fdde
+----- BEGIN CODE -----
+# File: app/storage.py
+# Purpose: Konfig I/O + defaults + sanitering + trygg migrering (screen -> clock) + atomisk lagring.
+#          Overlay-regler:
+#            • visible_in: [] respekteres (helt skjult)
+#            • visible_in: None (eksplisitt) → []
+#            • overlays_mode:"replace" erstatter hele lista (inkl. []), "merge" upsert pr. id
+# Replaces: app/storage.py
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import tempfile
+import time
+from datetime import datetime
+from typing import Any, Dict, Tuple, List, Optional, cast
+
+from .settings import CONFIG_PATH
+
+_DEFAULTS: Dict[str, Any] = {
+    "mode": "daily",
+    "daily_time": "19:15",
+    "once_at": "",
+    "duration_minutes": 20,
+    "duration_started_ms": 0,
+    "overlays": [],
+    "clock": {
+        "with_seconds": True,
+        "color": "#e6edf3",
+        "size_vmin": 15,
+        "position": "center",
+        "messages_position": "right",
+        "messages_align": "center",
+        "use_clock_messages": False,
+        "message_primary": "Velkommen!",
+        "message_secondary": "",
+    },
+    "message_primary": "Velkommen!",
+    "message_secondary": "Vi starter kl:",
+    "show_message_primary": True,
+    "show_message_secondary": True,
+    "warn_minutes": 5,
+    "alert_minutes": 3,
+    "blink_seconds": 10,
+    "overrun_minutes": 20,
+    "show_target_time": True,
+    "target_time_after": "secondary",
+    "messages_position": "above",
+    "use_blink": True,
+    "use_phase_colors": False,
+    "color_normal": "#e6edf3",
+    "color_warn": "#ffd166",
+    "color_alert": "#ff6b6b",
+    "color_over": "#9ad0ff",
+    "hms_threshold_minutes": 60,
+    "theme": {
+        "digits": {"size_vw": 14, "font_weight": 800, "letter_spacing_em": 0.06},
+        "messages": {
+            "primary": {"size_rem": 1.0, "weight": 600, "color": "#9aa4b2"},
+            "secondary": {"size_rem": 1.0, "weight": 400, "color": "#9aa4b2"},
+        },
+        "background": {
+            "mode": "solid",
+            "solid": {"color": "#0b0f14"},
+            "gradient": {"from": "#142033", "to": "#0b0f14", "angle_deg": 180},
+            "image": {
+                "url": "",
+                "fit": "cover",
+                "opacity": 1.0,
+                "tint": {"color": "#000000", "opacity": 0.0},
+            },
+        },
+    },
+    "admin_password": None,
+}
+
+_LEGACY_REMOVE = {"target_ms", "target_iso", "target_datetime"}
+_HHMM_RE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+
+def get_defaults() -> Dict[str, Any]:
+    return json.loads(json.dumps(_DEFAULTS))
+
+def _atomic_write(path: str, data: Dict[str, Any]) -> None:
+    dirpath = os.path.dirname(path) or "."
+    os.makedirs(dirpath, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=".config.", dir=dirpath)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2, sort_keys=True)
+            f.write("\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        try:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+        except Exception:
+            pass
+
+def _deep_merge(dst: Dict[str, Any], src: Dict[str, Any]) -> Dict[str, Any]:
+    for k, v in (src or {}).items():
+        if isinstance(v, dict) and isinstance(dst.get(k), dict):
+            _deep_merge(dst[k], v)
+        else:
+            dst[k] = v
+    return dst
+
+def _merge_defaults(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    merged = get_defaults()
+    return _deep_merge(merged, cfg or {})
+
+def _strip_legacy(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    for k in list(cfg.keys()):
+        if k in _LEGACY_REMOVE:
+            cfg.pop(k, None)
+    sc = (cfg.get("screen") or {}) if isinstance(cfg.get("screen"), dict) else {}
+    if cfg.get("mode") == "screen":
+        cfg["mode"] = "clock"
+        sclk = sc.get("clock") or {}
+        clk = cfg.get("clock") or {}
+        if isinstance(sclk, dict):
+            clk.setdefault("with_seconds", bool(sclk.get("with_seconds", False)))
+            clk.setdefault("color", sclk.get("color") or "#e6edf3")
+            try:
+                vh = int(sclk.get("size_vh", 12))
+            except Exception:
+                vh = 12
+            clk.setdefault("size_vmin", max(6, min(30, vh)))
+        cfg["clock"] = clk or get_defaults()["clock"]
+        try:
+            use_theme_bg = bool(sc.get("use_theme_background", False))
+            sc_bg = sc.get("background") or {}
+            if not use_theme_bg and sc_bg:
+                th = cfg.get("theme") or {}
+                th_bg = th.get("background") or {}
+                _deep_merge(th_bg, sc_bg)
+                th["background"] = th_bg
+                cfg["theme"] = th
+        except Exception:
+            pass
+    if "screen" in cfg:
+        try:
+            del cfg["screen"]
+        except Exception:
+            cfg["screen"] = None
+    return cfg
+
+def _coerce_bool(v, default: bool) -> bool:
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, str):
+        s = v.strip().lower()
+        if s in ("1", "true", "yes", "y", "on"):
+            return True
+        if s in ("0", "false", "no", "n", "off"):
+            return False
+    return default
+
+def _clamp01(x, d=1.0) -> float:
+    try:
+        v = float(x)
+    except Exception:
+        v = d
+    return max(0.0, min(1.0, v))
+
+def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    def _i(v, d=None):
+        if v in (None, ""):
+            return d
+        try:
+            return int(v)
+        except Exception:
+            return d
+
+    for k in ("warn_minutes","alert_minutes","blink_seconds","overrun_minutes","duration_minutes","duration_started_ms","hms_threshold_minutes"):
+        if k in cfg:
+            cfg[k] = _i(cfg[k], _DEFAULTS.get(k, 0))
+
+    for k in ("message_primary","message_secondary","daily_time","once_at"):
+        if cfg.get(k) is None:
+            cfg[k] = ""
+
+    for k, d in (
+        ("show_message_primary", _DEFAULTS["show_message_primary"]),
+        ("show_message_secondary", _DEFAULTS["show_message_secondary"]),
+        ("show_target_time", _DEFAULTS["show_target_time"]),
+        ("use_blink", _DEFAULTS["use_blink"]),
+        ("use_phase_colors", _DEFAULTS["use_phase_colors"]),
+    ):
+        cfg[k] = _coerce_bool(cfg.get(k, d), d)
+
+    for k in ("target_time_after","messages_position","color_normal","color_warn","color_alert","color_over"):
+        if cfg.get(k) is None:
+            cfg[k] = _DEFAULTS[k]
+
+    th = cfg.get("theme") or {}
+    base_th = get_defaults()["theme"]; _deep_merge(base_th, th)
+
+    dg = base_th.get("digits", {})
+    try:
+        dg["size_vw"] = max(8, min(40, int(dg.get("size_vw", 14) or 14)))
+    except Exception:
+        dg["size_vw"] = 14
+    base_th["digits"] = dg
+
+    msg = base_th.get("messages", {})
+    for key in ("primary","secondary"):
+        m = msg.get(key) or {}
+        try:
+            sz = float(m.get("size_rem", 1.0) or 1.0)
+        except Exception:
+            sz = 1.0
+        m["size_rem"] = max(0.6, min(3.0, sz))
+        try:
+            wt = int(m.get("weight", 400) or 400)
+        except Exception:
+            wt = 400
+        wt = 100 * round(wt / 100)
+        m["weight"] = max(100, min(900, wt))
+        if not isinstance(m.get("color"), str) or not m.get("color"):
+            m["color"] = "#9aa4b2"
+        msg[key] = m
+    base_th["messages"] = msg
+
+    bg = base_th.get("background", {})
+    mode = (bg.get("mode") or "solid").lower()
+    if mode not in ("solid","gradient","image"):
+        mode = "solid"
+    bg["mode"] = mode
+    try:
+        ang = int(bg.get("gradient", {}).get("angle_deg", 180))
+    except Exception:
+        ang = 180
+    bg.setdefault("gradient", {}); bg["gradient"]["angle_deg"] = max(0, min(360, ang))
+    bg.setdefault("image", {})
+    bg["image"]["opacity"] = _clamp01(bg["image"].get("opacity", 1.0), 1.0)
+    bg["image"]["fit"] = bg["image"].get("fit") or "cover"
+    bg["image"].setdefault("tint", {})
+    bg["image"]["tint"]["opacity"] = _clamp01(bg["image"]["tint"].get("opacity", 0.0), 0.0)
+    if isinstance(bg["image"].get("url"), str):
+        bg["image"]["url"] = bg["image"]["url"].strip()
+    cfg["theme"] = base_th
+
+    clk = cfg.get("clock") or {}
+    if "size_vmin" not in clk and "size_vh" in clk:
+        try:
+            clk["size_vmin"] = int(clk.get("size_vh") or 12)
+        except Exception:
+            clk["size_vmin"] = 12
+    clk["with_seconds"] = bool(clk.get("with_seconds", False))
+    clk["use_clock_messages"] = bool(clk.get("use_clock_messages", False))
+    if not isinstance(clk.get("color"), str) or not clk.get("color"):
+        clk["color"] = "#e6edf3"
+    try:
+        sz = int(clk.get("size_vmin", 12) or 12)
+    except Exception:
+        sz = 12
+    clk["size_vmin"] = max(6, min(30, sz))
+    pos = (clk.get("position") or "center").strip().lower()
+    if pos not in ("center","top-left","top-right","bottom-left","bottom-right","top-center","bottom-center"):
+        pos = "center"
+    clk["position"] = pos
+    mp = (clk.get("messages_position") or "right").strip().lower()
+    if mp not in ("right","left","above","below"):
+        mp = "right"
+    clk["messages_position"] = mp
+    ma = (clk.get("messages_align") or "center").strip().lower()
+    if ma not in ("start","center","end"):
+        ma = "center"
+    for key in ("message_primary","message_secondary"):
+        v = clk.get(key, "")
+        clk[key] = v if isinstance(v, str) else ("" if v is None else str(v))
+    cfg["clock"] = clk
+
+    hm = cfg.get("hms_threshold_minutes", _DEFAULTS["hms_threshold_minutes"])
+    try:
+        hm = int(hm)
+    except Exception:
+        hm = _DEFAULTS["hms_threshold_minutes"]
+    cfg["hms_threshold_minutes"] = max(0, min(720, hm))
+
+    if not cfg.get("admin_password"):
+        cfg["admin_password"] = None
+    return cfg
+
+def _validate(cfg: Dict[str, Any]) -> Tuple[bool, str]:
+    m = cfg.get("mode")
+    if m not in ("daily", "once", "duration", "clock"):
+        return False, "mode må være daily|once|duration|clock"
+    if m == "daily":
+        s = (cfg.get("daily_time") or "").strip()
+        if not _HHMM_RE.match(s):
+            return False, "daily_time må være HH:MM (00:00–23:59)"
+    if m == "once":
+        s = (cfg.get("once_at") or "").strip()
+        if s:
+            ss = s.replace("Z", "+00:00")
+            try:
+                datetime.fromisoformat(ss)
+            except Exception:
+                return False, "once_at må være ISO-8601 (YYYY-MM-DDTHH:MM[:SS][+TZ])"
+    if m == "duration":
+        try:
+            dm = int(cfg.get("duration_minutes") or 0)
+        except Exception:
+            dm = 0
+        if dm <= 0:
+            return False, "duration_minutes må være > 0"
+    return True, ""
+
+def _clean_by_mode(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    m = cfg.get("mode")
+    if m == "daily":
+        cfg["once_at"] = ""; cfg["duration_started_ms"] = 0
+    elif m == "once":
+        cfg["duration_started_ms"] = 0
+    elif m == "duration":
+        cfg["once_at"] = ""
+    elif m == "clock":
+        cfg["once_at"] = ""; cfg["duration_started_ms"] = 0
+    return cfg
+
+def _sanitize_overlays(seq: Any) -> List[Dict[str, Any]]:
+    """
+    Sanitering:
+      • Hvis 'visible_in' forekommer:
+          – liste  → filtrer mot {'countdown','clock'} (behold evt. tom [])
+          – None    → tolk som eksplisitt tom []
+        Ellers default ["countdown","clock"].
+    """
+    out: List[Dict[str, Any]] = []
+    if not isinstance(seq, list):
+        return out
+
+    ALLOWED_POS = {
+        "top-left","top-center","top-right",
+        "center-left","center","center-right",
+        "bottom-left","bottom-center","bottom-right",
+    }
+    ALLOWED_VISIBLE = {"countdown","clock"}
+    ALLOWED_URL_SCHEMES = ("http://","https://","data:")
+
+    for idx, it in enumerate(seq, start=1):
+        if not isinstance(it, dict):
+            continue
+        if (it.get("type") or "image") != "image":
+            continue
+
+        url = str(it.get("url") or "").strip()
+        if url and not url.startswith(ALLOWED_URL_SCHEMES):
+            if url.startswith("//"): url = "https:" + url
+            elif ":" in url: url = ""
+
+        pos = str(it.get("position") or "top-right").strip().lower()
+        if pos not in ALLOWED_POS: pos = "top-right"
+
+        # --- visible_in presist ---
+        if "visible_in" in it:
+            src = it.get("visible_in")
+            if src is None:
+                vis: List[str] = []              # eksplisitt None → [] (helt skjult)
+            elif isinstance(src, list):
+                vis = [v for v in src if isinstance(v, str) and v in ALLOWED_VISIBLE]
+                # bevar ev. tom liste
+            else:
+                vis = ["countdown","clock"]
+        else:
+            vis = ["countdown","clock"]
+
+        def _f(v: Any, d: float) -> float:
+            try: return float(v)
+            except Exception: return d
+
+        try: z_index = int(it.get("z_index") or 10)
+        except Exception: z_index = 10
+
+        tint = it.get("tint") or {}
+        out.append({
+            "id": str(it.get("id") or f"logo-{idx}"),
+            "type": "image",
+            "url": url,
+            "position": pos,
+            "size_vmin": max(2.0, min(200.0, _f(it.get("size_vmin"), 12.0))),
+            "opacity": max(0.0, min(1.0, _f(it.get("opacity"), 1.0))),
+            "offset_vw": _f(it.get("offset_vw"), 2.0),
+            "offset_vh": _f(it.get("offset_vh"), 2.0),
+            "z_index": max(-9999, min(9999, z_index)),
+            "visible_in": vis,  # kan være []
+            "tint": {
+                "color": str(tint.get("color") or "#000000"),
+                "opacity": max(0.0, min(1.0, float(tint.get("opacity") or 0.0))),
+                "blend": str(tint.get("blend") or "multiply").lower(),
+            },
+        })
+    return out
+
+def _merge_overlays_by_id(old_list: Any, new_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    old: List[Dict[str, Any]] = old_list if isinstance(old_list, list) else []
+    by_id: Dict[str, Dict[str, Any]] = {
+        (cast(Dict[str, Any], o).get("id") or f"_idx{i}"): dict(cast(Dict[str, Any], o))
+        for i, o in enumerate(old)
+    }
+    for n in new_list:
+        nid = cast(Optional[str], n.get("id")) or f"logo-{len(by_id)+1}"
+        n = {**n, "id": nid}
+        by_id[nid] = n
+    return list(by_id.values())
+
+def load_config() -> Dict[str, Any]:
+    path = str(CONFIG_PATH)
+    if not os.path.exists(path):
+        cfg = _merge_defaults({})
+        _atomic_write(path, cfg)
+        return cfg
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+    except Exception:
+        cfg = {}
+    cfg = _merge_defaults(_strip_legacy(cfg))
+    cfg = _coerce(cfg)
+    ok, _ = _validate(cfg)
+    if not ok:
+        cfg = _merge_defaults(cfg)
+    return _clean_by_mode(cfg)
+
+def replace_config(new_cfg: Dict[str, Any]) -> Dict[str, Any]:
+    cfg_in = _merge_defaults(_strip_legacy(new_cfg))
+    if "overlays" in new_cfg:
+        try:
+            cfg_in["overlays"] = _sanitize_overlays(new_cfg.get("overlays"))
+        except Exception:
+            cfg_in["overlays"] = []
+    cfg = _coerce(cfg_in)
+    ok, msg = _validate(cfg)
+    if not ok:
+        raise ValueError(msg)
+    cfg["_updated_at"] = int(time.time())
+    cfg = _clean_by_mode(cfg)
+    _atomic_write(str(CONFIG_PATH), cfg)
+    return cfg
+
+def save_config_patch(patch: Dict[str, Any]) -> Dict[str, Any]:
+    current = load_config()
+    merged = _merge_defaults(current)
+
+    overlays_mode = "merge"
+    if isinstance(patch, dict):
+        overlays_mode = str(patch.get("overlays_mode") or "merge").lower()
+
+    if isinstance(patch, dict) and "overlays" in patch:
+        new_ov = _sanitize_overlays(patch.get("overlays"))
+        if overlays_mode == "replace":
+            merged["overlays"] = new_ov  # respekter også []
+        else:
+            if new_ov:
+                merged["overlays"] = _merge_overlays_by_id(merged.get("overlays"), new_ov)
+
+        patch = dict(patch)
+        patch.pop("overlays", None)
+        patch.pop("overlays_mode", None)
+
+    _deep_merge(merged, patch or {})
+    return replace_config(merged)
+
+def set_mode(mode: str, *, daily_time: str = "", once_at: str = "", duration_minutes: int | None = None, clock: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    cfg = load_config()
+    cfg["mode"] = mode
+    if mode == "daily":
+        if daily_time: cfg["daily_time"] = daily_time
+        cfg["duration_started_ms"] = 0; cfg["once_at"] = ""
+    elif mode == "once":
+        cfg["once_at"] = once_at or ""; cfg["duration_started_ms"] = 0
+    elif mode == "duration":
+        if duration_minutes: cfg["duration_minutes"] = int(duration_minutes)
+    elif mode == "clock":
+        if clock:
+            base = _merge_defaults({"clock": {}})["clock"]
+            cfg["clock"] = base; _deep_merge(cfg["clock"], clock)
+    else:
+        raise ValueError("Ugyldig mode")
+    return replace_config(cfg)
+
+def start_duration(minutes: int) -> Dict[str, Any]:
+    if minutes <= 0: raise ValueError("minutes må være > 0")
+    now_ms = int(time.time() * 1000)
+    cfg = load_config()
+    cfg["mode"] = "duration"
+    cfg["duration_minutes"] = int(minutes)
+    cfg["duration_started_ms"] = now_ms
+    cfg["once_at"] = ""
+    return replace_config(cfg)
+
+def clear_duration_and_switch_to_daily() -> Dict[str, Any]:
+    cfg = load_config()
+    cfg["duration_started_ms"] = 0
+    cfg["mode"] = "daily"
+    return replace_config(cfg)
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: kiosk-session.sh
+LINES: 24
+CHUNK: 1/1
+SHA256: b92f9c62bdb118b2682624d729f951738ef2837fd73184783d40fa3c4f9a155e
+----- BEGIN CODE -----
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+URL="${1:-http://127.0.0.1:5000/}"
+
+# Minimal vindusbehandler
+matchbox-window-manager -use_titlebar no -use_cursor no &
+WM_PID=$!
+trap 'kill $WM_PID 2>/dev/null || true' EXIT
+
+# Liten pust for X
+sleep 0.7
+
+log(){ printf "%s [session] %s\n" "$(date --iso-8601=seconds)" "$*" | systemd-cat -t kiosk-session; }
+
+# Respawn-løkke (ikke bruk pipe til logger; logg til fil)
+while true; do
+  log "starter chromium mot $URL"
+  RC=0
+  /home/reidar/countdown/kiosk.sh "$URL" >>/home/reidar/kiosk-chromium.log 2>&1 || RC=$?
+  log "chromium avsluttet rc=$RC - restarter om 2s"
+  sleep 2
+done
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: kiosk.sh
+LINES: 31
+CHUNK: 1/1
+SHA256: 3c756a0bf367b3f1bf30bd31abe5d06524190bfa2e8e32f6d2019cd44a657403
+----- BEGIN CODE -----
+#!/usr/bin/env bash
+set -euo pipefail
+URL="${1:-http://127.0.0.1:5000/}"
+
+CHROME_BIN="$(command -v chromium || command -v chromium-browser || true)"
+[ -n "$CHROME_BIN" ] || { echo "[kiosk] Chromium ikke funnet"; exit 1; }
+
+PROFILE_DIR="/home/reidar/.config/chromium-kiosk"
+mkdir -p "$PROFILE_DIR" /dev/shm/chromium-cache
+
+COMMON_FLAGS=(
+  "--user-data-dir=$PROFILE_DIR"
+  "--disk-cache-dir=/dev/shm/chromium-cache"
+  "--new-window" "--start-fullscreen" "$URL"
+  "--incognito" "--no-first-run" "--no-default-browser-check"
+  "--disable-session-crashed-bubble" "--disable-translate"
+  "--lang=nb" "--overscroll-history-navigation=0" "--disable-pinch"
+  "--noerrdialogs" "--disable-infobars"
+  "--autoplay-policy=no-user-gesture-required"
+  "--enable-features=UseOzonePlatform"
+  "--use-gl=egl" "--enable-zero-copy" "--ignore-gpu-blocklist"
+  "--ozone-platform=wayland"
+)
+
+pkill -f "chromium.*--user-data-dir=$PROFILE_DIR" || true
+sleep 1
+# Ekstra flagg fra miljø
+[ -n "${CHROMIUM_FLAGS:-}" ] && EXTRA=(${CHROMIUM_FLAGS}) || EXTRA=()
+
+exec "$CHROME_BIN" "${COMMON_FLAGS[@]}" "${EXTRA[@]}"
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: static/about.html
+LINES: 131
+CHUNK: 1/1
+SHA256: d3ac81895d47e74b6270513234b01dd72b2284d40939cde80297cc24e08216fc
+----- BEGIN CODE -----
+<!-- static/about.html -->
+<!doctype html>
+<html lang="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Countdown · Om</title>
+    <link rel="stylesheet" href="/static/css/ui.css" />
+    <style>
+      .kv {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 0.25rem 1rem;
+      }
+      .kv dt {
+        color: #9aa4b2;
+      }
+      code {
+        background: #111826;
+        padding: 0.1rem 0.4rem;
+        border-radius: 0.35rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Om Countdown</h1>
+      <nav>
+        <a href="/">Visning</a>
+        <a href="/admin">Admin</a>
+        <a href="/diag">Diagnose</a>
+        <a class="active" href="/about">Om</a>
+      </nav>
+    </header>
+
+    <main class="grid">
+      <section class="card">
+        <h2>Hva er dette?</h2>
+        <p>
+          Countdown er en liten, robust visningsapp for Raspberry Pi (kiosk) med fokus på enkel
+          drift.
+        </p>
+        <ul>
+          <li>
+            <strong>Modi:</strong> daglig tidspunkt, engangs-tidspunkt, varighet, <em>klokke</em>
+          </li>
+          <li>
+            <strong>Tema:</strong> farger, meldinger, størrelser, bakgrunn (solid/gradient/bilde m/
+            tint)
+          </li>
+          <li>
+            <strong>Live-oppdatering:</strong> endringer i admin slår inn i visning uten refresh
+          </li>
+          <li><strong>Kiosk-vennlig:</strong> fullscreen-knapp auto-skjules i fullscreen</li>
+          <li><strong>Konfig:</strong> lagres atomisk i <code>config.json</code></li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Teknologi</h2>
+        <dl class="kv">
+          <dt>Backend</dt>
+          <dd>Flask (Gunicorn/Wsgi), systemd bruker-tjeneste</dd>
+          <dt>Frontend</dt>
+          <dd>Vanilla HTML/CSS/JS</dd>
+          <dt>Plattform</dt>
+          <dd>RPi (WPE/Cog el. Chromium kiosk)</dd>
+          <dt>Konfig</dt>
+          <dd><code>config.json</code> (atomisk skriving)</dd>
+        </dl>
+      </section>
+
+      <section class="card">
+        <h2>Endepunkter</h2>
+        <ul>
+          <li>
+            <code>GET /</code> visning · <code>/admin</code> · <code>/diag</code> ·
+            <code>/about</code>
+          </li>
+          <li><code>GET /api/config</code> → <em>{ ok, config, tick }</em></li>
+          <li><code>POST /api/config</code> → lagre/patch konfig (inkl. bytte modus)</li>
+          <li><code>POST /api/start-duration</code> → <em>{"minutes": N}</em></li>
+          <li><code>GET /tick</code> → status (for visning/diagnose)</li>
+          <li><code>GET /health</code> → 200 OK</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Konfig (utdrag)</h2>
+        <pre class="mono" style="white-space: pre; overflow: auto">
+{
+  "mode": "daily|once|duration|clock",
+  "daily_time": "HH:MM",
+  "once_at": "YYYY-MM-DDTHH:MM(+TZ)",
+  "duration_minutes": 10,
+  "clock": {
+    "with_seconds": false,
+    "color": "#e6edf3",
+    "size_vmin": 12,
+    "position": "center|top-left|top-center|top-right|
+    bottom-left|bottom-center|bottom-right",
+    "messages_position": "right|left|above|below",
+    "messages_align": "start|center|end",
+    "use_clock_messages": false,
+    "message_primary": "",
+    "message_secondary": ""
+  },
+  "theme": {
+    "digits":   { "size_vw": 14 },
+    "messages": {
+      "primary":   { "size_rem": 1.0, "weight": 600, "color": "#9aa4b2" },
+      "secondary": { "size_rem": 1.0, "weight": 400, "color": "#9aa4b2" }
+    },
+    "background": {
+      "mode": "solid|gradient|image",
+      "solid":    { "color": "#0b0f14" },
+      "gradient": { "from": "#142033", "to": "#0b0f14", "angle_deg": 180 },
+      "image":    {
+        "url": "", "fit": "cover|contain", "opacity": 1,
+        "tint": { "color": "#000000", "opacity": 0.0 }
+      }
+    }
+  }
+}
+      </pre
+        >
+      </section>
+    </main>
+  </body>
+</html>
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: static/admin.html
+LINES: 1285
+CHUNK: 1/1
+SHA256: c7e6f954574e1fe32c5488323d95a619d16c5030112c6ad23236e8440352ef0e
+----- BEGIN CODE -----
+<!doctype html>
+<html lang="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Countdown · Admin</title>
+    <link rel="stylesheet" href="/static/css/ui.css" />
+    <style>
+      .actions {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        padding: 10px 16px;
+        background: rgba(11, 15, 20, 0.85);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .pill {
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        border: 1px solid var(--border);
+      }
+      .ok {
+        color: #0b0f14;
+        background: #69db7c;
+        border-color: transparent;
+      }
+      .warn {
+        color: #0b0f14;
+        background: #ffd166;
+        border-color: transparent;
+      }
+      .off {
+        color: #e6edf3;
+        background: #374151;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+      .hint-inline {
+        font-size: 0.85rem;
+        opacity: 0.9;
+        margin-left: 6px;
+      }
+      .preview {
+        background: #0b0f14;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+        min-height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .pv-box {
+        width: 100%;
+        max-width: 800px;
+        aspect-ratio: 16/8;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 10px;
+      }
+      .pv-digits {
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        font-size: clamp(4vw, 8vw, 10vw);
+      }
+      .tag {
+        font-size: 0.8rem;
+        color: var(--muted);
+        border: 1px dashed var(--border);
+        padding: 2px 6px;
+        border-radius: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <header id="admin_topbar" class="topbar">
+      <div class="brand">Countdown · Admin</div>
+      <nav class="modes">
+        <button type="button" class="mode-btn" data-mode="daily">Daglig</button>
+        <button type="button" class="mode-preset" data-min="15">15 min</button>
+        <button type="button" class="mode-preset" data-min="20">20 min</button>
+        <button type="button" class="mode-btn" data-mode="clock">Klokke</button>
+      </nav>
+
+      <div id="save_status" class="status" aria-live="polite"></div>
+    </header>
+
+    <header>
+      <h1>Countdown · Admin</h1>
+      <nav>
+        <a href="/">Visning</a>
+        <a class="active" href="/admin">Admin</a>
+        <a href="/diag">Diagnose</a>
+        <a href="/about">Om</a>
+      </nav>
+    </header>
+
+    <div class="actions">
+      <button id="btn_save" class="primary">Lagre</button>
+      <button id="btn_refresh">Hent config</button>
+      <button id="btn_reset_view">Tilbakestill visning</button>
+      <span id="sync_pill" class="pill off">Synk: —</span>
+      <span id="save_hint" class="muted"></span>
+    </div>
+
+    <main class="grid">
+      <!-- Modus -->
+      <section class="card">
+        <h2>Modus</h2>
+        <label><input type="radio" name="mode" value="daily" /> Daglig klokkeslett</label>
+        <input id="daily_time" type="time" step="60" />
+        <br />
+        <label><input type="radio" name="mode" value="duration" /> Varighet (manuell start)</label>
+        <br />
+        <label><input type="radio" name="mode" value="clock" /> Klokke</label>
+        <br />
+        <label><input type="radio" name="mode" value="once" /> Engangs-tidspunkt</label>
+        <input id="once_at" type="datetime-local" />
+        <p class="hint">Velg én modus. Lagre for at endring skal gjelde.</p>
+        <p id="active_mode" class="muted">Aktiv modus: —</p>
+      </section>
+
+      <!-- Start med varighet -->
+      <section class="card">
+        <h2>Start med varighet</h2>
+        <div class="row">
+          <button class="preset" data-min="5">+5 min</button>
+          <button class="preset" data-min="10">+10 min</button>
+          <button class="preset" data-min="15">+15 min</button>
+          <button class="preset" data-min="20">+20 min</button>
+          <button class="preset" data-min="30">+30 min</button>
+          <label
+            >Varighet (minutter)
+            <input id="start_minutes" type="number" min="1" step="1" value="10"
+          /></label>
+          <button id="btn_start" class="primary">Start nedtelling nå</button>
+          <button id="btn_stop">Stopp</button>
+        </div>
+        <p class="hint">Starter alltid varighetsmodus umiddelbart.</p>
+      </section>
+
+      <!-- Meldinger (innhold) -->
+      <section class="card">
+        <h2>Meldinger</h2>
+        <label><input id="show_message_primary" type="checkbox" /> Vis hovedmelding</label>
+        <textarea id="message_primary" rows="2" placeholder="Velkommen !"></textarea>
+        <label><input id="show_message_secondary" type="checkbox" /> Vis sekundær melding</label>
+        <input id="message_secondary" type="text" placeholder="Vi starter igjen kl:" />
+      </section>
+
+      <!-- Varsler / blink -->
+      <section class="card">
+        <h2>Varsler / blink</h2>
+        <div class="row">
+          <label
+            >Gult ved (min igjen) <input id="warn_minutes" type="number" min="0" step="1"
+          /></label>
+          <label
+            >Rødt ved (min igjen) <input id="alert_minutes" type="number" min="0" step="1"
+          /></label>
+          <label
+            >Blink de siste (sek) <input id="blink_seconds" type="number" min="0" step="1"
+          /></label>
+          <label
+            >Vis minus-tid (min etterpå) <input id="overrun_minutes" type="number" min="0" step="1"
+          /></label>
+        </div>
+      </section>
+
+      <!-- Visning / oppførsel -->
+      <section class="card">
+        <h2>Visning / oppførsel</h2>
+        <div class="help">
+          Terskel: ved ≥ verdi vises <strong>H:MM:SS</strong>, ellers
+          <strong>MM:SS</strong> (70→2:00:00, 300→120:00).
+        </div>
+        <label><input id="use_phase_colors" type="checkbox" /> Fargelegg ved gult/rødt</label>
+        <label><input id="use_blink" type="checkbox" /> Blink de siste sekundene</label>
+
+        <div class="row">
+          <label>Farge normal <input id="color_normal" type="color" value="#e6edf3" /></label
+          ><span id="c_contrast_normal" class="hint-inline"></span>
+        </div>
+        <div class="row">
+          <label>Farge gul <input id="color_warn" type="color" value="#ffd166" /></label
+          ><span id="c_contrast_warn" class="hint-inline"></span>
+        </div>
+        <div class="row">
+          <label>Farge rød <input id="color_alert" type="color" value="#ff6b6b" /></label
+          ><span id="c_contrast_alert" class="hint-inline"></span>
+        </div>
+        <div class="row">
+          <label>Farge minus-tid <input id="color_over" type="color" value="#9ad0ff" /></label
+          ><span id="c_contrast_over" class="hint-inline"></span>
+        </div>
+
+        <label><input id="show_target_time" type="checkbox" /> Vis mål-klokkeslett</label>
+        <label
+          >Plassering av mål-klokkeslett
+          <select id="target_time_after">
+            <option value="primary">etter hovedmelding</option>
+            <option value="secondary">etter sekundær melding</option>
+          </select>
+        </label>
+        <label
+          >Plassering av meldinger
+          <select id="messages_position">
+            <option value="above">over nedtellingen</option>
+            <option value="below">under nedtellingen</option>
+          </select>
+        </label>
+        <label
+          >Tidsformat → H:MM:SS når over (min)
+          <input id="hms_threshold_minutes" type="number" min="0" max="720" step="1" value="60" />
+        </label>
+      </section>
+
+      <!-- Utseende – Meldinger -->
+      <section class="card">
+        <h2>Utseende – Meldinger</h2>
+        <div class="row">
+          <strong>Hovedmelding</strong>
+          <label
+            >Størrelse (rem) <input id="theme_p_size" type="number" step="0.1" min="0.6" max="6.0"
+          /></label>
+          <label
+            >Vekt
+            <select id="theme_p_weight">
+              <option>300</option>
+              <option>400</option>
+              <option>500</option>
+              <option selected>600</option>
+              <option>700</option>
+              <option>800</option>
+              <option>900</option>
+            </select>
+          </label>
+          <label>Farge <input id="theme_p_color" type="color" /></label>
+          <span id="m_contrast_p" class="hint-inline tag"></span>
+        </div>
+        <div class="row">
+          <strong>Sekundær</strong>
+          <label
+            >Størrelse (rem) <input id="theme_s_size" type="number" step="0.1" min="0.6" max="6.0"
+          /></label>
+          <label
+            >Vekt
+            <select id="theme_s_weight">
+              <option>300</option>
+              <option selected>400</option>
+              <option>500</option>
+              <option>600</option>
+              <option>700</option>
+              <option>800</option>
+              <option>900</option>
+            </select>
+          </label>
+          <label>Farge <input id="theme_s_color" type="color" /></label>
+          <span id="m_contrast_s" class="hint-inline tag"></span>
+        </div>
+        <div class="row">
+          <strong>Digits</strong>
+          <label
+            >Størrelse
+            <select id="digits_size_preset">
+              <option value="10">Liten</option>
+              <option value="14">Normal</option>
+              <option value="19">Stor</option>
+              <option value="23">Ekstra stor</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <!-- Utseende – Bakgrunn (visningen) -->
+      <section class="card">
+        <h2>Utseende – Bakgrunn</h2>
+        <div class="row">
+          <label
+            >Preset
+            <select id="bg_preset">
+              <option value="none">(ingen)</option>
+              <option value="dark-solid">Mørk ensfarget</option>
+              <option value="dark-grad">Mørk gradient</option>
+              <option value="photo-tint">Foto m/tint</option>
+            </select>
+          </label>
+          <button id="btn_apply_preset">Bruk preset</button>
+        </div>
+        <label><input type="radio" name="bg_mode" value="solid" /> Ensfarget</label>
+        <label><input type="radio" name="bg_mode" value="gradient" /> Gradient</label>
+        <label><input type="radio" name="bg_mode" value="image" /> Bilde</label>
+
+        <div id="bg_solid_cfg">
+          <label>Farge <input id="bg_solid_color" type="color" value="#0b0f14" /></label>
+        </div>
+        <div id="bg_grad_cfg">
+          <label>Fra <input id="bg_grad_from" type="color" value="#142033" /></label>
+          <label>Til <input id="bg_grad_to" type="color" value="#0b0f14" /></label>
+          <label
+            >Vinkel (°)
+            <input id="bg_grad_angle" type="number" min="0" max="360" step="1" value="180"
+          /></label>
+        </div>
+        <div id="bg_img_cfg">
+          <label>Bilde-URL <input id="bg_img_url" type="url" placeholder="https://..." /></label>
+          <label
+            >Fit
+            <select id="bg_img_fit">
+              <option>cover</option>
+              <option>contain</option>
+            </select>
+          </label>
+          <label
+            >Opacity (0–1)
+            <input id="bg_img_op" type="number" min="0" max="1" step="0.05" value="1"
+          /></label>
+          <label>Tint-farge <input id="bg_img_tint" type="color" value="#000000" /></label>
+          <label
+            >Tint-opacity (0–1)
+            <input id="bg_img_tint_op" type="number" min="0" max="1" step="0.05" value="0"
+          /></label>
+        </div>
+      </section>
+      <!-- Overlays (logo/grafikk) -->
+      <section class="card" id="card_overlays">
+        <h2>Overlays (logo/grafikk)</h2>
+
+        <div class="row">
+          <label>
+            Lagrede overlays
+            <select id="ov_select" style="min-width: 240px"></select>
+          </label>
+          <button id="ov_add">Ny</button>
+          <button id="ov_dup">Dupliser</button>
+          <button id="ov_del">Slett</button>
+        </div>
+
+        <div class="row">
+          <label>ID <input id="ov_id" placeholder="logo-main" /></label>
+          <label
+            >Type
+            <select id="ov_type">
+              <option value="image">Bilde</option>
+            </select>
+          </label>
+          <label
+            >URL <input id="ov_url" type="url" placeholder="/static/img/logo.svg" size="36"
+          /></label>
+        </div>
+
+        <div class="row">
+          <label
+            >Størrelse (vmin)
+            <input id="ov_size" type="number" step="1" min="2" max="200" value="30"
+          /></label>
+          <label
+            >Opacity (0–1)
+            <input id="ov_opacity" type="number" step="0.05" min="0" max="1" value="1"
+          /></label>
+          <label
+            >Z-index <input id="ov_z" type="number" step="1" min="1" max="999" value="10"
+          /></label>
+        </div>
+
+        <div class="row">
+          <label
+            >Plassering
+            <select id="ov_pos">
+              <option value="top-left">Øvre venstre</option>
+              <option value="top-center">Øvre midtstilt</option>
+              <option value="top-right">Øvre høyre</option>
+              <option value="center-left">Midten venstre</option>
+              <option value="center">Midten</option>
+              <option value="center-right">Midten høyre</option>
+              <option value="bottom-left">Nedre venstre</option>
+              <option value="bottom-center">Nedre midtstilt</option>
+              <option value="bottom-right">Nedre høyre</option>
+            </select>
+          </label>
+          <label>Offset X (vw) <input id="ov_off_vw" type="number" step="0.5" value="2" /></label>
+          <label>Offset Y (vh) <input id="ov_off_vh" type="number" step="0.5" value="2" /></label>
+          <div class="row">
+            <label
+              >Tint farge
+              <input id="ov_tint_color" type="color" value="#000000" />
+            </label>
+            <label
+              >Tint opacity (0–1)
+              <input id="ov_tint_opacity" type="number" step="0.05" min="0" max="1" value="0" />
+            </label>
+            <label
+              >Blend-modus
+              <select id="ov_tint_blend">
+                <option value="normal">Normal</option>
+                <option value="multiply" selected>Multiply</option>
+                <option value="screen">Screen</option>
+                <option value="overlay">Overlay</option>
+                <option value="soft-light">Soft light</option>
+                <option value="hard-light">Hard light</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="row">
+          <label><input id="ov_in_clock" type="checkbox" /> Vis i klokkemodus</label>
+          <label><input id="ov_in_countdown" type="checkbox" checked /> Vis i nedtelling</label>
+        </div>
+      </section>
+
+      <!-- Klokke -->
+      <section class="card">
+        <h2>Klokke</h2>
+        <div class="row">
+          <label><input id="clk_with_seconds" type="checkbox" /> Vis sekunder</label>
+
+          <label
+            >Farge
+            <input id="clk_color" type="color" value="#e6edf3" />
+            <small id="clk_contrast" class="hint" style="margin-left: 0.5rem"></small>
+          </label>
+
+          <label
+            >Størrelse (vmin)
+            <input id="clk_size_vmin" type="number" min="6" max="60" step="1" value="12" />
+          </label>
+
+          <label
+            >Plassering
+            <select id="clk_position">
+              <option value="center">Midtstilt</option>
+              <option value="top-center">Øvre midtstilt</option>
+              <option value="bottom-center">Nedre midtstilt</option>
+              <option value="top-left">Øvre venstre</option>
+              <option value="top-right">Øvre høyre</option>
+              <option value="bottom-left">Nedre venstre</option>
+              <option value="bottom-right">Nedre høyre</option>
+            </select>
+          </label>
+
+          <label
+            >Plassering av klokke-tekst
+            <select id="clk_msg_position">
+              <option value="right">Til høyre</option>
+              <option value="left">Til venstre</option>
+              <option value="above">Over</option>
+              <option value="below">Under</option>
+            </select>
+          </label>
+
+          <label
+            >Justering klokke-tekst
+            <select id="clk_msg_align">
+              <option value="start">Venstre</option>
+              <option value="center" selected>Midtstilt</option>
+              <option value="end">Høyre</option>
+            </select>
+          </label>
+
+          <label
+            ><input id="clk_use_own_msgs" type="checkbox" /> Bruk egne meldinger i
+            klokkemodus</label
+          >
+
+          <textarea
+            id="clk_msg_primary"
+            rows="2"
+            placeholder="(valgfri) Klokkens hovedmelding"
+          ></textarea>
+          <input
+            id="clk_msg_secondary"
+            type="text"
+            placeholder="(valgfri) Klokkens sekundærmelding"
+          />
+        </div>
+
+        <p class="hint">
+          Klokken bruker temaets bakgrunn (Theme → Background). <code>vmin</code> gir konsistent
+          størrelse i både stående og liggende format.
+        </p>
+      </section>
+    </main>
+
+    <script>
+      // Debounce
+      function debounce(fn, ms = 600) {
+        let t;
+        return (...a) => {
+          clearTimeout(t);
+          t = setTimeout(() => fn(...a), ms);
+        };
+      }
+      let overlaysLocal = []; // lokal redigerbar liste
+
+      function overlayDefaults() {
+        return {
+          id: `logo-${Date.now()}`,
+          type: "image",
+          url: "",
+          position: "top-right",
+          size_vmin: 30,
+          opacity: 1.0,
+          offset_vw: 2,
+          offset_vh: 2,
+          z_index: 10,
+          visible_in: ["clock", "countdown"],
+          tint: { color: "#000000", opacity: 0.0, blend: "multiply" }, // NYTT
+        };
+      }
+
+      // Dyp flette (liten, trygg)
+      function deepMerge(base, patch) {
+        if (patch == null || typeof patch !== "object") return base;
+        const out = Array.isArray(base) ? [...base] : { ...base };
+        for (const [k, v] of Object.entries(patch)) {
+          if (v && typeof v === "object" && !Array.isArray(v)) {
+            out[k] = deepMerge(out[k] ?? {}, v);
+          } else {
+            out[k] = v;
+          }
+        }
+        return out;
+      }
+
+      (function () {
+        const $ = (s) => document.querySelector(s);
+        const $$ = (s) => Array.from(document.querySelectorAll(s));
+        const pill = $("#sync_pill"),
+          hint = $("#save_hint");
+        let lastCfg = null,
+          defaultsCache = null;
+
+        // -------- helpers --------
+        const val = (sel, def = "") => document.querySelector(sel)?.value ?? def;
+        const checked = (sel) => !!document.querySelector(sel)?.checked;
+        const num = (sel, def = 0) => {
+          const v = parseFloat(val(sel, ""));
+          return Number.isFinite(v) ? v : def;
+        };
+
+        async function fetchDefaults() {
+          if (defaultsCache) return defaultsCache;
+          const r = await fetch("/api/defaults");
+          const js = await r.json();
+          defaultsCache = js.defaults;
+          return defaultsCache;
+        }
+        function headers() {
+          const pwd = ($("#admin_password")?.value || "").trim();
+          const h = { "Content-Type": "application/json" };
+          if (pwd) h["X-Admin-Password"] = pwd;
+          return h;
+        }
+        const selMode = () => $$("input[name=mode]:checked")[0]?.value || "daily";
+        const selBgMode = () => $$("input[name=bg_mode]:checked")[0]?.value || "solid";
+
+        function lock() {
+          const m = selMode();
+          const bg = selBgMode();
+
+          // Modus-avhengig
+          const daily = $("#daily_time"),
+            onceAt = $("#once_at");
+          //if (daily) daily.disabled = m !== "daily";
+          if (onceAt) onceAt.disabled = m !== "once";
+
+          // Bakgrunn (visning)
+          $("#bg_solid_cfg") &&
+            ($("#bg_solid_cfg").style.display = bg === "solid" ? "block" : "none");
+          $("#bg_grad_cfg") &&
+            ($("#bg_grad_cfg").style.display = bg === "gradient" ? "block" : "none");
+          $("#bg_img_cfg") && ($("#bg_img_cfg").style.display = bg === "image" ? "block" : "none");
+
+          // Klokke-felter er valgfrie – hvis de finnes, deaktiver utenom clock-modus
+          const isClock = m === "clock";
+          const own = !!$("#clk_use_own_msgs")?.checked;
+          $("#clk_with_seconds") && ($("#clk_with_seconds").disabled = false);
+          $("#clk_color") && ($("#clk_color").disabled = false);
+          $("#clk_size_vmin") && ($("#clk_size_vmin").disabled = false);
+          $("#clk_position") && ($("#clk_position").disabled = false);
+          $("#clk_msg_position") && ($("#clk_msg_position").disabled = false);
+          $("#clk_msg_align") && ($("#clk_msg_align").disabled = false);
+          $("#clk_use_own_msgs") && ($("#clk_use_own_msgs").disabled = false);
+          $("#clk_msg_primary") && ($("#clk_msg_primary").disabled = !own);
+          $("#clk_msg_secondary") && ($("#clk_msg_secondary").disabled = !own);
+        }
+        // -------- kontrast-hint (som før) --------
+        const hexToRgb = (h) => {
+          const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((h || "").trim());
+          return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [230, 237, 243];
+        };
+        const luminance = ([r, g, b]) => {
+          const a = [r, g, b].map((v) => {
+            v /= 255;
+            return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+          });
+          return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
+        };
+        const contrast = (c1, c2) => {
+          const L1 = luminance(hexToRgb(c1)),
+            L2 = luminance(hexToRgb(c2));
+          const [hi, lo] = L1 > L2 ? [L1, L2] : [L2, L1];
+          return (hi + 0.05) / (lo + 0.05);
+        };
+        function currentPreviewBgColor() {
+          const bg = selBgMode();
+          if (bg === "solid") return val("#bg_solid_color", "#0b0f14");
+          if (bg === "gradient") return val("#bg_grad_to", "#0b0f14");
+          return val("#bg_img_tint", "#000000");
+        }
+        function updateDigitContrastHints() {
+          const bg = currentPreviewBgColor();
+          const set = (id, color) => {
+            const el = $(id);
+            if (!el) return;
+            const ratio = contrast(color, bg);
+            el.textContent = `kontrast ${ratio.toFixed(2)}${ratio >= 3 ? " ✔" : " ⚠"}`;
+            el.style.color = ratio >= 3 ? "#69db7c" : "#ffd166";
+          };
+          set("#c_contrast_normal", val("#color_normal", "#e6edf3"));
+          set("#c_contrast_warn", val("#color_warn", "#ffd166"));
+          set("#c_contrast_alert", val("#color_alert", "#ff6b6b"));
+          set("#c_contrast_over", val("#color_over", "#9ad0ff"));
+        }
+        function updateMessageContrastHints() {
+          const bg = currentPreviewBgColor();
+          const set = (id, color) => {
+            const el = $(id);
+            if (!el) return;
+            const ratio = contrast(color, bg);
+            el.textContent = `${ratio.toFixed(2)}${ratio >= 3 ? " ✔" : " ⚠"}`;
+            el.style.color = ratio >= 3 ? "#69db7c" : "#ffd166";
+          };
+          $("#m_contrast_p") && set("#m_contrast_p", val("#theme_p_color", "#9aa4b2"));
+          $("#m_contrast_s") && set("#m_contrast_s", val("#theme_s_color", "#9aa4b2"));
+        }
+
+        function updateClockContrastHint() {
+          const bg = currentPreviewBgColor(); // solid: solid, gradient: 'to', image: tint
+          const color = val("#clk_color", "#e6edf3");
+          const el = $("#clk_contrast");
+          if (!el) return;
+          const ratio = contrast(color, bg);
+          el.textContent = `kontrast ${ratio.toFixed(2)}${ratio >= 3 ? " ✔" : " ⚠"}`;
+          el.style.color = ratio >= 3 ? "#69db7c" : "#ffd166";
+        }
+
+        // -------- apply() --------
+        function apply(cfg, tick) {
+          lastCfg = cfg;
+
+          // Modus + info
+          ($(`input[name=mode][value=${cfg.mode || "daily"}]`) || {}).checked = true;
+          $("#daily_time") && ($("#daily_time").value = cfg.daily_time || "");
+          $("#once_at") && ($("#once_at").value = (cfg.once_at || "").replace("Z", ""));
+          $("#active_mode") &&
+            ($("#active_mode").textContent =
+              `Aktiv modus: ${cfg.mode} · Fase: ${tick?.mode || "—"} (${tick?.state || "—"})`);
+
+          // Meldinger
+          $("#show_message_primary") &&
+            ($("#show_message_primary").checked = !!cfg.show_message_primary);
+          $("#show_message_secondary") &&
+            ($("#show_message_secondary").checked = !!cfg.show_message_secondary);
+          $("#message_primary") && ($("#message_primary").value = cfg.message_primary || "");
+          $("#message_secondary") && ($("#message_secondary").value = cfg.message_secondary || "");
+
+          // Varsler/blink
+          $("#warn_minutes") && ($("#warn_minutes").value = cfg.warn_minutes ?? 4);
+          $("#alert_minutes") && ($("#alert_minutes").value = cfg.alert_minutes ?? 2);
+          $("#blink_seconds") && ($("#blink_seconds").value = cfg.blink_seconds ?? 10);
+          $("#overrun_minutes") && ($("#overrun_minutes").value = cfg.overrun_minutes ?? 1);
+
+          // Visning/oppførsel
+          $("#use_phase_colors") && ($("#use_phase_colors").checked = !!cfg.use_phase_colors);
+          $("#use_blink") && ($("#use_blink").checked = !!cfg.use_blink);
+          $("#color_normal") && ($("#color_normal").value = cfg.color_normal || "#e6edf3");
+          $("#color_warn") && ($("#color_warn").value = cfg.color_warn || "#ffd166");
+          $("#color_alert") && ($("#color_alert").value = cfg.color_alert || "#ff6b6b");
+          $("#color_over") && ($("#color_over").value = cfg.color_over || "#9ad0ff");
+          $("#show_target_time") && ($("#show_target_time").checked = !!cfg.show_target_time);
+          $("#target_time_after") &&
+            ($("#target_time_after").value = cfg.target_time_after || "secondary");
+          $("#messages_position") &&
+            ($("#messages_position").value = cfg.messages_position || "below");
+          $("#hms_threshold_minutes") &&
+            ($("#hms_threshold_minutes").value = cfg.hms_threshold_minutes ?? 60);
+
+          // Theme
+          const p = cfg?.theme?.messages?.primary || {};
+          const s = cfg?.theme?.messages?.secondary || {};
+          $("#theme_p_size") && ($("#theme_p_size").value = String(p.size_rem ?? 1.0));
+          $("#theme_p_weight") && ($("#theme_p_weight").value = String(p.weight ?? 600));
+          $("#theme_p_color") && ($("#theme_p_color").value = String(p.color ?? "#9aa4b2"));
+          $("#theme_s_size") && ($("#theme_s_size").value = String(s.size_rem ?? 1.0));
+          $("#theme_s_weight") && ($("#theme_s_weight").value = String(s.weight ?? 400));
+          $("#theme_s_color") && ($("#theme_s_color").value = String(s.color ?? "#9aa4b2"));
+          $("#digits_size_preset") &&
+            ($("#digits_size_preset").value = String(cfg?.theme?.digits?.size_vw ?? 14));
+          // Overlays
+          overlaysLocal = Array.isArray(cfg.overlays)
+            ? JSON.parse(JSON.stringify(cfg.overlays))
+            : [];
+          renderOverlaysUI();
+
+          // Bakgrunn (visningen)
+          const bg = cfg?.theme?.background || {};
+          ($(`input[name=bg_mode][value=${bg.mode || "solid"}]`) || {}).checked = true;
+          $("#bg_solid_color") && ($("#bg_solid_color").value = bg.solid?.color || "#0b0f14");
+          $("#bg_grad_from") && ($("#bg_grad_from").value = bg.gradient?.from || "#142033");
+          $("#bg_grad_to") && ($("#bg_grad_to").value = bg.gradient?.to || "#0b0f14");
+          $("#bg_grad_angle") && ($("#bg_grad_angle").value = bg.gradient?.angle_deg ?? 180);
+          $("#bg_img_url") && ($("#bg_img_url").value = bg.image?.url || "");
+          $("#bg_img_fit") && ($("#bg_img_fit").value = bg.image?.fit || "cover");
+          $("#bg_img_op") && ($("#bg_img_op").value = bg.image?.opacity ?? 1);
+          $("#bg_img_tint") && ($("#bg_img_tint").value = bg.image?.tint?.color || "#000000");
+          $("#bg_img_tint_op") && ($("#bg_img_tint_op").value = bg.image?.tint?.opacity ?? 0);
+
+          // Ny: klokke (top-level) – hvis feltene finnes
+          const clk = cfg?.clock || {};
+          $("#clk_with_seconds") && ($("#clk_with_seconds").checked = !!clk.with_seconds);
+          $("#clk_color") && ($("#clk_color").value = clk.color || "#e6edf3");
+          $("#clk_size_vmin") && ($("#clk_size_vmin").value = clk.size_vmin ?? 12);
+          $("#clk_position") && ($("#clk_position").value = clk.position || "center");
+          $("#clk_msg_position") &&
+            ($("#clk_msg_position").value = cfg?.clock?.messages_position || "right");
+          $("#clk_msg_align") &&
+            ($("#clk_msg_align").value = cfg?.clock?.messages_align || "center");
+          $("#clk_use_own_msgs") &&
+            ($("#clk_use_own_msgs").checked = !!cfg?.clock?.use_clock_messages);
+          $("#clk_msg_primary") &&
+            ($("#clk_msg_primary").value = cfg?.clock?.message_primary || "");
+          $("#clk_msg_secondary") &&
+            ($("#clk_msg_secondary").value = cfg?.clock?.message_secondary || "");
+         // -- Overlays – bindings --
+  $("#ov_select") &&
+    $("#ov_select").addEventListener("change", () => {
+      const cur = currentOverlay();
+      if (cur) fillOverlayFields(cur);   // <- bare fylle feltene, ikke rebuild liste
+    });
+
+  $("#ov_add") && $("#ov_add").addEventListener("click", addOverlay);
+  $("#ov_dup") && $("#ov_dup").addEventListener("click", dupOverlay);
+  $("#ov_del") && $("#ov_del").addEventListener("click", delOverlay);
+
+  [
+    "#ov_id",
+    "#ov_type",
+    "#ov_url",
+    "#ov_pos",
+    "#ov_size",
+    "#ov_opacity",
+    "#ov_z",
+    "#ov_off_vw",
+    "#ov_off_vh",
+    "#ov_in_clock",
+    "#ov_in_countdown",
+    "#ov_tint_color",        // <- tint-feltene må også trigge commit
+    "#ov_tint_opacity",
+    "#ov_tint_blend",
+  ].forEach((sel) => {
+    const el = $(sel);
+    if (!el) return;
+    el.addEventListener("input", commitOverlay);
+    el.addEventListener("change", commitOverlay);
+  });
+
+
+          updateClockContrastHint();
+
+          lock();
+          updateDigitContrastHints();
+          updateMessageContrastHints();
+        }
+
+        // -------- I/O --------
+        async function loadAll() {
+          const r = await fetch("/api/config");
+          const js = await r.json();
+          js.config.tick = js.tick;
+          apply(js.config, js.tick);
+          pushPreview();
+          hint && (hint.textContent = "Status oppdatert");
+          setTimeout(() => {
+            if (hint) hint.textContent = "";
+          }, 1200);
+        }
+        function buildPatch() {
+          const m = selMode();
+
+          // Bygg clock-del, men bare hvis feltene finnes – ellers bruk lastCfg.clock som fallback
+          const clock = (function () {
+            const hasClockFields =
+              $("#clk_with_seconds") ||
+              $("#clk_color") ||
+              $("#clk_size_vmin") ||
+              $("#clk_position") ||
+              $("#clk_msg_position") ||
+              $("#clk_msg_align") ||
+              $("#clk_use_own_msgs") ||
+              $("#clk_msg_primary") ||
+              $("#clk_msg_secondary");
+
+            if (hasClockFields) {
+              return {
+                with_seconds: checked("#clk_with_seconds"),
+                color: val("#clk_color", "#e6edf3"),
+                size_vmin: Number(val("#clk_size_vmin", "12")),
+                position: val("#clk_position", "center"),
+
+                messages_position: val("#clk_msg_position", "right"),
+                messages_align: val("#clk_msg_align", "center"),
+                use_clock_messages: checked("#clk_use_own_msgs"),
+                message_primary: val("#clk_msg_primary", ""),
+                message_secondary: val("#clk_msg_secondary", ""),
+              };
+            }
+            return lastCfg?.clock || {};
+          })();
+
+          const body = {
+            mode: m,
+            daily_time: val("#daily_time"),
+            once_at: val("#once_at"),
+            overlays: overlaysLocal,
+
+            // meldinger
+            show_message_primary: checked("#show_message_primary"),
+            show_message_secondary: checked("#show_message_secondary"),
+            message_primary: val("#message_primary"),
+            message_secondary: val("#message_secondary"),
+
+            // varsler/blink
+            warn_minutes: num("#warn_minutes", 4),
+            alert_minutes: num("#alert_minutes", 2),
+            blink_seconds: num("#blink_seconds", 10),
+            overrun_minutes: num("#overrun_minutes", 1),
+
+            // visning/oppførsel
+            use_phase_colors: checked("#use_phase_colors"),
+            use_blink: checked("#use_blink"),
+            color_normal: val("#color_normal", "#e6edf3"),
+            color_warn: val("#color_warn", "#ffd166"),
+            color_alert: val("#color_alert", "#ff6b6b"),
+            color_over: val("#color_over", "#9ad0ff"),
+            show_target_time: checked("#show_target_time"),
+            target_time_after: val("#target_time_after", "secondary"),
+            messages_position: val("#messages_position", "below"),
+            hms_threshold_minutes: parseInt(val("#hms_threshold_minutes", "60"), 10),
+
+            // theme (digits/messages/bg)
+            theme: {
+              digits: { size_vw: Number(val("#digits_size_preset", "14")) },
+              messages: {
+                primary: {
+                  size_rem: Number(val("#theme_p_size", "1.0")),
+                  weight: Number(val("#theme_p_weight", "600")),
+                  color: val("#theme_p_color", "#9aa4b2"),
+                },
+                secondary: {
+                  size_rem: Number(val("#theme_s_size", "1.0")),
+                  weight: Number(val("#theme_s_weight", "400")),
+                  color: val("#theme_s_color", "#9aa4b2"),
+                },
+              },
+              background: {
+                mode: selBgMode(),
+                solid: { color: val("#bg_solid_color", "#0b0f14") },
+                gradient: {
+                  from: val("#bg_grad_from", "#142033"),
+                  to: val("#bg_grad_to", "#0b0f14"),
+                  angle_deg: Number(val("#bg_grad_angle", "180")),
+                },
+                image: {
+                  url: val("#bg_img_url", ""),
+                  fit: val("#bg_img_fit", "cover"),
+                  opacity: Number(val("#bg_img_op", "1")),
+                  tint: {
+                    color: val("#bg_img_tint", "#000000"),
+                    opacity: Number(val("#bg_img_tint_op", "0")),
+                  },
+                },
+              },
+            },
+
+            // ny topp-nøkkel
+            clock,
+          };
+
+          return body;
+        }
+        function ovSel() { return document.getElementById("ov_select"); }
+  function ovIdx() { return Math.max(0, ovSel().selectedIndex); }
+  function currentOverlay() { return overlaysLocal[ovIdx()] || null; }
+
+  function renderOverlaysUI(desiredIndex) {
+    const sel = ovSel();
+    if (!sel) return;
+
+    const prev = Number.isInteger(desiredIndex) ? desiredIndex : sel.selectedIndex;
+    sel.innerHTML = "";
+    overlaysLocal.forEach((o, i) => {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = o.id || `(overlay ${i + 1})`;
+      sel.appendChild(opt);
+    });
+
+    const idx = Math.max(0, Math.min(sel.options.length - 1, prev >= 0 ? prev : 0));
+    sel.selectedIndex = idx;
+    fillOverlayFields(overlaysLocal[idx] || overlayDefaults());
+  }
+
+  function fillOverlayFields(o) {
+    $("#ov_id").value = o.id || "";
+    $("#ov_type").value = o.type || "image";
+    $("#ov_url").value = o.url || "";
+    $("#ov_pos").value = o.position || "top-right";
+    $("#ov_size").value = String(o.size_vmin ?? 12);
+    $("#ov_opacity").value = String(o.opacity ?? 1);
+    $("#ov_z").value = String(o.z_index ?? 10);
+    $("#ov_off_vw").value = String(o.offset_vw ?? 2);
+    $("#ov_off_vh").value = String(o.offset_vh ?? 2);
+    $("#ov_in_clock").checked = !!(o.visible_in || []).includes("clock");
+    $("#ov_in_countdown").checked = !!(o.visible_in || []).some(v => v !== "clock");
+    $("#ov_tint_color").value = o?.tint?.color || "#000000";
+    $("#ov_tint_opacity").value = String(o?.tint?.opacity ?? 0);
+    $("#ov_tint_blend").value = o?.tint?.blend || "multiply";
+  }
+
+  function readOverlayFields() {
+    const vis = [];
+    if ($("#ov_in_clock").checked) vis.push("clock");
+    if ($("#ov_in_countdown").checked) vis.push("countdown");
+    return {
+      id: ($("#ov_id").value || "").trim(),
+      type: $("#ov_type").value || "image",
+      url: ($("#ov_url").value || "").trim(),
+      position: $("#ov_pos").value || "top-right",
+      size_vmin: Number($("#ov_size").value || "12"),
+      opacity: Number($("#ov_opacity").value || "1"),
+      z_index: Number($("#ov_z").value || "10"),
+      offset_vw: Number($("#ov_off_vw").value || "2"),
+      offset_vh: Number($("#ov_off_vh").value || "2"),
+      visible_in: vis.length ? vis : ["countdown","clock"],
+      tint: {                                        // <- tint med
+        color: $("#ov_tint_color").value || "#000000",
+        opacity: Number($("#ov_tint_opacity").value || "0"),
+        blend: $("#ov_tint_blend").value || "multiply"
+      }
+    };
+  }
+
+  function commitOverlay() {
+    if (!overlaysLocal.length) return;
+    overlaysLocal[ovIdx()] = readOverlayFields();
+    pushPreviewDebounced();
+  }
+
+  function addOverlay() {
+    overlaysLocal.push(overlayDefaults());
+    renderOverlaysUI(overlaysLocal.length - 1);        // <- velg ny
+    pushPreview();
+  }
+
+  function dupOverlay() {
+    const cur = currentOverlay();
+    if (!cur) return addOverlay();
+    overlaysLocal.push({ ...cur, id: `${cur.id}-copy` });
+    renderOverlaysUI(overlaysLocal.length - 1);        // <- velg kopi
+    pushPreview();
+  }
+
+  function delOverlay() {
+    if (!overlaysLocal.length) return;
+    overlaysLocal.splice(ovIdx(), 1);
+    renderOverlaysUI(Math.min(ovIdx(), overlaysLocal.length - 1));
+    pushPreview();
+  }
+
+        async function saveAll() {
+          const body = buildPatch();
+          const r = await fetch("/api/config", {
+            method: "POST",
+            headers: headers(),
+            body: JSON.stringify(body),
+          });
+          if (!r.ok) throw new Error(await r.text());
+          const js = await r.json();
+          apply(js.config, js.tick);
+          hint && (hint.textContent = "Lagret");
+          setTimeout(() => {
+            if (hint) hint.textContent = "";
+          }, 1200);
+        }
+
+        function getPreviewWin() {
+          return document.getElementById("preview_frame")?.contentWindow || null;
+        }
+
+        function pushPreview() {
+          const win = getPreviewWin();
+          if (!win || !lastCfg) return;
+          const patch = buildPatch();
+          const simulated = deepMerge(lastCfg, patch);
+          win.postMessage({ type: "preview-config", config: simulated }, "*");
+        }
+
+        // Debounced preview på alle input/endringer
+        const pushPreviewDebounced = debounce(pushPreview, 300);
+        document.addEventListener("input", pushPreviewDebounced, { passive: true });
+        document.addEventListener("change", pushPreviewDebounced, { passive: true });
+
+        // Kjør én gang når admin åpner siden og første config er lastet
+        document.addEventListener("DOMContentLoaded", () => setTimeout(pushPreview, 50));
+
+        // Send en gang når preview-iframe er ferdig lastet
+        function hookPreviewLoad() {
+          const f = document.getElementById("preview_frame");
+          if (!f) return; // DOM ikke klart ennå (men DOMContentLoaded under fikser)
+          f.addEventListener("load", () => setTimeout(pushPreview, 50), { once: true });
+        }
+        // Når hele DOM’en er klar: hook + første push
+        document.addEventListener("DOMContentLoaded", () => {
+          hookPreviewLoad();
+          setTimeout(pushPreview, 80);
+        });
+
+        async function patchMode(newMode) {
+          try {
+            const resp = await fetch("/api/config", {
+              method: "POST",
+              headers: headers(),
+              body: JSON.stringify({ mode: newMode }),
+            });
+            if (!resp.ok) throw new Error(await resp.text());
+            const js = await resp.json();
+            lastCfg = js.config || lastCfg;
+            $("#save_status").textContent = `Modus satt til ${newMode}`;
+            // push umiddelbart til preview
+            pushPreview();
+            // radio-knappen i "Modus"-kortet holdes i sync:
+            const radio = document.querySelector(`input[name=mode][value=${newMode}]`);
+            if (radio) radio.checked = true;
+          } catch (e) {
+            $("#save_status").textContent = `Feil: kunne ikke sette modus (${e})`;
+          } finally {
+            setTimeout(() => ($("#save_status").textContent = ""), 3000);
+          }
+        }
+
+        // -------- start/stopp varighet (uendret) --------
+        async function startDuration(argMinutes) {
+          const minutes =
+            argMinutes != null ? Number(argMinutes) : parseInt(val("#start_minutes", "0"), 10);
+
+          if (!Number.isFinite(minutes) || minutes <= 0) {
+            alert("Ugyldig varighet");
+            return;
+          }
+          const r = await fetch("/api/start-duration", {
+            method: "POST",
+            headers: headers(),
+            body: JSON.stringify({ minutes }),
+          });
+          if (!r.ok) {
+            alert(await r.text());
+            return;
+          }
+          await loadAll();
+        }
+        // Stopp varighetsmodus (setter tilbake til daily på backend)
+        async function stopDuration() {
+          const r = await fetch("/api/stop", {
+            method: "POST",
+            headers: headers(),
+          });
+          if (!r.ok) {
+            alert(await r.text());
+            return;
+          }
+          await loadAll();
+        }
+
+        // -------- presets --------
+        function applyPreset() {
+          const p = val("#bg_preset", "none");
+          if (p === "dark-solid") {
+            ($(`input[name=bg_mode][value=solid]`) || {}).checked = true;
+            $("#bg_solid_color") && ($("#bg_solid_color").value = "#0b0f14");
+          } else if (p === "dark-grad") {
+            ($(`input[name=bg_mode][value=gradient]`) || {}).checked = true;
+            $("#bg_grad_from") && ($("#bg_grad_from").value = "#111827");
+            $("#bg_grad_to") && ($("#bg_grad_to").value = "#0b0f14");
+            $("#bg_grad_angle") && ($("#bg_grad_angle").value = 180);
+          } else if (p === "photo-tint") {
+            ($(`input[name=bg_mode][value=image]`) || {}).checked = true;
+            $("#bg_img_url") && ($("#bg_img_url").value = "https://picsum.photos/1600/900");
+            $("#bg_img_fit") && ($("#bg_img_fit").value = "cover");
+            $("#bg_img_op") && ($("#bg_img_op").value = 1);
+            $("#bg_img_tint") && ($("#bg_img_tint").value = "#000000");
+            $("#bg_img_tint_op") && ($("#bg_img_tint_op").value = 0.4);
+          }
+          lock();
+          updateDigitContrastHints();
+          updateMessageContrastHints();
+          pushPreview();
+        }
+
+        // -------- synk-pill --------
+        async function updateSyncPill() {
+          try {
+            const r = await fetch("/debug/view-heartbeat");
+            const js = await r.json();
+            const hb = js.heartbeat || {};
+            const age = hb.age_seconds ?? 9999;
+            const viewRev = hb.rev || 0;
+            const cfgRev = lastCfg && lastCfg._updated_at ? lastCfg._updated_at : 0;
+            if (age > 30 || !hb.ts_iso) {
+              pill && (pill.textContent = "Synk: visning offline");
+              pill && (pill.className = "pill off");
+            } else if (viewRev >= cfgRev) {
+              pill && (pill.textContent = `Synk: OK (rev ${viewRev})`);
+              pill && (pill.className = "pill ok");
+            } else {
+              pill && (pill.textContent = `Synk: venter (view ${viewRev} < cfg ${cfgRev})`);
+              pill && (pill.className = "pill warn");
+            }
+          } catch {
+            pill && (pill.textContent = "Synk: —");
+            pill && (pill.className = "pill off");
+          }
+        }
+
+        // -------- events --------
+        $$("input[name=mode]").forEach((el) => el.addEventListener("change", lock));
+        $$("input[name=bg_mode]").forEach((el) =>
+          el.addEventListener("change", () => {
+            lock();
+            updateDigitContrastHints();
+            updateMessageContrastHints();
+          }),
+        );
+        [
+          "color_normal",
+          "color_warn",
+          "color_alert",
+          "color_over",
+          "theme_p_color",
+          "theme_s_color",
+        ].forEach((id) => {
+          const e = document.getElementById(id);
+          e &&
+            e.addEventListener("input", () => {
+              updateDigitContrastHints();
+              updateMessageContrastHints();
+            });
+        });
+        $$(".preset").forEach((b) =>
+          b.addEventListener("click", async () => {
+            const m = Number(b.dataset.min);
+            const e = $("#start_minutes");
+            if (e) e.value = String(m); // behold visuell verdi i feltet
+            await startDuration(m); // 👉 start umiddelbart
+          }),
+        );
+        $("#btn_apply_preset") && $("#btn_apply_preset").addEventListener("click", applyPreset);
+        $("#btn_save") &&
+          $("#btn_save").addEventListener("click", () => saveAll().catch((e) => alert(e.message)));
+        $("#btn_refresh") &&
+          $("#btn_refresh").addEventListener("click", () =>
+            loadAll().catch((e) => alert(e.message)),
+          );
+        $("#btn_reset_view") &&
+          $("#btn_reset_view").addEventListener("click", () =>
+            fetchDefaults().then((d) => {
+              const M = d.theme.messages,
+                B = d.theme.background,
+                D = d.theme.digits;
+              $("#digits_size_preset") && ($("#digits_size_preset").value = String(D.size_vw));
+              $("#theme_p_size") && ($("#theme_p_size").value = String(M.primary.size_rem));
+              $("#theme_p_weight") && ($("#theme_p_weight").value = String(M.primary.weight));
+              $("#theme_p_color") && ($("#theme_p_color").value = M.primary.color);
+              $("#theme_s_size") && ($("#theme_s_size").value = String(M.secondary.size_rem));
+              $("#theme_s_weight") && ($("#theme_s_weight").value = String(M.secondary.weight));
+              $("#theme_s_color") && ($("#theme_s_color").value = M.secondary.color);
+              ($(`input[name=bg_mode][value=${B.mode}]`) || {}).checked = true;
+              $("#bg_solid_color") && ($("#bg_solid_color").value = B.solid.color);
+              $("#bg_grad_from") && ($("#bg_grad_from").value = B.gradient.from);
+              $("#bg_grad_to") && ($("#bg_grad_to").value = B.gradient.to);
+              $("#bg_grad_angle") && ($("#bg_grad_angle").value = B.gradient.angle_deg);
+              $("#bg_img_url") && ($("#bg_img_url").value = B.image.url);
+              $("#bg_img_fit") && ($("#bg_img_fit").value = B.image.fit);
+              $("#bg_img_op") && ($("#bg_img_op").value = B.image.opacity);
+              $("#bg_img_tint") && ($("#bg_img_tint").value = B.image.tint.color);
+              $("#bg_img_tint_op") && ($("#bg_img_tint_op").value = B.image.tint.opacity);
+              lock();
+              updateDigitContrastHints();
+              updateMessageContrastHints();
+            }),
+          );
+        $("#btn_start") &&
+          $("#btn_start").addEventListener("click", () =>
+            startDuration().catch((e) => alert(e.message)),
+          );
+        $("#btn_stop") &&
+          $("#btn_stop").addEventListener("click", () =>
+            stopDuration().catch((e) => alert(e.message)),
+          );
+
+        const clkColorEl = document.getElementById("clk_color");
+        clkColorEl && clkColorEl.addEventListener("input", updateClockContrastHint);
+
+        // Når bakgrunnsmodus/farger endres -> oppdater klokke-kontrast
+        $$("input[name=bg_mode]").forEach((el) =>
+          el.addEventListener("change", () => {
+            lock();
+            updateDigitContrastHints();
+            updateMessageContrastHints();
+            updateClockContrastHint();
+          }),
+        );
+        [
+          "#bg_solid_color",
+          "#bg_grad_from",
+          "#bg_grad_to",
+          "#bg_img_tint",
+          "#bg_img_tint_op",
+        ].forEach((sel) => {
+          const e = document.querySelector(sel);
+          e && e.addEventListener("input", updateClockContrastHint);
+        });
+
+        // Egen-tekst toggle
+        $("#clk_use_own_msgs") && $("#clk_use_own_msgs").addEventListener("change", lock);
+
+        // Mode-knapper (Daglig/Klokke) i toppbaren
+        $$(".mode-btn").forEach((b) => {
+          b.addEventListener("click", () => patchMode(b.dataset.mode));
+        });
+
+        // Preset-knapper (15/20 min) i toppbaren
+        $$(".mode-preset").forEach((b) => {
+          b.addEventListener("click", async () => {
+            const m = Number(b.dataset.min || "0");
+            if (!Number.isFinite(m) || m <= 0) return;
+            await startDuration(m); // start umiddelbart via /api/start-duration
+            $("#save_status").textContent = `Startet ${m} min`;
+            setTimeout(() => ($("#save_status").textContent = ""), 2000);
+          });
+        });
+
+        // -------- init --------
+        loadAll().catch(console.error);
+        setInterval(updateSyncPill, 3000);
+      })();
+    </script>
+
+    <!-- Fast forhåndsvisning på høyre side -->
+    <aside id="preview_dock" aria-label="Live forhåndsvisning">
+      <iframe id="preview_frame" src="/?preview=1" title="Live preview" loading="eager"></iframe>
+    </aside>
+    <script src="/static/js/admin.js" defer></script>
+    <script src="/static/js/admin_overlays.js" defer></script>
+    <script src="/static/js/overlays_preview_fix.js" defer></script>
+
+
+  </body>
+</html>
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: static/app.js
+LINES: 188
+CHUNK: 1/1
+SHA256: c488b54b576306c2766196f4107ba4f54ad219c8fea6b3cf46aca7e69863b6ad
+----- BEGIN CODE -----
+/* static/app.js
+   Klient som jevner av små tidsavvik (slew) og viser minus-tegn i overrun.
+*/
+(function () {
+  // --- Klientkonfig ---
+  var CFG = {
+    syncIntervalMs: 7500,
+    smallSlewThresholdMs: 120,
+    bigJumpThresholdMs: 1500,
+    slewWindowMs: 5000,
+    midSlewWindowMs: 2000,
+    targetChangeThresholdMs: 1000,
+    paintIntervalMs: 200,
+  };
+
+  // --- Elementer ---
+  var clockEl = document.getElementById("clock");
+  var msg1 = document.getElementById("msg1");
+  var msg2 = document.getElementById("msg2");
+
+  // --- Tilstand ---
+  var cfg = null;
+  var syncTimer = null;
+  var paintTimer = null;
+  var cfgTimer = null;
+
+  // Tid/offset
+  var offsetMs = 0; // serverNow - clientNow (glattes)
+  var pendingSlewMs = 0; // rest som skal slewes
+  var slewEndPerf = 0;
+  var lastPaintPerf = performance.now();
+
+  // Server-terskler/target
+  var targetMs = 0;
+  var warnMs = 0;
+  var alertMs = 0;
+  var overrunMs = 0;
+  var blinkSeconds = 10;
+
+  function setMode(mode) {
+    document.body.setAttribute("data-mode", mode);
+  } // normal|warn|alert|over|ended
+  function setBlink(on) {
+    document.body.setAttribute("data-blink", on ? "1" : "0");
+  }
+
+  async function getJSON(url) {
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }
+
+  function loadConfig() {
+    return getJSON("/api/config")
+      .then(function (json) {
+        cfg = json.config || json;
+        if (cfg.show_message_primary) {
+          msg1.textContent = String(cfg.message_primary || "");
+          msg1.style.display = "";
+        } else {
+          msg1.textContent = "";
+          msg1.style.display = "none";
+        }
+      })
+      .catch(function () {});
+  }
+
+  function applySlewScheduling(newOffset) {
+    var delta = newOffset - offsetMs;
+    if (Math.abs(delta) <= CFG.smallSlewThresholdMs) {
+      pendingSlewMs = delta;
+      slewEndPerf = performance.now() + CFG.slewWindowMs;
+      return;
+    }
+    if (Math.abs(delta) < CFG.bigJumpThresholdMs) {
+      pendingSlewMs = delta;
+      slewEndPerf = performance.now() + CFG.midSlewWindowMs;
+      return;
+    }
+    offsetMs = newOffset;
+    pendingSlewMs = 0;
+    slewEndPerf = 0; // stor feil → hopp
+  }
+
+  function syncTick() {
+    getJSON("/tick")
+      .then(function (t) {
+        // Beregn ny anbefalt offset
+        var newOffset = Number(t.now_ms || 0) - Date.now();
+        applySlewScheduling(newOffset);
+
+        // Oppdater terskler/konstanter
+        warnMs = Number(t.warn_ms || 0);
+        alertMs = Number(t.alert_ms || 0);
+        overrunMs = Number(t.overrun_ms || 0);
+        blinkSeconds = cfg && typeof cfg.blink_seconds === "number" ? cfg.blink_seconds : 10;
+
+        // Oppdater targetMs kun ved reell endring (unngå mikrojitter)
+        var tm = Number(t.target_ms || 0);
+        if (targetMs === 0 || Math.abs(tm - targetMs) > CFG.targetChangeThresholdMs) {
+          targetMs = tm;
+        }
+
+        // Sekundærtekst – «Vi starter igjen kl HH:MM»
+        if (cfg && cfg.show_message_secondary) {
+          var base = String(cfg.message_secondary || "");
+          var hhmm = t.target_hhmm ? String(t.target_hhmm) : "";
+          msg2.textContent = base + (hhmm ? " " + hhmm : "");
+          msg2.style.display = "";
+        } else {
+          msg2.textContent = "";
+          msg2.style.display = "none";
+        }
+      })
+      .catch(function () {});
+  }
+
+  function nowMs() {
+    var nowPerf = performance.now();
+    var dt = nowPerf - lastPaintPerf;
+    lastPaintPerf = nowPerf;
+
+    if (pendingSlewMs !== 0) {
+      var remaining = Math.max(1, slewEndPerf - nowPerf);
+      var rate = pendingSlewMs / remaining;
+      var add = rate * dt;
+      if (Math.sign(add) !== Math.sign(pendingSlewMs) || Math.abs(add) >= Math.abs(pendingSlewMs)) {
+        offsetMs += pendingSlewMs;
+        pendingSlewMs = 0;
+      } else {
+        pendingSlewMs -= add;
+        offsetMs += add;
+      }
+    }
+    return Date.now() + offsetMs;
+  }
+
+  function paint() {
+    var n = nowMs();
+    var rem = targetMs > 0 ? targetMs - n : 0;
+
+    var mode = "ended",
+      show = 0,
+      blink = false,
+      sign = "";
+    if (targetMs <= 0) {
+      mode = "ended";
+      show = 0;
+    } else if (rem > 0) {
+      show = rem;
+      mode = rem <= alertMs ? "alert" : rem <= warnMs ? "warn" : "normal";
+      blink = rem <= blinkSeconds * 1000;
+    } else if (-rem <= overrunMs) {
+      show = -rem;
+      mode = "over";
+      blink = false; // minus: aldri blink
+      sign = "−";
+    } else {
+      show = 0;
+      mode = "ended";
+    }
+
+    var totalSec = Math.max(0, Math.floor(show / 1000));
+    var mm = Math.floor(totalSec / 60);
+    var ss = totalSec % 60;
+    clockEl.textContent =
+      (sign || "") + (mm < 10 ? "0" + mm : mm) + ":" + (ss < 10 ? "0" + ss : ss);
+
+    setMode(mode);
+    setBlink(!!blink);
+  }
+
+  // Oppstart
+  loadConfig().finally(function () {
+    if (paintTimer) clearInterval(paintTimer);
+    paintTimer = setInterval(paint, CFG.paintIntervalMs);
+
+    if (syncTimer) clearInterval(syncTimer);
+    syncTimer = setInterval(syncTick, CFG.syncIntervalMs);
+    syncTick();
+
+    if (cfgTimer) clearInterval(cfgTimer);
+    cfgTimer = setInterval(function () {
+      loadConfig();
+    }, 10_000);
+  });
+})();
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: static/css/ui.css
+LINES: 357
+CHUNK: 1/1
+SHA256: c43c5bf20cba980cbb057adcbbc91b8b5fff39bb1a85fd919df5e52ea308081b
+----- BEGIN CODE -----
+/* static/css/ui.css */
+:root {
+  --bg: #140b0e;
+  --panel: #251219;
+  --muted: #9aa4b2;
+  --text: #e6edf3;
+  --accent: #6aa9ff;
+  --good: #69db7c;
+  --bad: #ff6b6b;
+  --border: #1f2633;
+  --radius: 16px;
+  --gap: 16px;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  margin: 0;
+  font:
+    16px/1.45 system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Ubuntu,
+    "Helvetica Neue",
+    Arial;
+  color: var(--text);
+  background: radial-gradient(1200px 600px at 10% -10%, #142033 0, #0b0f14 60%);
+}
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+h1 {
+  font-size: 20px;
+  margin: 0;
+}
+nav a {
+  color: var(--muted);
+  text-decoration: none;
+  margin-right: 12px;
+}
+nav a.active,
+nav a:hover {
+  color: var(--text);
+}
+.card {
+  background: linear-gradient(180deg, rgba(18, 24, 37, 0.9), rgba(12, 16, 24, 0.9));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  margin: 16px;
+}
+.hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0.25rem 0;
+}
+.muted {
+  color: var(--muted);
+}
+button,
+input,
+textarea,
+select {
+  background: #0e1420;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+button {
+  cursor: pointer;
+}
+button.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: #0b0f14;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0.25rem 0.5rem 0.25rem 0;
+}
+textarea {
+  width: 100%;
+}
+pre {
+  background: #0b0f14;
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 10px;
+  overflow: auto;
+}
+.grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 960px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.big {
+  font-size: 14vw;
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fill {
+  position: fixed;
+  inset: 0;
+}
+.screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4vh;
+  text-align: center;
+}
+.screen .text {
+  max-width: 100ch;
+  word-wrap: break-word;
+}
+.screen img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* Ekte blinking for digits */
+@keyframes flash {
+  0%,
+  25%,
+  50%,
+  75%,
+  100% {
+    opacity: 1;
+  }
+  25%,
+  75% {
+    opacity: 0.2;
+  }
+}
+.big.blink,
+.pv-digits.blink {
+  animation: flash 0.8s steps(1) infinite;
+}
+
+/* Fullscreen-knapp i visning (nettleser) */
+.fs-btn {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: #0e1420;
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  border-radius: 8px;
+  opacity: 0.6;
+  z-index: 1000;
+}
+.fs-btn:hover {
+  opacity: 1;
+}
+
+/* Bedre kontrast på time/datetime-picker på mørk bakgrunn */
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.2);
+  opacity: 0.9;
+}
+input[type="time"],
+input[type="datetime-local"] {
+  color: var(--text);
+  background: #0e1420;
+  border: 1px solid var(--border);
+}
+
+/* Forhåndsvisning */
+.preview {
+  background: #0b0f14;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pv-box {
+  width: 100%;
+  max-width: 800px;
+  aspect-ratio: 16/8;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px;
+}
+.pv-digits {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  font-size: clamp(4vw, 8vw, 10vw);
+}
+
+/* hindrer at fullscreen-knappen vises i fullscreen */
+.is-fullscreen #btn_fullscreen,
+.is-fullscreen .fs-toggle,
+.is-fullscreen .fullscreen-button {
+  display: none !important;
+}
+/* i ui.css */
+.is-preview #btn_fullscreen {
+  display: none !important;
+}
+
+/* --- Admin toppbar --- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  background: #0c1220cc;
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid #1c2436;
+}
+.topbar .brand {
+  font-weight: 700;
+  color: #e6edf3;
+}
+.topbar .modes {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+.topbar .modes .mode-btn {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid #2b3650;
+  background: #121a2b;
+  color: #d6dde8;
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+.topbar .modes .mode-btn:hover {
+  background: #17223a;
+}
+.topbar .status {
+  text-align: right;
+  color: #9aa4b2;
+  font-size: 0.9rem;
+}
+
+/* --- Preview-dock --- */
+#preview_dock {
+  position: fixed;
+  top: 3.2rem;
+  right: 0;
+  bottom: 0;
+  width: 38vw;
+  min-width: 420px;
+  border-left: 1px solid #1c2436;
+  background: #0b0f14;
+  display: grid;
+  grid-template-rows: 1fr;
+}
+#preview_dock iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #0b0f14;
+}
+
+/* Gi hovedinnholdet litt plass til venstre for docken */
+@media (min-width: 1100px) {
+  body {
+    margin-right: 39vw;
+  }
+}
+
+/* Små skjermer: dock flyter under, dekk hele bredde */
+@media (max-width: 1099px) {
+  #preview_dock {
+    position: static;
+    width: 100%;
+    height: 50vh;
+    min-width: 0;
+  }
+  body {
+    margin-right: 0;
+  }
+}
+/* Overlays (logo/grafikk) */
+.overlays {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50; /* ← over bakgrunn og det meste av innholdet */
+  isolation: isolate; /* gir forutsigbar backdrop for mix-blend-mode */
+}
+.overlays .overlay-wrap {
+  position: absolute;
+  pointer-events: none;
+}
+.overlays .overlay-img {
+  display: block;
+  max-width: 200vmin; /* ← øker maks */
+  max-height: 200vmin; /* ← øker maks */
+}
+.overlays .overlay-tint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+/* Bruk alfakanal når vi maskerer med bilde (Chromium/WebKit) */
+.overlay-tint {
+  -webkit-mask-mode: alpha; /* WebKit/Chromium */
+  mask-mode: alpha; /* Standard (fallback om støttet) */
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+  /* Forhindrer "cutout" med feil kompositt */
+  -webkit-mask-composite: source-over;
+  mask-composite: add; /* standard-ekvivalent (best effort) */
+}
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: static/diag-lite.html
+LINES: 14
+CHUNK: 1/1
+SHA256: 92f4a7351cc00ffc969b7b15e6f5e5110296f46306f173faf0ef0cfb209eda3c
+----- BEGIN CODE -----
+<!-- static/diag-lite.html -->
+<!doctype html>
+<html lang="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Diagnose (lite) • Countdown</title>
+  </head>
+  <body>
+    <!-- Alt rendres av widgeten nedenfor -->
+    <script defer src="/static/js/diag_widget.js"></script>
+  </body>
+</html>
+
+----- END CODE -----
+===== END FILE =====
+===== BEGIN FILE =====
+PATH: static/diag.html
+LINES: 171
+CHUNK: 1/1
+SHA256: b406f61cf3d6cc7e885f2918df28d386f06a9fba14fddc6b7c315c4199a6c20c
+----- BEGIN CODE -----
+<!-- static/diag.html -->
+<!doctype html>
+<html lang="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Countdown · Diagnose</title>
+    <link rel="stylesheet" href="/static/css/ui.css" />
+    <style>
+      /* Kun for diagnose: gjøre nedtelling mer synlig */
+      .big {
+        font-size: 8vh;
+        line-height: 1.1;
+        font-weight: 700;
+      }
+      .muted {
+        opacity: 0.75;
+      }
+      .ok {
+        color: #6dd96d;
+      }
+      .fail {
+        color: #ff6b6b;
+      }
+      .grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: 1fr;
+      }
+      @media (min-width: 960px) {
+        .grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      pre {
+        max-height: 40vh;
+        overflow: auto;
+      }
+      .chip {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 4px 8px;
+      }
+      .mono {
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Diagnose</h1>
+      <nav>
+        <a href="/">Visning</a>
+        <a href="/admin">Admin</a>
+        <a class="active" href="/diag">Diagnose</a>
+        <a href="/about">Om</a>
+      </nav>
+    </header>
+
+    <main class="grid">
+      <section class="card">
+        <h2>Nedtelling (live)</h2>
+        <div id="countdown" class="big">00:00</div>
+        <div id="phase" class="muted">fase: — · state: —</div>
+        <div id="meta" class="muted">mål: — · nå: —</div>
+        <div id="both" class="muted">format: — / —</div>
+        <pre id="live" class="mono" style="margin-top: 0.5rem; max-height: 30vh; overflow: auto">
+(live)</pre
+        >
+        <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; align-items: center">
+          <button id="refresh">Oppdater</button>
+          <span id="lat" class="chip">latency: — ms</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Debug</h2>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem">
+          <button id="btn_who">/debug/whoami</button>
+          <button id="btn_cfg">/api/config</button>
+          <button id="btn_self">/debug/selftest</button>
+          <button id="btn_hb">/debug/view-heartbeat</button>
+        </div>
+        <pre id="raw" class="mono">(tom)</pre>
+      </section>
+
+      <section class="card">
+        <h2>Selvtest</h2>
+        <p>Rask sanitetssjekk av kjerne-logikk (ikke pytest).</p>
+        <ul id="selftest"></ul>
+        <div style="margin-top: 0.5rem">
+          <button id="run_selftest">Kjør selvtest</button>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        const fmtBoth = (ms) => {
+          const sgn = ms < 0 ? "-" : "";
+          ms = Math.abs(ms);
+          let s = Math.floor(ms / 1000);
+          const h = Math.floor(s / 3600);
+          s %= 3600;
+          const m = Math.floor(s / 60);
+          s %= 60;
+          const pad = (n) => String(n).padStart(2, "0");
+          return {
+            mmss: `${sgn}${Math.floor(h * 60 + m)}:${pad(s)}`,
+            hms: `${sgn}${h}:${pad(m)}:${pad(s)}`,
+          };
+        };
+        async function poll() {
+          const t0 = performance.now();
+          const r = await fetch("/tick");
+          const t = await r.json();
+          const dt = performance.now() - t0;
+          const both = fmtBoth(t.signed_display_ms);
+          document.getElementById("countdown").textContent = both.mmss;
+          document.getElementById("phase").textContent = `fase: ${t.mode} · state: ${t.state}`;
+          document.getElementById("meta").textContent =
+            `mål: ${t.target_hhmm || t.target_ms} · nå: ${new Date(t.now_ms).toLocaleTimeString()}`;
+          document.getElementById("both").textContent = `format: ${both.hms} / ${both.mmss}`;
+          document.getElementById("lat").textContent = `latency: ${dt.toFixed(0)} ms`;
+          document.getElementById("live").textContent = JSON.stringify(t, null, 2);
+        }
+        async function selftest() {
+          const r = await fetch("/debug/selftest");
+          const js = await r.json();
+          const ul = document.getElementById("selftest");
+          ul.innerHTML = "";
+          js.tests.forEach((t) => {
+            const li = document.createElement("li");
+            li.textContent = `${t.ok ? "✔" : "✖"} ${t.name}${t.info ? " — " + t.info : ""}`;
+            li.className = t.ok ? "ok" : "fail";
+            ul.appendChild(li);
+          });
+        }
+        async function dump(url) {
+          const r = await fetch(url);
+          const js = await r.json();
+          document.getElementById("raw").textContent = JSON.stringify(js, null, 2);
+        }
+
+        document
+          .getElementById("refresh")
+          .addEventListener("click", () => poll().catch(console.error));
+        document
+          .getElementById("run_selftest")
+          .addEventListener("click", () => selftest().catch(console.error));
+        document
+          .getElementById("btn_who")
+          .addEventListener("click", () => dump("/debug/whoami").catch(console.error));
+        document
+          .getElementById("btn_cfg")
+          .addEventListener("click", () => dump("/api/config").catch(console.error));
+        document
+          .getElementById("btn_self")
+          .addEventListener("click", () => dump("/debug/selftest").catch(console.error));
+        document
+          .getElementById("btn_hb")
+          .addEventListener("click", () => dump("/debug/view-heartbeat").catch(console.error));
+
+        poll().catch(console.error);
+        setInterval(poll, 1000);
+      })();
+    </script>
+  </body>
+</html>
+
+----- END CODE -----
+===== END FILE =====

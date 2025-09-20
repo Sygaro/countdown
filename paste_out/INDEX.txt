@@ -1,0 +1,36 @@
+# Index over filer og hvilken paste_NNN.txt de ligger i
+
+
+## paste_001.txt
+- app/__init__.py
+- app/auth.py
+- app/countdown.py
+- app/models.py
+- app/routes/admin.py
+- app/routes/api.py
+- app/routes/pages.py
+- app/routes/public.py
+- app/settings.py
+- app/sse.py
+- app/storage.py
+- kiosk-session.sh
+- kiosk.sh
+- static/about.html
+- static/admin.html
+- static/app.js
+- static/css/ui.css
+- static/diag-lite.html
+- static/diag.html
+
+## paste_002.txt
+- static/index.html
+- static/js/admin.js
+- static/js/admin_overlays.js
+- static/js/admin_quickstart.js
+- static/js/diag.js
+- static/js/diag_widget.js
+- static/js/fullscreen.js
+- static/js/overlays_preview_fix.js
+- static/js/ui.js
+- static/style.css
+- wsgi.py
