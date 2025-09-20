@@ -7,7 +7,9 @@
     <link rel="stylesheet" href="/static/css/ui.css" />
   </head>
   <body class="center fill">
-    <button id="btn_fullscreen" class="fs-btn" title="Fullskjerm">⛶ Fullskjerm</button>
+    <button id="btn_fullscreen" class="fs-btn" title="Fullskjerm">
+      ⛶ Fullskjerm
+    </button>
 
     <!-- Nedtelling -->
     <div
@@ -15,14 +17,22 @@
       class="center fill"
       style="flex-direction: column; gap: 2vh; display: none"
     >
-      <div id="msgs_above" class="muted" style="display: none; text-align: center">
+      <div
+        id="msgs_above"
+        class="muted"
+        style="display: none; text-align: center"
+      >
         <div id="msg_primary_above"></div>
         <div id="msg_secondary_above"></div>
       </div>
 
       <div id="digits" class="big">00:00</div>
 
-      <div id="msgs_below" class="muted" style="display: none; text-align: center">
+      <div
+        id="msgs_below"
+        class="muted"
+        style="display: none; text-align: center"
+      >
         <div id="msg_primary_below"></div>
         <div id="msg_secondary_below"></div>
       </div>
@@ -40,8 +50,14 @@
     <script>
       (function () {
         const $ = (s) => document.querySelector(s);
-        const state = { cfg: null, tick: null, lastCfgRev: 0, clockTimer: null };
-        const isPreview = new URLSearchParams(location.search).get("preview") === "1";
+        const state = {
+          cfg: null,
+          tick: null,
+          lastCfgRev: 0,
+          clockTimer: null,
+        };
+        const isPreview =
+          new URLSearchParams(location.search).get("preview") === "1";
         if (isPreview) {
           document.documentElement.classList.add("is-preview");
         }
@@ -98,84 +114,182 @@
           set("#msg_secondary_below", s, 1.8);
         }
 
-        // --- robust background-applier: solid | gradient | image (+ tint overlay) ---
-        function applyThemeBackground(el, bg) {
-          if (!el || !bg) return;
+       // --- dynamisk lag: keyframes + elementhåndtering ---
+    function ensureDynKeyframes() {
+      if (document.getElementById("dynbg_keyframes")) return;
+      const st = document.createElement("style");
+      st.id = "dynbg_keyframes";
+      st.textContent = `
+@keyframes dynbg-rotate {
+  0%   { transform: rotate(0deg) scale(1.02); }
+  100% { transform: rotate(360deg) scale(1.02); }
+}`;
+      document.head.appendChild(st);
+    }
+    function getDynLayer() {
+      return document.getElementById("dyn_bg_layer");
+    }
+    function ensureDynLayer() {
+      let el = getDynLayer();
+      if (!el) {
+        el = document.createElement("div");
+        el.id = "dyn_bg_layer";
+        el.style.position = "fixed";
+        el.style.inset = "-15%";
+        el.style.zIndex = "0";            // bak overlays (som har 50)
+        el.style.pointerEvents = "none";
+        document.body.appendChild(el);
+      }
+      return el;
+    }
+    function removeDynLayer() {
+      const el = getDynLayer();
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    }
 
-          // nullstill alt først
-          el.style.background = "";
-          el.style.backgroundColor = "";
-          el.style.backgroundImage = "";
-          el.style.backgroundRepeat = "";
-          el.style.backgroundSize = "";
-          el.style.backgroundPosition = "";
+    // --- HJELPERE ---
+    function hexToRgba(hex, opacity) {
+      const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((hex || "").trim());
+      if (!m) return `rgba(0,0,0,${Number(opacity || 0)})`;
+      const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16);
+      const a = Math.max(0, Math.min(1, Number(opacity || 0)));
+      return `rgba(${r},${g},${b},${a})`;
+    }
 
-          const mode = (bg.mode || "solid").toLowerCase();
+    // --- NY: robust bakgrunn inkl. dynamic + base ---
+    function applyThemeBackground(el, bg) {
+      if (!el || !bg) return;
 
-          // hjelpefunksjon: #RRGGBB + opacity -> 'rgba(r,g,b,a)'
-          function hexToRgba(hex, opacity) {
-            const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((hex || "").trim());
-            if (!m) return `rgba(0,0,0,${Number(opacity || 0)})`;
-            const r = parseInt(m[1], 16),
-              g = parseInt(m[2], 16),
-              b = parseInt(m[3], 16);
-            const a = Math.max(0, Math.min(1, Number(opacity || 0)));
-            return `rgba(${r},${g},${b},${a})`;
+      // nullstill base på body
+      el.style.background = "";
+      el.style.backgroundColor = "";
+      el.style.backgroundImage = "";
+      el.style.backgroundRepeat = "";
+      el.style.backgroundSize = "";
+      el.style.backgroundPosition = "";
+
+      const mode = (bg.mode || "solid").toLowerCase();
+
+      // BASE-bygger (brukes også av dynamic)
+      function applyBase() {
+        const imgUrl = (bg?.image?.url || "").trim();
+        if (imgUrl) {
+          // IMAGE (med ev. tint)
+          const fit = (bg?.image?.fit || "cover").toLowerCase();
+          const tintC = bg?.image?.tint?.color || null;
+          const tintO = Number(bg?.image?.tint?.opacity ?? 0);
+          const layers = [];
+          if (tintC && tintO > 0) {
+            const rgba = hexToRgba(tintC, tintO);
+            layers.push(`linear-gradient(${rgba}, ${rgba})`);
           }
-
-          if (mode === "solid") {
-            el.style.backgroundColor = bg?.solid?.color || "#0b0f14";
-            el.style.backgroundImage = "none";
-            return;
-          }
-
-          if (mode === "gradient") {
-            const from = bg?.gradient?.from || "#142033";
-            const to = bg?.gradient?.to || "#0b0f14";
-            const angle = Number(bg?.gradient?.angle_deg ?? 180);
-            el.style.backgroundImage = `linear-gradient(${angle}deg, ${from}, ${to})`;
-            el.style.backgroundColor = "transparent";
-            el.style.backgroundRepeat = "no-repeat";
-            el.style.backgroundSize = "cover";
-            el.style.backgroundPosition = "center center";
-            return;
-          }
-
-          if (mode === "image") {
-            const url = (bg?.image?.url || "").trim();
-            const fit = (bg?.image?.fit || "cover").toLowerCase();
-            const op = Number(bg?.image?.opacity ?? 1);
-            const tintC = bg?.image?.tint?.color || null;
-            const tintO = Number(bg?.image?.tint?.opacity ?? 0);
-
-            // bygg lag: evt. tint først, så bilde
-            const layers = [];
-            if (tintC && tintO > 0) {
-              const rgba = hexToRgba(tintC, tintO);
-              layers.push(`linear-gradient(${rgba}, ${rgba})`);
-            }
-            if (url) layers.push(`url("${url}")`);
-
-            if (!layers.length) {
-              // ingen bilde-URL, ingen tint: fall tilbake til solid mørk bakgrunn
-              el.style.backgroundColor = "#0b0f14";
-              return;
-            }
-
-            el.style.backgroundImage = layers.join(", ");
-            el.style.backgroundRepeat = "no-repeat, no-repeat";
-            el.style.backgroundSize =
-              (layers.length === 2 ? "auto, " : "") + (fit === "contain" ? "contain" : "cover");
-            el.style.backgroundPosition = "center center, center center";
-            el.style.backgroundColor = "transparent";
-
-            // ‘opacity’ på image-laget: vi simulerer ved å injisere en alfamiks,
-            // men enklest: la tint håndtere “mørking”, og la image være 100%.
-            // Hvis du VIL bruke ‘opacity’, gjør det via egen overlay-node (ikke nødvendig her).
-            return;
-          }
+          layers.push(`url("${imgUrl}")`);
+          el.style.backgroundImage = layers.join(", ");
+          el.style.backgroundRepeat = "no-repeat, no-repeat";
+          el.style.backgroundSize =
+            (layers.length === 2 ? "auto, " : "") + (fit === "contain" ? "contain" : "cover");
+          el.style.backgroundPosition = "center center, center center";
+          el.style.backgroundColor = "transparent";
+          return "image";
         }
 
+        // GRADIENT
+        const from = bg?.gradient?.from || "#142033";
+        const to   = bg?.gradient?.to   || "#0b0f14";
+        const angle = Number(bg?.gradient?.angle_deg ?? 180);
+        if (from && to) {
+          el.style.backgroundImage = `linear-gradient(${angle}deg, ${from}, ${to})`;
+          el.style.backgroundRepeat = "no-repeat";
+          el.style.backgroundSize = "cover";
+          el.style.backgroundPosition = "center center";
+          el.style.backgroundColor = "transparent";
+          return "gradient";
+        }
+
+        // SOLID (fallback)
+        el.style.backgroundColor = bg?.solid?.color || "#0b0f14";
+        el.style.backgroundImage = "none";
+        return "solid";
+      }
+
+      if (mode === "solid") {
+        removeDynLayer();
+        el.style.backgroundColor = bg?.solid?.color || "#0b0f14";
+        el.style.backgroundImage = "none";
+        return;
+      }
+
+      if (mode === "gradient") {
+        removeDynLayer();
+        const from = bg?.gradient?.from || "#142033";
+        const to   = bg?.gradient?.to   || "#0b0f14";
+        const angle = Number(bg?.gradient?.angle_deg ?? 180);
+        el.style.backgroundImage = `linear-gradient(${angle}deg, ${from}, ${to})`;
+        el.style.backgroundColor = "transparent";
+        el.style.backgroundRepeat = "no-repeat";
+        el.style.backgroundSize = "cover";
+        el.style.backgroundPosition = "center center";
+        return;
+      }
+
+      if (mode === "image") {
+        removeDynLayer();
+        const url = (bg?.image?.url || "").trim();
+        if (!url) {
+          // ingen bilde → bruk solid fallback
+          el.style.backgroundColor = "#0b0f14";
+          return;
+        }
+        const fit = (bg?.image?.fit || "cover").toLowerCase();
+        const tintC = bg?.image?.tint?.color || null;
+        const tintO = Number(bg?.image?.tint?.opacity ?? 0);
+
+        const layers = [];
+        if (tintC && tintO > 0) {
+          const rgba = hexToRgba(tintC, tintO);
+          layers.push(`linear-gradient(${rgba}, ${rgba})`);
+        }
+        layers.push(`url("${url}")`);
+        el.style.backgroundImage = layers.join(", ");
+        el.style.backgroundRepeat = "no-repeat, no-repeat";
+        el.style.backgroundSize =
+          (layers.length === 2 ? "auto, " : "") + (fit === "contain" ? "contain" : "cover");
+        el.style.backgroundPosition = "center center, center center";
+        el.style.backgroundColor = "transparent";
+        return;
+      }
+
+      if (mode === "dynamic") {
+        // 1) Base først (image -> gradient -> solid)
+        applyBase();
+
+        // 2) Dynamisk lag på toppen
+        ensureDynKeyframes();
+        const layer = ensureDynLayer();
+
+        // Les parametre (med sikre defaults)
+        const dyn = bg?.dynamic || {};
+        const from = dyn.from || "#16233a";
+        const to   = dyn.to   || "#0e1a2f";
+        const rotateS = Math.max(5, Math.min(600, Number(dyn.rotate_s ?? 60)));
+        const blurPx  = Math.max(0, Math.min(60,  Number(dyn.blur_px  ?? 18)));
+        const opa     = Math.max(0, Math.min(1,   Number(dyn.opacity  ?? 0.9)));
+
+        layer.style.background =
+          `radial-gradient(1200px 700px at 10% -10%, ${from} 0%, transparent 60%),` +
+          `radial-gradient(900px 600px at 110% 5%, ${to} 0%, transparent 65%),` +
+          `conic-gradient(from 220deg at 50% 50%, #0b0f1400 0%, #0e142000 25%, #0b0f1400 50%, #101a2a00 75%, #0b0f1400 100%)`;
+
+        layer.style.filter = `blur(${blurPx}px)`;
+        layer.style.opacity = String(opa);
+        layer.style.animation = `dynbg-rotate ${rotateS}s linear infinite`;
+        return;
+      }
+
+      // ukjent → fallback solid
+      removeDynLayer();
+      el.style.backgroundColor = "#0b0f14";
+    }
         function applyCountdown() {
           $("#view_clock").style.display = "none";
           const root = $("#view_countdown");
@@ -234,8 +348,12 @@
               ? ` ${t.target_hhmm}`
               : "";
 
-          const prim = c.show_message_primary ? (c.message_primary || "") + targetTextPrim : "";
-          const sec = c.show_message_secondary ? (c.message_secondary || "") + targetTextSec : "";
+          const prim = c.show_message_primary
+            ? (c.message_primary || "") + targetTextPrim
+            : "";
+          const sec = c.show_message_secondary
+            ? (c.message_secondary || "") + targetTextSec
+            : "";
 
           const above = c.messages_position === "above";
           $("#msgs_above").style.display = above ? "block" : "none";
@@ -271,7 +389,9 @@
           applyThemeBackground(document.body, state.cfg?.theme?.background);
 
           // Klokkens plassering
-          const clockPos = (state.cfg?.clock?.position || "center").toLowerCase();
+          const clockPos = (
+            state.cfg?.clock?.position || "center"
+          ).toLowerCase();
           const posMap = {
             center: { ai: "center", jc: "center" },
             "top-left": { ai: "flex-start", jc: "flex-start" },
@@ -332,9 +452,12 @@
 
             wrap.style.display = showP || showS ? "flex" : "none";
             wrap.style.alignItems =
-              { start: "flex-start", center: "center", end: "flex-end" }[msgAlign] || "center";
+              { start: "flex-start", center: "center", end: "flex-end" }[
+                msgAlign
+              ] || "center";
             wrap.style.textAlign =
-              { start: "left", center: "center", end: "right" }[msgAlign] || "center";
+              { start: "left", center: "center", end: "right" }[msgAlign] ||
+              "center";
             wrap.style.gap = "0.25rem";
 
             elP.style.display = showP ? "block" : "none";
@@ -365,10 +488,15 @@
             const HH = String(d.getHours()).padStart(2, "0");
             const MM = String(d.getMinutes()).padStart(2, "0");
             const SS = String(d.getSeconds()).padStart(2, "0");
-            clkEl.textContent = clk.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
+            clkEl.textContent = clk.with_seconds
+              ? `${HH}:${MM}:${SS}`
+              : `${HH}:${MM}`;
           };
           update();
-          state.clockTimer = setInterval(update, clk.with_seconds ? 1000 : 5000);
+          state.clockTimer = setInterval(
+            update,
+            clk.with_seconds ? 1000 : 5000,
+          );
           applyOverlays();
         }
 
@@ -398,7 +526,9 @@
           if (!root) return;
           root.innerHTML = "";
 
-          const list = Array.isArray(state.cfg?.overlays) ? state.cfg.overlays : [];
+          const list = Array.isArray(state.cfg?.overlays)
+            ? state.cfg.overlays
+            : [];
           if (!list.length) return;
 
           const mode = state.cfg?.mode || "daily";
@@ -432,7 +562,8 @@
             const offVW = Number(o.offset_vw ?? 2);
             const offVH = Number(o.offset_vh ?? 2);
             const set = (prop, value) => (wrap.style[prop] = value);
-            const clr = (...props) => props.forEach((p) => (wrap.style[p] = ""));
+            const clr = (...props) =>
+              props.forEach((p) => (wrap.style[p] = ""));
             switch (pos) {
               case "top-left":
                 set("top", `${offVH}vh`);
@@ -498,34 +629,38 @@
             img.style.display = "block";
             img.style.width = "100%";
             img.style.height = "auto";
-            img.style.opacity = String(Math.max(0, Math.min(1, Number(o.opacity ?? 1))));
+            img.style.opacity = String(
+              Math.max(0, Math.min(1, Number(o.opacity ?? 1))),
+            );
             img.style.zIndex = String(z); // ligger under tint-laget (tint har zIndex z+1)
             img.style.position = "relative";
             wrap.appendChild(img);
 
             // tint (valgfritt) – klipp til logoens alfakanal
-const tint = o.tint || {};
-const tintOpacity = Math.max(0, Math.min(1, Number(tint.opacity ?? 0)));
-if (tintOpacity > 0) {
-  const tintColor = (tint.color || "#000000").trim();
-  const blend = (tint.blend || "multiply").trim();
+            const tint = o.tint || {};
+            const tintOpacity = Math.max(
+              0,
+              Math.min(1, Number(tint.opacity ?? 0)),
+            );
+            if (tintOpacity > 0) {
+              const tintColor = (tint.color || "#000000").trim();
+              const blend = (tint.blend || "multiply").trim();
 
-  const overlay = document.createElement("div");
-  overlay.className = "overlay-tint";
-  overlay.style.position = "absolute";
-  overlay.style.inset = "0";
-  overlay.style.backgroundColor = tintColor;
-  overlay.style.opacity = String(tintOpacity);
-  overlay.style.zIndex = String(z + 1);
-  overlay.style.mixBlendMode = blend;
+              const overlay = document.createElement("div");
+              overlay.className = "overlay-tint";
+              overlay.style.position = "absolute";
+              overlay.style.inset = "0";
+              overlay.style.backgroundColor = tintColor;
+              overlay.style.opacity = String(tintOpacity);
+              overlay.style.zIndex = String(z + 1);
+              overlay.style.mixBlendMode = blend;
 
-  // mask: bruk logoens alfa (no-repeat/contain/center tas av CSS-klassen)
-  overlay.style.webkitMaskImage = `url("${url}")`;
-  overlay.style.maskImage = `url("${url}")`;
+              // mask: bruk logoens alfa (no-repeat/contain/center tas av CSS-klassen)
+              overlay.style.webkitMaskImage = `url("${url}")`;
+              overlay.style.maskImage = `url("${url}")`;
 
-  wrap.appendChild(overlay);
-}
-
+              wrap.appendChild(overlay);
+            }
 
             root.appendChild(wrap);
           }
@@ -553,7 +688,10 @@ if (tintOpacity > 0) {
 
         // Heartbeat + fullskjerm auto-skjul
         function sendHeartbeat() {
-          const payload = JSON.stringify({ rev: state.lastCfgRev, page: "view" });
+          const payload = JSON.stringify({
+            rev: state.lastCfgRev,
+            page: "view",
+          });
           if (navigator.sendBeacon) {
             const blob = new Blob([payload], { type: "application/json" });
             navigator.sendBeacon("/debug/view-heartbeat", blob);
@@ -574,7 +712,9 @@ if (tintOpacity > 0) {
         function showFsBtn() {
           if (!fsBtn) return;
           if (document.fullscreenElement) return;
-          fsBtn.style.display = document.fullscreenEnabled ? "inline-block" : "none";
+          fsBtn.style.display = document.fullscreenEnabled
+            ? "inline-block"
+            : "none";
           fsBtn.style.opacity = "1";
         }
         function hideFsBtn() {
@@ -605,7 +745,8 @@ if (tintOpacity > 0) {
           document.addEventListener(ev, bumpActivity, { passive: true }),
         );
         setInterval(() => {
-          if (!document.fullscreenElement && Date.now() - lastActivityTs > 5000) hideFsBtn();
+          if (!document.fullscreenElement && Date.now() - lastActivityTs > 5000)
+            hideFsBtn();
         }, 1000);
 
         if (fsBtn) {

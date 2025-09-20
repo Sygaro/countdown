@@ -15,6 +15,14 @@
   .aqs-hide{display:none!important}
   `;
 
+  // Hent admin-passord slik admin.js gjør (input-felt eller localStorage)
+  function readPassword() {
+    const inp = document.getElementById("admin-password");
+    const v =
+      (inp && inp.value) || localStorage.getItem("admin_password") || "";
+    return v || "";
+  }
+
   function injectStyle() {
     if (document.getElementById("aqs-style")) return;
     const el = document.createElement("style");
@@ -38,9 +46,13 @@
   }
 
   async function postJSON(url, body) {
+    const headers = { "Content-Type": "application/json" };
+    const pw = readPassword();
+    if (pw) headers["X-Admin-Password"] = pw;
+
     const r = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(body),
       cache: "no-store",
     });
@@ -54,7 +66,7 @@
 
   async function startMinutes(min) {
     const m = Math.max(1, Math.floor(Number(min)));
-    await postJSON("/api/start", { minutes: m });
+    await postJSON("/api/start-duration", { minutes: m });
     toast("Startet +" + m + " min", true);
   }
 

@@ -1,31 +1,31 @@
 {
-  "_updated_at": 1758360734,
+  "_updated_at": 1758381687,
   "admin_password": null,
   "alert_minutes": 2,
-  "blink_seconds": 50,
+  "blink_seconds": 55,
   "clock": {
     "color": "#e6edf3",
-    "message_primary": "Velkommen!",
-    "message_secondary": "",
+    "message_primary": "Velkomment til bibelskole!\nHei",
+    "message_secondary": "Himmelpartner bibleskole!",
     "messages_align": "center",
-    "messages_position": "right",
+    "messages_position": "above",
     "position": "center",
-    "size_vmin": 15,
-    "use_clock_messages": false,
+    "size_vmin": 17,
+    "use_clock_messages": true,
     "with_seconds": true
   },
   "color_alert": "#ff6b6b",
   "color_normal": "#a4c9ea",
-  "color_over": "#9ad0ff",
+  "color_over": "#ff0000",
   "color_warn": "#ffd166",
-  "daily_time": "12:00",
-  "duration_minutes": 15,
+  "daily_time": "14:29",
+  "duration_minutes": 10,
   "duration_started_ms": 0,
   "hms_threshold_minutes": 60,
   "message_primary": "Velkommen!",
-  "message_secondary": "Vi starter kl:",
-  "messages_position": "above",
-  "mode": "clock",
+  "message_secondary": "Vi starter kl",
+  "messages_position": "below",
+  "mode": "daily",
   "once_at": "",
   "overlays": [
     {
@@ -43,8 +43,7 @@
       "type": "image",
       "url": "https://freelogopng.com/images/all_img/1685901477apple-logo-transparent.png",
       "visible_in": [
-        "countdown",
-        "clock"
+        "countdown"
       ],
       "z_index": 9
     },
@@ -230,9 +229,16 @@
   "target_time_after": "secondary",
   "theme": {
     "background": {
+      "dynamic": {
+        "blur_px": 40,
+        "from": "#e0ecff",
+        "opacity": 1.0,
+        "rotate_s": 20,
+        "to": "#e92b5a"
+      },
       "gradient": {
-        "angle_deg": 150,
-        "from": "#70a1f0",
+        "angle_deg": 160,
+        "from": "#2155c4",
         "to": "#0b0f14"
       },
       "image": {
@@ -244,15 +250,15 @@
         },
         "url": "https://picsum.photos/1600/900"
       },
-      "mode": "image",
+      "mode": "dynamic",
       "solid": {
-        "color": "#0b0f14"
+        "color": "#6c7e93"
       }
     },
     "digits": {
       "font_weight": 800,
       "letter_spacing_em": 0.06,
-      "size_vw": 19
+      "size_vw": 14
     },
     "messages": {
       "primary": {
@@ -269,5 +275,5 @@
   },
   "use_blink": true,
   "use_phase_colors": true,
-  "warn_minutes": 4
+  "warn_minutes": 5
 }
