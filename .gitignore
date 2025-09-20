@@ -213,3 +213,4 @@ __pycache__/
 .DS_Store
 ._.DS_Store
 .env
+paste_out/
