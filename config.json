@@ -1,7 +1,7 @@
 {
   "_migrated_at": 1757592465,
-  "_updated_at": 1757797870,
-  "admin_password": "",
+  "_updated_at": 1758404844,
+  "admin_password": null,
   "alert_minutes": 3,
   "blink_seconds": 50,
   "clock": {
@@ -21,13 +21,14 @@
   "color_warn": "#ffd166",
   "daily_time": "23:00",
   "duration_minutes": 30,
-  "duration_started_ms": 1757797870176,
+  "duration_started_ms": 0,
   "hms_threshold_minutes": 60,
   "message_primary": "Velkommen!",
   "message_secondary": "Vi starter kl:",
   "messages_position": "above",
-  "mode": "duration",
+  "mode": "daily",
   "once_at": "",
+  "overlays": [],
   "overrun_minutes": 30,
   "show_message_primary": true,
   "show_message_secondary": true,
@@ -35,6 +36,14 @@
   "target_time_after": "secondary",
   "theme": {
     "background": {
+      "dynamic": {
+        "base_mode": "auto",
+        "blur_px": 25,
+        "from": "#16233a",
+        "opacity": 0.8,
+        "rotate_s": 40,
+        "to": "#0e1a2f"
+      },
       "gradient": {
         "angle_deg": 180,
         "from": "#213154",
@@ -63,11 +72,13 @@
       "primary": {
         "color": "#ebe7e0",
         "size_rem": 2.5,
+        "size_vmin": 6.0,
         "weight": 500
       },
       "secondary": {
         "color": "#2871a9",
         "size_rem": 3.0,
+        "size_vmin": 4.0,
         "weight": 700
       }
     }
