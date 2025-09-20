@@ -1,17 +1,16 @@
 {
-  "_migrated_at": 1757592465,
-  "_updated_at": 1758313367,
-  "admin_password": "",
-  "alert_minutes": 3,
-  "blink_seconds": 55,
+  "_updated_at": 1758355994,
+  "admin_password": null,
+  "alert_minutes": 2,
+  "blink_seconds": 50,
   "clock": {
-    "color": "#7a90e1",
+    "color": "#e6edf3",
     "message_primary": "Velkommen!",
     "message_secondary": "",
-    "messages_align": "end",
-    "messages_position": "left",
+    "messages_align": "center",
+    "messages_position": "right",
     "position": "center",
-    "size_vmin": 30,
+    "size_vmin": 15,
     "use_clock_messages": false,
     "with_seconds": true
   },
@@ -19,15 +18,15 @@
   "color_normal": "#a4c9ea",
   "color_over": "#9ad0ff",
   "color_warn": "#ffd166",
-  "daily_time": "20:00",
-  "duration_minutes": 1,
+  "daily_time": "12:00",
+  "duration_minutes": 15,
   "duration_started_ms": 0,
   "hms_threshold_minutes": 60,
   "message_primary": "Velkommen!",
   "message_secondary": "Vi starter kl:",
   "messages_position": "above",
-  "mode": "once",
-  "once_at": "2025-09-20T22:22",
+  "mode": "clock",
+  "once_at": "",
   "overlays": [
     {
       "id": "Apple_logo",
@@ -64,8 +63,8 @@
       "type": "image",
       "url": "https://freelogopng.com/images/all_img/1681038472chatgpt-logo.png",
       "visible_in": [
-        "clock",
-        "countdown"
+        "countdown",
+        "clock"
       ],
       "z_index": 10
     },
@@ -84,7 +83,6 @@
       "type": "image",
       "url": "https://freelogopng.com/images/all_img/1692440941ford-logo-transparent.png",
       "visible_in": [
-        "countdown",
         "clock"
       ],
       "z_index": 11
@@ -113,13 +111,13 @@
       "id": "HP_logo",
       "offset_vh": 5.0,
       "offset_vw": 7.5,
-      "opacity": 0.2,
-      "position": "top-right",
-      "size_vmin": 75.0,
+      "opacity": 0.15,
+      "position": "top-center",
+      "size_vmin": 70.0,
       "tint": {
         "blend": "hard-light",
         "color": "#27ceb2",
-        "opacity": 0.75
+        "opacity": 0.0
       },
       "type": "image",
       "url": "https://static.wixstatic.com/media/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png/v1/fill/w_1202,h_194,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png",
@@ -128,9 +126,104 @@
         "countdown"
       ],
       "z_index": 30
+    },
+    {
+      "id": "HP_logo2",
+      "offset_vh": 2.0,
+      "offset_vw": 2.0,
+      "opacity": 0.6,
+      "position": "center-left",
+      "size_vmin": 49.0,
+      "tint": {
+        "blend": "hard-light",
+        "color": "#b81414",
+        "opacity": 0.0
+      },
+      "type": "image",
+      "url": "https://static.wixstatic.com/media/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png/v1/fill/w_1202,h_194,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png",
+      "visible_in": [
+        "clock"
+      ],
+      "z_index": 6
+    },
+    {
+      "id": "HP_logo_3",
+      "offset_vh": 2.0,
+      "offset_vw": 2.0,
+      "opacity": 0.75,
+      "position": "center",
+      "size_vmin": 92.0,
+      "tint": {
+        "blend": "overlay",
+        "color": "#dc9898",
+        "opacity": 0.0
+      },
+      "type": "image",
+      "url": "https://static.wixstatic.com/media/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png/v1/fill/w_1202,h_194,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png",
+      "visible_in": [
+        "countdown",
+        "clock"
+      ],
+      "z_index": 7
+    },
+    {
+      "id": "Twitter Logo",
+      "offset_vh": 6.0,
+      "offset_vw": 6.5,
+      "opacity": 0.85,
+      "position": "bottom-center",
+      "size_vmin": 35.0,
+      "tint": {
+        "blend": "normal",
+        "color": "#de8282",
+        "opacity": 0.0
+      },
+      "type": "image",
+      "url": "https://freelogopng.com/images/all_img/1657046580twitter-logo-png-white.png",
+      "visible_in": [
+        "clock"
+      ],
+      "z_index": 16
+    },
+    {
+      "id": "CNN",
+      "offset_vh": 2.0,
+      "offset_vw": 2.0,
+      "opacity": 1.0,
+      "position": "top-right",
+      "size_vmin": 30.0,
+      "tint": {
+        "blend": "multiply",
+        "color": "#000000",
+        "opacity": 0.0
+      },
+      "type": "image",
+      "url": "https://freelogopng.com/images/all_img/1684126709cnn-logo-white.png",
+      "visible_in": [
+        "clock",
+        "countdown"
+      ],
+      "z_index": 16
+    },
+    {
+      "id": "logo-1",
+      "offset_vh": 2.0,
+      "offset_vw": 2.0,
+      "opacity": 1.0,
+      "position": "top-right",
+      "size_vmin": 12.0,
+      "tint": {
+        "blend": "multiply",
+        "color": "#000000",
+        "opacity": 0.0
+      },
+      "type": "image",
+      "url": "https://x/y.png",
+      "visible_in": [],
+      "z_index": 10
     }
   ],
-  "overrun_minutes": 30,
+  "overrun_minutes": 35,
   "show_message_primary": true,
   "show_message_secondary": true,
   "show_target_time": true,
@@ -151,7 +244,7 @@
         },
         "url": "https://picsum.photos/1600/900"
       },
-      "mode": "gradient",
+      "mode": "image",
       "solid": {
         "color": "#0b0f14"
       }
@@ -159,16 +252,16 @@
     "digits": {
       "font_weight": 800,
       "letter_spacing_em": 0.06,
-      "size_vw": 14
+      "size_vw": 19
     },
     "messages": {
       "primary": {
-        "color": "#9aa4b2",
+        "color": "#6092d7",
         "size_rem": 3.0,
         "weight": 600
       },
       "secondary": {
-        "color": "#9aa4b2",
+        "color": "#68a0ee",
         "size_rem": 3.0,
         "weight": 400
       }
@@ -176,5 +269,5 @@
   },
   "use_blink": true,
   "use_phase_colors": true,
-  "warn_minutes": 5
+  "warn_minutes": 4
 }

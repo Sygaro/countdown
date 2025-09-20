@@ -1,61 +1,59 @@
-# app/storage.py
-"""
-Konfig I/O + defaults.
-Nytt: 'clock' er kanonisk modus. All 'screen' legacy migreres bort ved lesing.
-- Klokke bruker alltid theme.background.
-- Engangsmigrering: mode=screen -> mode=clock, screen.clock -> clock.
-"""
+# File: app/storage.py
+# Purpose: Konfig I/O + defaults + sanitering + trygg migrering (screen -> clock) + atomisk lagring.
+#          Overlay-regler:
+#            • visible_in: [] respekteres (helt skjult)
+#            • visible_in: None (eksplisitt) → []
+#            • overlays_mode:"replace" erstatter hele lista (inkl. []), "merge" upsert pr. id
+# Replaces: app/storage.py
+
 from __future__ import annotations
+
 import json
 import os
+import re
 import tempfile
 import time
-from typing import Any, Dict, Tuple
 from datetime import datetime
+from typing import Any, Dict, Tuple, List, Optional, cast
+
 from .settings import CONFIG_PATH
 
-# -------- Defaults --------
 _DEFAULTS: Dict[str, Any] = {
-    "mode": "daily",  # daily|once|duration|clock
+    "mode": "daily",
     "daily_time": "19:15",
     "once_at": "",
     "duration_minutes": 20,
     "duration_started_ms": 0,
     "overlays": [],
-    # Klokke (top-level, brukes når mode=clock)
     "clock": {
         "with_seconds": True,
         "color": "#e6edf3",
-        "size_vmin": 15,  # relativ skriftstørrelse (vmin), 6..30 anbefalt
-        "position": "center",  # center|top-left|top-right|bottom-left|bottom-right|top-center|bottom-center
-        "messages_position": "right",  # right|left|above|below
-        "messages_align": "center",  # start|center|end
-        "use_clock_messages": False,  # true => bruk tekst under (ellers global message_*)
+        "size_vmin": 15,
+        "position": "center",
+        "messages_position": "right",
+        "messages_align": "center",
+        "use_clock_messages": False,
         "message_primary": "Velkommen!",
         "message_secondary": "",
     },
-    # Meldinger (innhold)
     "message_primary": "Velkommen!",
     "message_secondary": "Vi starter kl:",
     "show_message_primary": True,
     "show_message_secondary": True,
-    # Varsler/blink (logikk)
     "warn_minutes": 5,
     "alert_minutes": 3,
     "blink_seconds": 10,
     "overrun_minutes": 20,
-    # Visning / oppførsel
     "show_target_time": True,
-    "target_time_after": "secondary",  # primary|secondary
-    "messages_position": "above",  # above|below
+    "target_time_after": "secondary",
+    "messages_position": "above",
     "use_blink": True,
     "use_phase_colors": False,
     "color_normal": "#e6edf3",
     "color_warn": "#ffd166",
     "color_alert": "#ff6b6b",
     "color_over": "#9ad0ff",
-    "hms_threshold_minutes": 60,  # clamp [0,720]
-    # Theme for selve visningen (brukes også i klokke-modus)
+    "hms_threshold_minutes": 60,
     "theme": {
         "digits": {"size_vw": 14, "font_weight": 800, "letter_spacing_em": 0.06},
         "messages": {
@@ -63,7 +61,7 @@ _DEFAULTS: Dict[str, Any] = {
             "secondary": {"size_rem": 1.0, "weight": 400, "color": "#9aa4b2"},
         },
         "background": {
-            "mode": "solid",  # solid|gradient|image
+            "mode": "solid",
             "solid": {"color": "#0b0f14"},
             "gradient": {"from": "#142033", "to": "#0b0f14", "angle_deg": 180},
             "image": {
@@ -77,20 +75,15 @@ _DEFAULTS: Dict[str, Any] = {
     "admin_password": None,
 }
 
-# Legacy nøkler som skal fjernes direkte
-_LEGACY = {"target_ms", "target_iso", "target_datetime"}
-
+_LEGACY_REMOVE = {"target_ms", "target_iso", "target_datetime"}
+_HHMM_RE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 
 def get_defaults() -> Dict[str, Any]:
     return json.loads(json.dumps(_DEFAULTS))
 
-
-# -------- IO helpers --------
 def _atomic_write(path: str, data: Dict[str, Any]) -> None:
-    # tåler at CONFIG_PATH er i repo-rot (dirname == '')
     dirpath = os.path.dirname(path) or "."
     os.makedirs(dirpath, exist_ok=True)
-
     fd, tmp = tempfile.mkstemp(prefix=".config.", dir=dirpath)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
@@ -98,14 +91,13 @@ def _atomic_write(path: str, data: Dict[str, Any]) -> None:
             f.write("\n")
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp, path)  # atomic swap på samme fs
+        os.replace(tmp, path)
     finally:
         try:
             if os.path.exists(tmp):
                 os.unlink(tmp)
         except Exception:
             pass
-
 
 def _deep_merge(dst: Dict[str, Any], src: Dict[str, Any]) -> Dict[str, Any]:
     for k, v in (src or {}).items():
@@ -115,40 +107,28 @@ def _deep_merge(dst: Dict[str, Any], src: Dict[str, Any]) -> Dict[str, Any]:
             dst[k] = v
     return dst
 
-
 def _merge_defaults(cfg: Dict[str, Any]) -> Dict[str, Any]:
     merged = get_defaults()
     return _deep_merge(merged, cfg or {})
 
-
-# -------- Legacy/migrering --------
 def _strip_legacy(cfg: Dict[str, Any]) -> Dict[str, Any]:
-    # fjern helt gamle felt
     for k in list(cfg.keys()):
-        if k in _LEGACY:
+        if k in _LEGACY_REMOVE:
             cfg.pop(k, None)
-
-    # Engangsmigrering fra "screen" → "clock"
-    # - mode: screen -> clock
-    # - clock-oppsett hentes fra screen.clock om det finnes
     sc = (cfg.get("screen") or {}) if isinstance(cfg.get("screen"), dict) else {}
     if cfg.get("mode") == "screen":
-        cfg["mode"] = "clock"  # bytt kanonisk modus
-        # Ta med klokkeinnstillinger dersom de fantes
+        cfg["mode"] = "clock"
         sclk = sc.get("clock") or {}
         clk = cfg.get("clock") or {}
-        # suppler/overstyr med screen.clock
         if isinstance(sclk, dict):
             clk.setdefault("with_seconds", bool(sclk.get("with_seconds", False)))
             clk.setdefault("color", sclk.get("color") or "#e6edf3")
             try:
-                clk.setdefault("size_vh", max(6, min(30, int(sclk.get("size_vh", 12)))))
+                vh = int(sclk.get("size_vh", 12))
             except Exception:
-                clk.setdefault("size_vh", 12)
+                vh = 12
+            clk.setdefault("size_vmin", max(6, min(30, vh)))
         cfg["clock"] = clk or get_defaults()["clock"]
-
-        # Valgfritt: dersom screen.use_theme_background==False og egen background var satt,
-        # kan vi migrere denne inn i theme.background så visningen bevarer utseendet.
         try:
             use_theme_bg = bool(sc.get("use_theme_background", False))
             sc_bg = sc.get("background") or {}
@@ -160,8 +140,6 @@ def _strip_legacy(cfg: Dict[str, Any]) -> Dict[str, Any]:
                 cfg["theme"] = th
         except Exception:
             pass
-
-    # Fjern screen-blokken helt dersom den ligger igjen
     if "screen" in cfg:
         try:
             del cfg["screen"]
@@ -169,8 +147,6 @@ def _strip_legacy(cfg: Dict[str, Any]) -> Dict[str, Any]:
             cfg["screen"] = None
     return cfg
 
-
-# -------- Typing/normalisering --------
 def _coerce_bool(v, default: bool) -> bool:
     if isinstance(v, bool):
         return v
@@ -182,14 +158,12 @@ def _coerce_bool(v, default: bool) -> bool:
             return False
     return default
 
-
 def _clamp01(x, d=1.0) -> float:
     try:
         v = float(x)
     except Exception:
         v = d
     return max(0.0, min(1.0, v))
-
 
 def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     def _i(v, d=None):
@@ -200,19 +174,11 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         except Exception:
             return d
 
-    for k in (
-        "warn_minutes",
-        "alert_minutes",
-        "blink_seconds",
-        "overrun_minutes",
-        "duration_minutes",
-        "duration_started_ms",
-        "hms_threshold_minutes",
-    ):
+    for k in ("warn_minutes","alert_minutes","blink_seconds","overrun_minutes","duration_minutes","duration_started_ms","hms_threshold_minutes"):
         if k in cfg:
             cfg[k] = _i(cfg[k], _DEFAULTS.get(k, 0))
 
-    for k in ("message_primary", "message_secondary", "daily_time", "once_at"):
+    for k in ("message_primary","message_secondary","daily_time","once_at"):
         if cfg.get(k) is None:
             cfg[k] = ""
 
@@ -225,21 +191,12 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     ):
         cfg[k] = _coerce_bool(cfg.get(k, d), d)
 
-    for k in (
-        "target_time_after",
-        "messages_position",
-        "color_normal",
-        "color_warn",
-        "color_alert",
-        "color_over",
-    ):
+    for k in ("target_time_after","messages_position","color_normal","color_warn","color_alert","color_over"):
         if cfg.get(k) is None:
             cfg[k] = _DEFAULTS[k]
 
-    # Theme (digits/messages/background)
     th = cfg.get("theme") or {}
-    base_th = get_defaults()["theme"]
-    _deep_merge(base_th, th)
+    base_th = get_defaults()["theme"]; _deep_merge(base_th, th)
 
     dg = base_th.get("digits", {})
     try:
@@ -249,7 +206,7 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     base_th["digits"] = dg
 
     msg = base_th.get("messages", {})
-    for key in ("primary", "secondary"):
+    for key in ("primary","secondary"):
         m = msg.get(key) or {}
         try:
             sz = float(m.get("size_rem", 1.0) or 1.0)
@@ -269,130 +226,188 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
 
     bg = base_th.get("background", {})
     mode = (bg.get("mode") or "solid").lower()
-    if mode not in ("solid", "gradient", "image"):
+    if mode not in ("solid","gradient","image"):
         mode = "solid"
     bg["mode"] = mode
     try:
         ang = int(bg.get("gradient", {}).get("angle_deg", 180))
     except Exception:
         ang = 180
-    bg.setdefault("gradient", {})
-    bg["gradient"]["angle_deg"] = max(0, min(360, ang))
+    bg.setdefault("gradient", {}); bg["gradient"]["angle_deg"] = max(0, min(360, ang))
     bg.setdefault("image", {})
     bg["image"]["opacity"] = _clamp01(bg["image"].get("opacity", 1.0), 1.0)
     bg["image"]["fit"] = bg["image"].get("fit") or "cover"
     bg["image"].setdefault("tint", {})
-    bg["image"]["tint"]["opacity"] = _clamp01(
-        bg["image"]["tint"].get("opacity", 0.0), 0.0
-    )
-    base_th["background"] = bg
+    bg["image"]["tint"]["opacity"] = _clamp01(bg["image"]["tint"].get("opacity", 0.0), 0.0)
+    if isinstance(bg["image"].get("url"), str):
+        bg["image"]["url"] = bg["image"]["url"].strip()
     cfg["theme"] = base_th
 
-    # Clock
     clk = cfg.get("clock") or {}
-    # migrering fra ev. gammel 'size_vh' -> 'size_vmin'
     if "size_vmin" not in clk and "size_vh" in clk:
         try:
             clk["size_vmin"] = int(clk.get("size_vh") or 12)
         except Exception:
             clk["size_vmin"] = 12
-
-    # boolean
     clk["with_seconds"] = bool(clk.get("with_seconds", False))
     clk["use_clock_messages"] = bool(clk.get("use_clock_messages", False))
-
-    # farge
     if not isinstance(clk.get("color"), str) or not clk.get("color"):
         clk["color"] = "#e6edf3"
-
-    # størrelse
     try:
         sz = int(clk.get("size_vmin", 12) or 12)
     except Exception:
         sz = 12
     clk["size_vmin"] = max(6, min(30, sz))
-
-    # posisjon av selve klokka
     pos = (clk.get("position") or "center").strip().lower()
-    if pos not in (
-        "center",
-        "top-left",
-        "top-right",
-        "bottom-left",
-        "bottom-right",
-        "top-center",
-        "bottom-center",
-    ):
+    if pos not in ("center","top-left","top-right","bottom-left","bottom-right","top-center","bottom-center"):
         pos = "center"
     clk["position"] = pos
-
-    # plassering/jusering av meldinger i klokkemodus
     mp = (clk.get("messages_position") or "right").strip().lower()
-    if mp not in ("right", "left", "above", "below"):
+    if mp not in ("right","left","above","below"):
         mp = "right"
     clk["messages_position"] = mp
-
     ma = (clk.get("messages_align") or "center").strip().lower()
-    if ma not in ("start", "center", "end"):
+    if ma not in ("start","center","end"):
         ma = "center"
-    clk["messages_align"] = ma
-
-    # egne klokke-meldinger (valgfritt)
-    for key in ("message_primary", "message_secondary"):
+    for key in ("message_primary","message_secondary"):
         v = clk.get(key, "")
         clk[key] = v if isinstance(v, str) else ("" if v is None else str(v))
-
     cfg["clock"] = clk
 
-    # terskel
     hm = cfg.get("hms_threshold_minutes", _DEFAULTS["hms_threshold_minutes"])
+    try:
+        hm = int(hm)
+    except Exception:
+        hm = _DEFAULTS["hms_threshold_minutes"]
     cfg["hms_threshold_minutes"] = max(0, min(720, hm))
+
+    if not cfg.get("admin_password"):
+        cfg["admin_password"] = None
     return cfg
 
-
-# -------- Validering/renhold --------
 def _validate(cfg: Dict[str, Any]) -> Tuple[bool, str]:
     m = cfg.get("mode")
     if m not in ("daily", "once", "duration", "clock"):
         return False, "mode må være daily|once|duration|clock"
-
     if m == "daily":
         s = (cfg.get("daily_time") or "").strip()
-        if len(s) != 5 or ":" not in s:
-            return False, "daily_time må være HH:MM"
-
+        if not _HHMM_RE.match(s):
+            return False, "daily_time må være HH:MM (00:00–23:59)"
     if m == "once":
         s = (cfg.get("once_at") or "").strip()
         if s:
-            ss = s.replace("Z", "+00:00")  # Python liker ikke 'Z'
+            ss = s.replace("Z", "+00:00")
             try:
                 datetime.fromisoformat(ss)
             except Exception:
-                return False, "once_at må være ISO (YYYY-MM-DDTHH:MM eller med tz)"
-
-    if m == "duration" and int(cfg.get("duration_minutes") or 0) <= 0:
-        return False, "duration_minutes må være > 0"
-
-    # clock har ingen ekstra feltkrav
+                return False, "once_at må være ISO-8601 (YYYY-MM-DDTHH:MM[:SS][+TZ])"
+    if m == "duration":
+        try:
+            dm = int(cfg.get("duration_minutes") or 0)
+        except Exception:
+            dm = 0
+        if dm <= 0:
+            return False, "duration_minutes må være > 0"
     return True, ""
-
 
 def _clean_by_mode(cfg: Dict[str, Any]) -> Dict[str, Any]:
     m = cfg.get("mode")
     if m == "daily":
-        cfg["once_at"] = ""
-        cfg["duration_started_ms"] = 0
+        cfg["once_at"] = ""; cfg["duration_started_ms"] = 0
     elif m == "once":
         cfg["duration_started_ms"] = 0
     elif m == "duration":
         cfg["once_at"] = ""
     elif m == "clock":
-        cfg["once_at"] = ""
-        cfg["duration_started_ms"] = 0
+        cfg["once_at"] = ""; cfg["duration_started_ms"] = 0
     return cfg
 
+def _sanitize_overlays(seq: Any) -> List[Dict[str, Any]]:
+    """
+    Sanitering:
+      • Hvis 'visible_in' forekommer:
+          – liste  → filtrer mot {'countdown','clock'} (behold evt. tom [])
+          – None    → tolk som eksplisitt tom []
+        Ellers default ["countdown","clock"].
+    """
+    out: List[Dict[str, Any]] = []
+    if not isinstance(seq, list):
+        return out
 
-# -------- Offentlige APIer --------
+    ALLOWED_POS = {
+        "top-left","top-center","top-right",
+        "center-left","center","center-right",
+        "bottom-left","bottom-center","bottom-right",
+    }
+    ALLOWED_VISIBLE = {"countdown","clock"}
+    ALLOWED_URL_SCHEMES = ("http://","https://","data:")
+
+    for idx, it in enumerate(seq, start=1):
+        if not isinstance(it, dict):
+            continue
+        if (it.get("type") or "image") != "image":
+            continue
+
+        url = str(it.get("url") or "").strip()
+        if url and not url.startswith(ALLOWED_URL_SCHEMES):
+            if url.startswith("//"): url = "https:" + url
+            elif ":" in url: url = ""
+
+        pos = str(it.get("position") or "top-right").strip().lower()
+        if pos not in ALLOWED_POS: pos = "top-right"
+
+        # --- visible_in presist ---
+        if "visible_in" in it:
+            src = it.get("visible_in")
+            if src is None:
+                vis: List[str] = []              # eksplisitt None → [] (helt skjult)
+            elif isinstance(src, list):
+                vis = [v for v in src if isinstance(v, str) and v in ALLOWED_VISIBLE]
+                # bevar ev. tom liste
+            else:
+                vis = ["countdown","clock"]
+        else:
+            vis = ["countdown","clock"]
+
+        def _f(v: Any, d: float) -> float:
+            try: return float(v)
+            except Exception: return d
+
+        try: z_index = int(it.get("z_index") or 10)
+        except Exception: z_index = 10
+
+        tint = it.get("tint") or {}
+        out.append({
+            "id": str(it.get("id") or f"logo-{idx}"),
+            "type": "image",
+            "url": url,
+            "position": pos,
+            "size_vmin": max(2.0, min(200.0, _f(it.get("size_vmin"), 12.0))),
+            "opacity": max(0.0, min(1.0, _f(it.get("opacity"), 1.0))),
+            "offset_vw": _f(it.get("offset_vw"), 2.0),
+            "offset_vh": _f(it.get("offset_vh"), 2.0),
+            "z_index": max(-9999, min(9999, z_index)),
+            "visible_in": vis,  # kan være []
+            "tint": {
+                "color": str(tint.get("color") or "#000000"),
+                "opacity": max(0.0, min(1.0, float(tint.get("opacity") or 0.0))),
+                "blend": str(tint.get("blend") or "multiply").lower(),
+            },
+        })
+    return out
+
+def _merge_overlays_by_id(old_list: Any, new_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    old: List[Dict[str, Any]] = old_list if isinstance(old_list, list) else []
+    by_id: Dict[str, Dict[str, Any]] = {
+        (cast(Dict[str, Any], o).get("id") or f"_idx{i}"): dict(cast(Dict[str, Any], o))
+        for i, o in enumerate(old)
+    }
+    for n in new_list:
+        nid = cast(Optional[str], n.get("id")) or f"logo-{len(by_id)+1}"
+        n = {**n, "id": nid}
+        by_id[nid] = n
+    return list(by_id.values())
+
 def load_config() -> Dict[str, Any]:
     path = str(CONFIG_PATH)
     if not os.path.exists(path):
@@ -411,118 +426,65 @@ def load_config() -> Dict[str, Any]:
         cfg = _merge_defaults(cfg)
     return _clean_by_mode(cfg)
 
-
 def replace_config(new_cfg: Dict[str, Any]) -> Dict[str, Any]:
-    # Start med defaults + strip legacy
     cfg_in = _merge_defaults(_strip_legacy(new_cfg))
-
-    # 🔧 Viktig: Sanitér overlays TIDLIG og skriv inn i cfg_in før coerce/validate
     if "overlays" in new_cfg:
         try:
             cfg_in["overlays"] = _sanitize_overlays(new_cfg.get("overlays"))
         except Exception:
             cfg_in["overlays"] = []
-
-    # Vanlig rør
     cfg = _coerce(cfg_in)
     ok, msg = _validate(cfg)
     if not ok:
         raise ValueError(msg)
-
     cfg["_updated_at"] = int(time.time())
     cfg = _clean_by_mode(cfg)
-
     _atomic_write(str(CONFIG_PATH), cfg)
     return cfg
-
-
-def _sanitize_overlays(seq):
-    out = []
-    if not isinstance(seq, list):
-        return out
-    allowed_pos = {
-        "top-left",
-        "top-center",
-        "top-right",
-        "center-left",
-        "center",
-        "center-right",
-        "bottom-left",
-        "bottom-center",
-        "bottom-right",
-    }
-    for it in seq:
-        if not isinstance(it, dict):
-            continue
-        if (it.get("type") or "image") != "image":
-            continue
-        tint = it.get("tint") or {}
-        o = {
-            "id": str(it.get("id") or f"logo-{len(out)+1}"),
-            "type": "image",
-            "url": str(it.get("url") or ""),
-            "position": str(it.get("position") or "top-right"),
-            "size_vmin": max(2.0, min(200.0, float(it.get("size_vmin") or 12))),
-            "opacity": max(0.0, min(1.0, float(it.get("opacity") or 1))),
-            "offset_vw": float(it.get("offset_vw") or 2),
-            "offset_vh": float(it.get("offset_vh") or 2),
-            "z_index": int(it.get("z_index") or 10),
-            "visible_in": [v for v in (it.get("visible_in") or ["countdown","clock"]) if isinstance(v, str)],
-            "tint": {
-                "color": str(tint.get("color") or "#000000"),
-                "opacity": max(0.0, min(1.0, float(tint.get("opacity") or 0.0))),
-                "blend": str(tint.get("blend") or "multiply"),
-            },
-        }
-
-
-        if o["position"] not in allowed_pos:
-            o["position"] = "top-right"
-        out.append(o)
-    return out
-
 
 def save_config_patch(patch: Dict[str, Any]) -> Dict[str, Any]:
     current = load_config()
     merged = _merge_defaults(current)
+
+    overlays_mode = "merge"
+    if isinstance(patch, dict):
+        overlays_mode = str(patch.get("overlays_mode") or "merge").lower()
+
+    if isinstance(patch, dict) and "overlays" in patch:
+        new_ov = _sanitize_overlays(patch.get("overlays"))
+        if overlays_mode == "replace":
+            merged["overlays"] = new_ov  # respekter også []
+        else:
+            if new_ov:
+                merged["overlays"] = _merge_overlays_by_id(merged.get("overlays"), new_ov)
+
+        patch = dict(patch)
+        patch.pop("overlays", None)
+        patch.pop("overlays_mode", None)
+
     _deep_merge(merged, patch or {})
     return replace_config(merged)
 
-
-def set_mode(
-    mode: str,
-    *,
-    daily_time: str = "",
-    once_at: str = "",
-    duration_minutes: int | None = None,
-    clock: Dict[str, Any] | None = None,
-) -> Dict[str, Any]:
+def set_mode(mode: str, *, daily_time: str = "", once_at: str = "", duration_minutes: int | None = None, clock: Dict[str, Any] | None = None) -> Dict[str, Any]:
     cfg = load_config()
     cfg["mode"] = mode
     if mode == "daily":
-        if daily_time:
-            cfg["daily_time"] = daily_time
-        cfg["duration_started_ms"] = 0
-        cfg["once_at"] = ""
+        if daily_time: cfg["daily_time"] = daily_time
+        cfg["duration_started_ms"] = 0; cfg["once_at"] = ""
     elif mode == "once":
-        cfg["once_at"] = once_at or ""
-        cfg["duration_started_ms"] = 0
+        cfg["once_at"] = once_at or ""; cfg["duration_started_ms"] = 0
     elif mode == "duration":
-        if duration_minutes:
-            cfg["duration_minutes"] = int(duration_minutes)
+        if duration_minutes: cfg["duration_minutes"] = int(duration_minutes)
     elif mode == "clock":
         if clock:
             base = _merge_defaults({"clock": {}})["clock"]
-            cfg["clock"] = base
-            _deep_merge(cfg["clock"], clock)
+            cfg["clock"] = base; _deep_merge(cfg["clock"], clock)
     else:
         raise ValueError("Ugyldig mode")
     return replace_config(cfg)
 
-
 def start_duration(minutes: int) -> Dict[str, Any]:
-    if minutes <= 0:
-        raise ValueError("minutes må være > 0")
+    if minutes <= 0: raise ValueError("minutes må være > 0")
     now_ms = int(time.time() * 1000)
     cfg = load_config()
     cfg["mode"] = "duration"
@@ -530,7 +492,6 @@ def start_duration(minutes: int) -> Dict[str, Any]:
     cfg["duration_started_ms"] = now_ms
     cfg["once_at"] = ""
     return replace_config(cfg)
-
 
 def clear_duration_and_switch_to_daily() -> Dict[str, Any]:
     cfg = load_config()

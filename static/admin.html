@@ -124,12 +124,12 @@
         <label><input type="radio" name="mode" value="daily" /> Daglig klokkeslett</label>
         <input id="daily_time" type="time" step="60" />
         <br />
-        <label><input type="radio" name="mode" value="once" /> Engangs-tidspunkt</label>
-        <input id="once_at" type="datetime-local" />
-        <br />
         <label><input type="radio" name="mode" value="duration" /> Varighet (manuell start)</label>
         <br />
         <label><input type="radio" name="mode" value="clock" /> Klokke</label>
+        <br />
+        <label><input type="radio" name="mode" value="once" /> Engangs-tidspunkt</label>
+        <input id="once_at" type="datetime-local" />
         <p class="hint">Velg én modus. Lagre for at endring skal gjelde.</p>
         <p id="active_mode" class="muted">Aktiv modus: —</p>
       </section>
@@ -1275,5 +1275,10 @@
     <aside id="preview_dock" aria-label="Live forhåndsvisning">
       <iframe id="preview_frame" src="/?preview=1" title="Live preview" loading="eager"></iframe>
     </aside>
+    <script src="/static/js/admin.js" defer></script>
+    <script src="/static/js/admin_overlays.js" defer></script>
+    <script src="/static/js/overlays_preview_fix.js" defer></script>
+
+
   </body>
 </html>
