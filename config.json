@@ -1,0 +1,160 @@
+{
+  "_migrated_at": 1757592465,
+  "_updated_at": 1758204542,
+  "admin_password": "",
+  "alert_minutes": 3,
+  "blink_seconds": 55,
+  "clock": {
+    "color": "#b4bad0",
+    "message_primary": "Velkommen!",
+    "message_secondary": "",
+    "messages_align": "end",
+    "messages_position": "left",
+    "position": "center",
+    "size_vmin": 25,
+    "use_clock_messages": true,
+    "with_seconds": true
+  },
+  "color_alert": "#ff6b6b",
+  "color_normal": "#a4c9ea",
+  "color_over": "#9ad0ff",
+  "color_warn": "#ffd166",
+  "daily_time": "20:00",
+  "duration_minutes": 20,
+  "duration_started_ms": 0,
+  "hms_threshold_minutes": 60,
+  "message_primary": "Velkommen!",
+  "message_secondary": "Vi starter kl:",
+  "messages_position": "above",
+  "mode": "daily",
+  "once_at": "",
+  "overlays": [
+    {
+      "id": "Apple_logo",
+      "offset_vh": 2.0,
+      "offset_vw": 2.0,
+      "opacity": 1.0,
+      "position": "center-right",
+      "size_vmin": 11.0,
+      "tint": {
+        "blend": "hard-light",
+        "color": "#d25656",
+        "opacity": 0.45
+      },
+      "type": "image",
+      "url": "https://freelogopng.com/images/all_img/1685901477apple-logo-transparent.png",
+      "visible_in": [
+        "countdown",
+        "clock"
+      ],
+      "z_index": 10
+    },
+    {
+      "id": "GPT_logo",
+      "offset_vh": 2.0,
+      "offset_vw": 2.0,
+      "opacity": 1.0,
+      "position": "top-left",
+      "size_vmin": 30.0,
+      "tint": {
+        "blend": "screen",
+        "color": "#32519a",
+        "opacity": 0.4
+      },
+      "type": "image",
+      "url": "https://freelogopng.com/images/all_img/1681038472chatgpt-logo.png",
+      "visible_in": [
+        "countdown",
+        "clock"
+      ],
+      "z_index": 10
+    },
+    {
+      "id": "Ford_logo",
+      "offset_vh": 2.0,
+      "offset_vw": 2.0,
+      "opacity": 1.0,
+      "position": "top-center",
+      "size_vmin": 30.0,
+      "tint": {
+        "blend": "multiply",
+        "color": "#61bd81",
+        "opacity": 1.0
+      },
+      "type": "image",
+      "url": "https://freelogopng.com/images/all_img/1692440941ford-logo-transparent.png",
+      "visible_in": [
+        "countdown",
+        "clock"
+      ],
+      "z_index": 10
+    },
+    {
+      "id": "Apple_logo2",
+      "offset_vh": 2.0,
+      "offset_vw": 2.0,
+      "opacity": 1.0,
+      "position": "bottom-left",
+      "size_vmin": 40.0,
+      "tint": {
+        "blend": "normal",
+        "color": "#26b537",
+        "opacity": 0.7
+      },
+      "type": "image",
+      "url": "https://freelogopng.com/images/all_img/1685901477apple-logo-transparent.png",
+      "visible_in": [
+        "countdown",
+        "clock"
+      ],
+      "z_index": 10
+    }
+  ],
+  "overrun_minutes": 30,
+  "show_message_primary": true,
+  "show_message_secondary": true,
+  "show_target_time": true,
+  "target_time_after": "secondary",
+  "theme": {
+    "background": {
+      "gradient": {
+        "angle_deg": 180,
+        "from": "#111827",
+        "to": "#0b0f14"
+      },
+      "image": {
+        "fit": "cover",
+        "opacity": 0.5,
+        "tint": {
+          "color": "#a75858",
+          "opacity": 0.0
+        },
+        "url": "https://picsum.photos/1600/900"
+      },
+      "mode": "image",
+      "solid": {
+        "color": "#0b0f14"
+      }
+    },
+    "digits": {
+      "font_weight": 800,
+      "letter_spacing_em": 0.06,
+      "size_vw": 10
+    },
+    "messages": {
+      "primary": {
+        "color": "#ebe7e0",
+        "size_rem": 3.0,
+        "weight": 500
+      },
+      "secondary": {
+        "color": "#2871a9",
+        "size_rem": 3.0,
+        "weight": 900
+      }
+    }
+  },
+  "use_blink": true,
+  "use_phase_colors": true,
+  "warn_minutes": 5
+}
