@@ -554,15 +554,16 @@
           if (!list.length) return;
 
           const mode = state.cfg?.mode || "daily";
+
+          // --- synlighetsregel: respekter [] = skjul overalt ---
+          function overlayIsVisible(ov, m) {
+            const v = ov && ov.visible_in;
+            if (!Array.isArray(v)) return true;   // mangler felt → vis (bakoverkompatibelt)
+            if (v.length === 0) return false;     // eksplisitt tom → skjul
+            return m === "clock" ? v.includes("clock") : v.includes("countdown");
+          }
           for (const o of list) {
-            const vis =
-              Array.isArray(o.visible_in) && o.visible_in.length
-                ? o.visible_in
-                : ["clock", "countdown", "daily", "once", "duration"];
-            const show =
-              (mode === "clock" && vis.includes("clock")) ||
-              ((mode === "duration" || mode === "daily" || mode === "once") && vis.some((v) => v !== "clock"));
-            if (!show) continue;
+           if (!overlayIsVisible(o, mode)) continue;
 
             if (o.type !== "image") continue;
             const url = (o.url || "").trim();

@@ -1,5 +1,5 @@
 {
-  "_updated_at": 1758403011,
+  "_updated_at": 1758404659,
   "admin_password": null,
   "alert_minutes": 2,
   "blink_seconds": 55,
@@ -44,6 +44,26 @@
       "url": "https://freelogopng.com/images/all_img/1685901477apple-logo-transparent.png",
       "visible_in": [],
       "z_index": 1
+    },
+    {
+      "id": "HP_logo",
+      "offset_vh": 2.0,
+      "offset_vw": 2.0,
+      "opacity": 1.0,
+      "position": "bottom-right",
+      "size_vmin": 75.0,
+      "tint": {
+        "blend": "normal",
+        "color": "#0743cf",
+        "opacity": 0.15
+      },
+      "type": "image",
+      "url": "https://static.wixstatic.com/media/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png/v1/fill/w_1202,h_194,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png",
+      "visible_in": [
+        "clock",
+        "countdown"
+      ],
+      "z_index": 10
     }
   ],
   "overrun_minutes": 35,
