@@ -125,9 +125,8 @@
 
         <div class="row">
           <strong>Hovedmelding</strong>
-          <label
-            >Størrelse (rem)
-            <input id="theme_p_size" type="number" step="0.1" min="0.6" max="6.0" />
+          <label>Størrelse (vmin)
+           <input id="theme_p_size_vmin" type="number" step="0.5" min="2" max="50" />
           </label>
           <label
             >Vekt
@@ -148,8 +147,8 @@
         <div class="row">
           <strong>Sekundær</strong>
           <label
-            >Størrelse (rem)
-            <input id="theme_s_size" type="number" step="0.1" min="0.6" max="6.0" />
+            >Størrelse (vmin)
+             <input id="theme_s_size_vmin" type="number" step="0.5" min="2" max="50" />
           </label>
           <label
             >Vekt
@@ -269,6 +268,7 @@
               <option value="dark-grad">Mørk gradient</option>
               <option value="dynamic">Dynamisk bakgrunn</option>
               <option value="photo-tint">Foto m/tint</option>
+              <option value="photo-HP">Skole m/tint</option>
             </select>
           </label>
           <button id="btn_apply_preset">Bruk preset</button>
@@ -300,6 +300,15 @@
             >Opacity (0–1)
             <input id="bg_dyn_opacity" type="number" min="0" max="1" step="0.05" value="0.9" />
           </label>
+          <label>Base for dynamisk
+  <select id="bg_dyn_base">
+    <option value="auto">(auto: bilde → gradient → ensfarget)</option>
+    <option value="solid">Ensfarget</option>
+    <option value="gradient">Gradient</option>
+    <option value="image">Bilde</option>
+  </select>
+</label>
+
         </div>
 
         <div id="bg_img_cfg">
@@ -705,10 +714,10 @@
           // Theme
           const p = cfg?.theme?.messages?.primary || {};
           const s = cfg?.theme?.messages?.secondary || {};
-          $("#theme_p_size") && ($("#theme_p_size").value = String(p.size_rem ?? 1.0));
+          $("#theme_p_size_vmin") && ($("#theme_p_size_vmin").value = String(p.size_vmin ?? 6));
           $("#theme_p_weight") && ($("#theme_p_weight").value = String(p.weight ?? 600));
           $("#theme_p_color") && ($("#theme_p_color").value = String(p.color ?? "#9aa4b2"));
-          $("#theme_s_size") && ($("#theme_s_size").value = String(s.size_rem ?? 1.0));
+          $("#theme_s_size_vmin") && ($("#theme_s_size_vmin").value = String(s.size_vmin ?? 4));
           $("#theme_s_weight") && ($("#theme_s_weight").value = String(s.weight ?? 400));
           $("#theme_s_color") && ($("#theme_s_color").value = String(s.color ?? "#9aa4b2"));
           $("#digits_size_preset") && ($("#digits_size_preset").value = String(cfg?.theme?.digits?.size_vw ?? 14));
@@ -871,12 +880,12 @@
               digits: { size_vw: Number(val("#digits_size_preset", "14")) },
               messages: {
                 primary: {
-                  size_rem: Number(val("#theme_p_size", "1.0")),
+                  size_vmin: Number(val("#theme_p_size_vmin", "6")),
                   weight: Number(val("#theme_p_weight", "600")),
                   color: val("#theme_p_color", "#9aa4b2"),
                 },
-                secondary: {
-                  size_rem: Number(val("#theme_s_size", "1.0")),
+                secondary: {size_vmin: Number(val("#theme_s_size_vmin", "4")),
+size_vmin: Number(val("#theme_s_size_vmin", "4")),
                   weight: Number(val("#theme_s_weight", "400")),
                   color: val("#theme_s_color", "#9aa4b2"),
                 },
@@ -896,6 +905,8 @@
                   rotate_s: Number(val("#bg_dyn_rotate", "60")),
                   blur_px: Number(val("#bg_dyn_blur", "18")),
                   opacity: Number(val("#bg_dyn_opacity", "0.9")),
+                  base_mode: val("#bg_dyn_base", "auto"),
+
                 },
                 image: {
                   url: val("#bg_img_url", ""),
@@ -1141,8 +1152,8 @@
             ($(`input[name=bg_mode][value=dynamic]`) || {}).checked = true;
             $("#bg_dyn_from") && ($("#bg_dyn_from").value = "#16233a");
             $("#bg_dyn_to") && ($("#bg_dyn_to").value = "#0e1a2f");
-            $("#bg_dyn_rotate") && ($("#bg_dyn_rotate").value = 60);
-            $("#bg_dyn_blur") && ($("#bg_dyn_blur").value = 18);
+            $("#bg_dyn_rotate") && ($("#bg_dyn_rotate").value = 25);
+            $("#bg_dyn_blur") && ($("#bg_dyn_blur").value = 45);
             $("#bg_dyn_opacity") && ($("#bg_dyn_opacity").value = 0.9);
           } else if (p === "photo-tint") {
             ($(`input[name=bg_mode][value=image]`) || {}).checked = true;
@@ -1151,6 +1162,13 @@
             $("#bg_img_op") && ($("#bg_img_op").value = 1);
             $("#bg_img_tint") && ($("#bg_img_tint").value = "#000000");
             $("#bg_img_tint_op") && ($("#bg_img_tint_op").value = 0.4);
+          } else if (p === "photo-HP") {
+            ($(`input[name=bg_mode][value=image]`) || {}).checked = true;
+            $("#bg_img_url") && ($("#bg_img_url").value = "https://static.wixstatic.com/media/8ff0d1_1e540e760d3d4a77af3d5cd39e2be4f8~mv2.jpg");
+            $("#bg_img_fit") && ($("#bg_img_fit").value = "cover");
+            $("#bg_img_op") && ($("#bg_img_op").value = 1);
+            $("#bg_img_tint") && ($("#bg_img_tint").value = "#10408e");
+            $("#bg_img_tint_op") && ($("#bg_img_tint_op").value = 0.35);
           }
           lock();
           updateDigitContrastHints();
@@ -1230,10 +1248,10 @@
                 B = d.theme.background,
                 D = d.theme.digits;
               $("#digits_size_preset") && ($("#digits_size_preset").value = String(D.size_vw));
-              $("#theme_p_size") && ($("#theme_p_size").value = String(M.primary.size_rem));
+ $("#theme_p_size_vmin") && ($("#theme_p_size_vmin").value = String(M.primary.size_vmin));
               $("#theme_p_weight") && ($("#theme_p_weight").value = String(M.primary.weight));
               $("#theme_p_color") && ($("#theme_p_color").value = M.primary.color);
-              $("#theme_s_size") && ($("#theme_s_size").value = String(M.secondary.size_rem));
+ $("#theme_s_size_vmin") && ($("#theme_s_size_vmin").value = String(M.secondary.size_vmin));
               $("#theme_s_weight") && ($("#theme_s_weight").value = String(M.secondary.weight));
               $("#theme_s_color") && ($("#theme_s_color").value = M.secondary.color);
               ($(`input[name=bg_mode][value=${B.mode}]`) || {}).checked = true;

@@ -1,5 +1,5 @@
 {
-  "_updated_at": 1758381687,
+  "_updated_at": 1758399357,
   "admin_password": null,
   "alert_minutes": 2,
   "blink_seconds": 55,
@@ -10,7 +10,7 @@
     "messages_align": "center",
     "messages_position": "above",
     "position": "center",
-    "size_vmin": 17,
+    "size_vmin": 28,
     "use_clock_messages": true,
     "with_seconds": true
   },
@@ -18,8 +18,8 @@
   "color_normal": "#a4c9ea",
   "color_over": "#ff0000",
   "color_warn": "#ffd166",
-  "daily_time": "14:29",
-  "duration_minutes": 10,
+  "daily_time": "23:29",
+  "duration_minutes": 20,
   "duration_started_ms": 0,
   "hms_threshold_minutes": 60,
   "message_primary": "Velkommen!",
@@ -180,7 +180,8 @@
       "type": "image",
       "url": "https://freelogopng.com/images/all_img/1657046580twitter-logo-png-white.png",
       "visible_in": [
-        "clock"
+        "clock",
+        "countdown"
       ],
       "z_index": 16
     },
@@ -205,20 +206,23 @@
       "z_index": 16
     },
     {
-      "id": "logo-1",
+      "id": "HP_short",
       "offset_vh": 2.0,
       "offset_vw": 2.0,
       "opacity": 1.0,
-      "position": "top-right",
-      "size_vmin": 12.0,
+      "position": "bottom-center",
+      "size_vmin": 50.0,
       "tint": {
         "blend": "multiply",
-        "color": "#000000",
+        "color": "#11418d",
         "opacity": 0.0
       },
       "type": "image",
-      "url": "https://x/y.png",
-      "visible_in": [],
+      "url": "https://static.wixstatic.com/media/8ff0d1_ecf8a3171efa484da67a5d9f7ab2b3a4~mv2.png",
+      "visible_in": [
+        "clock",
+        "countdown"
+      ],
       "z_index": 10
     }
   ],
@@ -230,11 +234,12 @@
   "theme": {
     "background": {
       "dynamic": {
-        "blur_px": 40,
-        "from": "#e0ecff",
-        "opacity": 1.0,
-        "rotate_s": 20,
-        "to": "#e92b5a"
+        "base_mode": "gradient",
+        "blur_px": 60,
+        "from": "#23a8e1",
+        "opacity": 0.6,
+        "rotate_s": 25,
+        "to": "#b97322"
       },
       "gradient": {
         "angle_deg": 160,
@@ -245,14 +250,14 @@
         "fit": "cover",
         "opacity": 1.0,
         "tint": {
-          "color": "#000000",
-          "opacity": 0.4
+          "color": "#10408e",
+          "opacity": 0.35
         },
-        "url": "https://picsum.photos/1600/900"
+        "url": "https://static.wixstatic.com/media/8ff0d1_1e540e760d3d4a77af3d5cd39e2be4f8~mv2.jpg"
       },
       "mode": "dynamic",
       "solid": {
-        "color": "#6c7e93"
+        "color": "#001124"
       }
     },
     "digits": {
@@ -264,11 +269,13 @@
       "primary": {
         "color": "#6092d7",
         "size_rem": 3.0,
-        "weight": 600
+        "size_vmin": 9.5,
+        "weight": 800
       },
       "secondary": {
         "color": "#68a0ee",
-        "size_rem": 3.0,
+        "size_rem": 1,
+        "size_vmin": 7.5,
         "weight": 400
       }
     }

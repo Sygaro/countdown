@@ -33,6 +33,8 @@ DEFAULT_EXCLUDES = [
     "**/venv/**", "**/.venv/**", "**/env/**",
     "**/node_modules/**", "**/__pycache__/**",
     "**/.mypy_cache/**", "**/.pytest_cache/**",
+    "*.md", "**/tools /**", "**/bin /**", "**/setup /**", "**/.git/**", "**/venv/**", "**/node_modules/**",
+
 ]
 
 FRAME_TOP = "===== BEGIN FILE ====="

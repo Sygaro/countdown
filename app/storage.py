@@ -57,8 +57,8 @@ _DEFAULTS: Dict[str, Any] = {
     "theme": {
         "digits": {"size_vw": 14, "font_weight": 800, "letter_spacing_em": 0.06},
         "messages": {
-            "primary": {"size_rem": 1.0, "weight": 600, "color": "#9aa4b2"},
-            "secondary": {"size_rem": 1.0, "weight": 400, "color": "#9aa4b2"},
+            "primary": {"size_vmin": 6, "weight": 600, "color": "#9aa4b2"},
+            "secondary": {"size_vmin": 4, "weight": 400, "color": "#9aa4b2"},
         },
         "background": {
             "mode": "solid",
@@ -240,21 +240,30 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     msg = base_th.get("messages", {})
     for key in ("primary", "secondary"):
         m = msg.get(key) or {}
+        # --- størrelse (vmin) ---
         try:
-            sz = float(m.get("size_rem", 1.0) or 1.0)
+            sz = float(m.get("size_vmin", 6.0) or 6.0)
         except Exception:
-            sz = 1.0
-        m["size_rem"] = max(0.6, min(3.0, sz))
+            sz = 6.0
+        # rimelige grenser: 2–50 vmin
+        m["size_vmin"] = max(2.0, min(50.0, sz))
+
+        # --- vekt ---
         try:
             wt = int(m.get("weight", 400) or 400)
         except Exception:
             wt = 400
-        wt = 100 * round(wt / 100)
+        wt = 100 * round(wt / 100)  # runder til nærmeste 100
         m["weight"] = max(100, min(900, wt))
+
+        # --- farge ---
         if not isinstance(m.get("color"), str) or not m.get("color"):
             m["color"] = "#9aa4b2"
+
         msg[key] = m
+
     base_th["messages"] = msg
+
 
     bg = base_th.get("background", {})
     mode = (bg.get("mode") or "solid").lower()

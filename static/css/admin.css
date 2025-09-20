@@ -3,15 +3,24 @@
 .actions {
   position: sticky;
   top: 0;
-  z-index: 1000;
+  left: 0;
+  right: 0; 
+  z-index: 1200;
   padding: 8px 12px;
   background: rgba(11, 15, 20, 0.85);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+}
+/* Viktig for sticky: ingen forfader må bryte sticky-oppførselen */
+.admin, .grid, main, body {
+  overflow: visible;    /* ikke overflow:auto/hidden på forfedre til .actions */
+  transform: none;      /* ingen transform på forfedre */
+  contain: none;        /* unngå å lage ny containing block */
 }
 .actions button {
   padding: 6px 10px;
@@ -218,7 +227,8 @@
   #save_hint {
     display: none;
   }
-} /* helt bort på små skjermer */
+} 
+
 /* --- Preview-dock --- */
 #preview_dock {
   position: fixed;
@@ -231,6 +241,8 @@
   background: #0b0f14;
   display: grid;
   grid-template-rows: 1fr;
+  z-index: 0;           /* under baren */
+
 }
 #preview_dock iframe {
   width: 100%;
@@ -285,11 +297,6 @@
   border-radius: 10px;
   font-size: 0.95rem;
 }
-.admin .actions {
-  padding: 6px 10px;
-  gap: 6px;
-}
-
 .admin button {
   transition:
     background-color 0.15s ease,
@@ -307,3 +314,51 @@
 .admin button.primary:hover {
   filter: brightness(1.05);
 }
+/* Kill legacy tiled background og sett solid fallback */
+html, body {
+  min-height: 100%;
+  background: #0b0f14;          /* fallback */
+  background-image: none !important;
+  overflow-y: auto; /* lar hele siden scrolle */
+}
+
+/* Det dynamiske gradient-laget dekker hele viewporten */
+#dynbg-layer {
+  position: fixed;
+  inset: 0;                     /* viktig: ingen positiv/negativ margin her */
+  z-index: 0;                   /* bak innholdet */
+  pointer-events: none;         /* aldri klikkbar */
+}
+
+/* Alt vanlig innhold ligger over */
+#app-root, main, header, .card {
+  position: relative;
+  z-index: 1;
+}
+/* === Sticky header + sticky actions (robust) === */
+:root {
+  /* juster hvis headeren blir høyere/lavere */
+  --header-h: 56px;
+  --actions-h: 1px;
+}
+
+/* Sørg for at ingen forfedre bryter sticky */
+html, body, main, .grid, .admin {
+  overflow: visible !important;
+  transform: none !important;
+  contain: none !important;
+}
+
+/* Kill legacy tiled background – overstyr ui.css i admin */
+body.admin {
+  background: #0b0f14 !important;
+  background-image: none !important;
+  padding-top: var(--actions-h);
+  margin-top: var(--actions-h);
+
+}
+#app-root, main, header, .card {
+  position: relative;
+  z-index: 1;
+}
+
