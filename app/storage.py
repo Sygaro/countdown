@@ -278,7 +278,7 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     )
     if isinstance(bg["image"].get("url"), str):
         bg["image"]["url"] = bg["image"]["url"].strip()
-    
+
     dyn = bg["dynamic"]
     # farger – bruk defaults hvis tomt/ugyldig
     if not isinstance(dyn.get("from"), str) or not dyn.get("from"):
@@ -286,12 +286,18 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(dyn.get("to"), str) or not dyn.get("to"):
         dyn["to"] = _DEFAULTS["theme"]["background"]["dynamic"]["to"]
     # tallfelt – bruk eksisterende _i fra starten av _coerce
-    rot = _i(dyn.get("rotate_s"), _DEFAULTS["theme"]["background"]["dynamic"]["rotate_s"])
-    blur = _i(dyn.get("blur_px"), _DEFAULTS["theme"]["background"]["dynamic"]["blur_px"])
+    rot = _i(
+        dyn.get("rotate_s"), _DEFAULTS["theme"]["background"]["dynamic"]["rotate_s"]
+    )
+    blur = _i(
+        dyn.get("blur_px"), _DEFAULTS["theme"]["background"]["dynamic"]["blur_px"]
+    )
     opa = dyn.get("opacity", _DEFAULTS["theme"]["background"]["dynamic"]["opacity"])
     dyn["rotate_s"] = max(5, min(600, rot))
-    dyn["blur_px"]  = max(0, min(60,  blur))
-    dyn["opacity"]  = _clamp01(opa, _DEFAULTS["theme"]["background"]["dynamic"]["opacity"])
+    dyn["blur_px"] = max(0, min(60, blur))
+    dyn["opacity"] = _clamp01(
+        opa, _DEFAULTS["theme"]["background"]["dynamic"]["opacity"]
+    )
 
     base_th["background"] = bg
     cfg["theme"] = base_th

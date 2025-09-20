@@ -18,8 +18,7 @@
   // Hent admin-passord slik admin.js gjør (input-felt eller localStorage)
   function readPassword() {
     const inp = document.getElementById("admin-password");
-    const v =
-      (inp && inp.value) || localStorage.getItem("admin_password") || "";
+    const v = (inp && inp.value) || localStorage.getItem("admin_password") || "";
     return v || "";
   }
 
@@ -71,9 +70,7 @@
   }
 
   function buildPanel() {
-    const host =
-      document.querySelector("[data-admin-quickstart]") ||
-      document.getElementById("admin-quickstart");
+    const host = document.querySelector("[data-admin-quickstart]") || document.getElementById("admin-quickstart");
 
     // Prioriter brukers container hvis funnet; ellers flytende kort
     const panel = document.createElement("div");
@@ -96,9 +93,7 @@
 
     panel.querySelectorAll("button[data-min]").forEach((btn) => {
       btn.addEventListener("click", () =>
-        startMinutes(btn.getAttribute("data-min")).catch((e) =>
-          toast(e.message || String(e), false),
-        ),
+        startMinutes(btn.getAttribute("data-min")).catch((e) => toast(e.message || String(e), false)),
       );
     });
     panel.querySelector("#aqs-start").addEventListener("click", () => {

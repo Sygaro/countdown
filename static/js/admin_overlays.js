@@ -19,13 +19,10 @@
     offx: '[data-bind="overlay.offset_vw"], [name="overlay_offset_vw"]',
     offy: '[data-bind="overlay.offset_vh"], [name="overlay_offset_vh"]',
     z: '[data-bind="overlay.z_index"], [name="overlay_zindex"]',
-    visCountdown:
-      '[data-bind="overlay.visible.countdown"], [name="overlay_visible_countdown"]',
-    visClock:
-      '[data-bind="overlay.visible.clock"], [name="overlay_visible_clock"]',
+    visCountdown: '[data-bind="overlay.visible.countdown"], [name="overlay_visible_countdown"]',
+    visClock: '[data-bind="overlay.visible.clock"], [name="overlay_visible_clock"]',
     tintColor: '[data-bind="overlay.tint.color"], [name="overlay_tint_color"]',
-    tintOpacity:
-      '[data-bind="overlay.tint.opacity"], [name="overlay_tint_opacity"]',
+    tintOpacity: '[data-bind="overlay.tint.opacity"], [name="overlay_tint_opacity"]',
     tintBlend: '[data-bind="overlay.tint.blend"], [name="overlay_tint_blend"]',
     btnSaveAll: '[data-action="overlays-save"]',
     btnAdd: '[data-action="overlay-add"]',
@@ -59,12 +56,9 @@
   }
 
   function rowToOverlay(row, idx) {
-    const id =
-      val(row, SELECTORS.id) || row.dataset.overlayId || `logo-${idx + 1}`;
+    const id = val(row, SELECTORS.id) || row.dataset.overlayId || `logo-${idx + 1}`;
     const url = val(row, SELECTORS.url, "");
-    const pos = (
-      val(row, SELECTORS.position, "top-right") || "top-right"
-    ).toLowerCase();
+    const pos = (val(row, SELECTORS.position, "top-right") || "top-right").toLowerCase();
     const size = clamp(val(row, SELECTORS.size, 12), 2, 200);
     const opac = clamp(val(row, SELECTORS.opacity, 1), 0, 1);
     const offx = Number(val(row, SELECTORS.offx, 2));
@@ -72,9 +66,7 @@
     const z = parseInt(val(row, SELECTORS.z, 10), 10);
     const tcol = val(row, SELECTORS.tintColor, "#000000");
     const topa = clamp(val(row, SELECTORS.tintOpacity, 0.0), 0, 1);
-    const tbl = (
-      val(row, SELECTORS.tintBlend, "multiply") || "multiply"
-    ).toLowerCase();
+    const tbl = (val(row, SELECTORS.tintBlend, "multiply") || "multiply").toLowerCase();
     const visible_in = readVisible(row);
 
     return {
@@ -101,13 +93,10 @@
     const overlays = readAllOverlays(document);
     const patch = { overlays, overlays_mode: "replace" };
     const api = window.AdminSync && window.AdminSync.postConfig;
-    if (!api)
-      throw new Error("AdminSync.postConfig mangler (last admin.js først)");
+    if (!api) throw new Error("AdminSync.postConfig mangler (last admin.js først)");
     const res = await api(patch);
     // Tips preview/andre om ny liste:
-    window.dispatchEvent(
-      new CustomEvent("overlays:updated", { detail: overlays }),
-    );
+    window.dispatchEvent(new CustomEvent("overlays:updated", { detail: overlays }));
     return res;
   }
 
@@ -118,9 +107,7 @@
     container.addEventListener("change", (e) => {
       if (!(e.target instanceof HTMLElement)) return;
       if (e.target.closest(SELECTORS.row)) {
-        saveOverlays().catch((err) =>
-          console.error("Lagring overlays feilet:", err),
-        );
+        saveOverlays().catch((err) => console.error("Lagring overlays feilet:", err));
       }
     });
 
@@ -143,10 +130,7 @@
     const mo = new MutationObserver((muts) => {
       let change = false;
       for (const m of muts) {
-        if (
-          m.type === "childList" &&
-          (m.addedNodes.length || m.removedNodes.length)
-        ) {
+        if (m.type === "childList" && (m.addedNodes.length || m.removedNodes.length)) {
           change = true;
           break;
         }
@@ -162,7 +146,6 @@
   function init() {
     bindEditor();
   }
-  if (document.readyState === "loading")
-    document.addEventListener("DOMContentLoaded", init, { once: true });
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
   else init();
 })();

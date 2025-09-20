@@ -7,32 +7,18 @@
     <link rel="stylesheet" href="/static/css/ui.css" />
   </head>
   <body class="center fill">
-    <button id="btn_fullscreen" class="fs-btn" title="Fullskjerm">
-      ⛶ Fullskjerm
-    </button>
+    <button id="btn_fullscreen" class="fs-btn" title="Fullskjerm">⛶ Fullskjerm</button>
 
     <!-- Nedtelling -->
-    <div
-      id="view_countdown"
-      class="center fill"
-      style="flex-direction: column; gap: 2vh; display: none"
-    >
-      <div
-        id="msgs_above"
-        class="muted"
-        style="display: none; text-align: center"
-      >
+    <div id="view_countdown" class="center fill" style="flex-direction: column; gap: 2vh; display: none">
+      <div id="msgs_above" class="muted" style="display: none; text-align: center">
         <div id="msg_primary_above"></div>
         <div id="msg_secondary_above"></div>
       </div>
 
       <div id="digits" class="big">00:00</div>
 
-      <div
-        id="msgs_below"
-        class="muted"
-        style="display: none; text-align: center"
-      >
+      <div id="msgs_below" class="muted" style="display: none; text-align: center">
         <div id="msg_primary_below"></div>
         <div id="msg_secondary_below"></div>
       </div>
@@ -56,8 +42,7 @@
           lastCfgRev: 0,
           clockTimer: null,
         };
-        const isPreview =
-          new URLSearchParams(location.search).get("preview") === "1";
+        const isPreview = new URLSearchParams(location.search).get("preview") === "1";
         if (isPreview) {
           document.documentElement.classList.add("is-preview");
         }
@@ -114,182 +99,183 @@
           set("#msg_secondary_below", s, 1.8);
         }
 
-       // --- dynamisk lag: keyframes + elementhåndtering ---
-    function ensureDynKeyframes() {
-      if (document.getElementById("dynbg_keyframes")) return;
-      const st = document.createElement("style");
-      st.id = "dynbg_keyframes";
-      st.textContent = `
+        // --- dynamisk lag: keyframes + elementhåndtering ---
+        function ensureDynKeyframes() {
+          if (document.getElementById("dynbg_keyframes")) return;
+          const st = document.createElement("style");
+          st.id = "dynbg_keyframes";
+          st.textContent = `
 @keyframes dynbg-rotate {
   0%   { transform: rotate(0deg) scale(1.02); }
   100% { transform: rotate(360deg) scale(1.02); }
 }`;
-      document.head.appendChild(st);
-    }
-    function getDynLayer() {
-      return document.getElementById("dyn_bg_layer");
-    }
-    function ensureDynLayer() {
-      let el = getDynLayer();
-      if (!el) {
-        el = document.createElement("div");
-        el.id = "dyn_bg_layer";
-        el.style.position = "fixed";
-        el.style.inset = "-15%";
-        el.style.zIndex = "0";            // bak overlays (som har 50)
-        el.style.pointerEvents = "none";
-        document.body.appendChild(el);
-      }
-      return el;
-    }
-    function removeDynLayer() {
-      const el = getDynLayer();
-      if (el && el.parentNode) el.parentNode.removeChild(el);
-    }
-
-    // --- HJELPERE ---
-    function hexToRgba(hex, opacity) {
-      const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((hex || "").trim());
-      if (!m) return `rgba(0,0,0,${Number(opacity || 0)})`;
-      const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16);
-      const a = Math.max(0, Math.min(1, Number(opacity || 0)));
-      return `rgba(${r},${g},${b},${a})`;
-    }
-
-    // --- NY: robust bakgrunn inkl. dynamic + base ---
-    function applyThemeBackground(el, bg) {
-      if (!el || !bg) return;
-
-      // nullstill base på body
-      el.style.background = "";
-      el.style.backgroundColor = "";
-      el.style.backgroundImage = "";
-      el.style.backgroundRepeat = "";
-      el.style.backgroundSize = "";
-      el.style.backgroundPosition = "";
-
-      const mode = (bg.mode || "solid").toLowerCase();
-
-      // BASE-bygger (brukes også av dynamic)
-      function applyBase() {
-        const imgUrl = (bg?.image?.url || "").trim();
-        if (imgUrl) {
-          // IMAGE (med ev. tint)
-          const fit = (bg?.image?.fit || "cover").toLowerCase();
-          const tintC = bg?.image?.tint?.color || null;
-          const tintO = Number(bg?.image?.tint?.opacity ?? 0);
-          const layers = [];
-          if (tintC && tintO > 0) {
-            const rgba = hexToRgba(tintC, tintO);
-            layers.push(`linear-gradient(${rgba}, ${rgba})`);
+          document.head.appendChild(st);
+        }
+        function getDynLayer() {
+          return document.getElementById("dyn_bg_layer");
+        }
+        function ensureDynLayer() {
+          let el = getDynLayer();
+          if (!el) {
+            el = document.createElement("div");
+            el.id = "dyn_bg_layer";
+            el.style.position = "fixed";
+            el.style.inset = "-15%";
+            el.style.zIndex = "0"; // bak overlays (som har 50)
+            el.style.pointerEvents = "none";
+            document.body.appendChild(el);
           }
-          layers.push(`url("${imgUrl}")`);
-          el.style.backgroundImage = layers.join(", ");
-          el.style.backgroundRepeat = "no-repeat, no-repeat";
-          el.style.backgroundSize =
-            (layers.length === 2 ? "auto, " : "") + (fit === "contain" ? "contain" : "cover");
-          el.style.backgroundPosition = "center center, center center";
-          el.style.backgroundColor = "transparent";
-          return "image";
+          return el;
+        }
+        function removeDynLayer() {
+          const el = getDynLayer();
+          if (el && el.parentNode) el.parentNode.removeChild(el);
         }
 
-        // GRADIENT
-        const from = bg?.gradient?.from || "#142033";
-        const to   = bg?.gradient?.to   || "#0b0f14";
-        const angle = Number(bg?.gradient?.angle_deg ?? 180);
-        if (from && to) {
-          el.style.backgroundImage = `linear-gradient(${angle}deg, ${from}, ${to})`;
-          el.style.backgroundRepeat = "no-repeat";
-          el.style.backgroundSize = "cover";
-          el.style.backgroundPosition = "center center";
-          el.style.backgroundColor = "transparent";
-          return "gradient";
+        // --- HJELPERE ---
+        function hexToRgba(hex, opacity) {
+          const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((hex || "").trim());
+          if (!m) return `rgba(0,0,0,${Number(opacity || 0)})`;
+          const r = parseInt(m[1], 16),
+            g = parseInt(m[2], 16),
+            b = parseInt(m[3], 16);
+          const a = Math.max(0, Math.min(1, Number(opacity || 0)));
+          return `rgba(${r},${g},${b},${a})`;
         }
 
-        // SOLID (fallback)
-        el.style.backgroundColor = bg?.solid?.color || "#0b0f14";
-        el.style.backgroundImage = "none";
-        return "solid";
-      }
+        // --- NY: robust bakgrunn inkl. dynamic + base ---
+        function applyThemeBackground(el, bg) {
+          if (!el || !bg) return;
 
-      if (mode === "solid") {
-        removeDynLayer();
-        el.style.backgroundColor = bg?.solid?.color || "#0b0f14";
-        el.style.backgroundImage = "none";
-        return;
-      }
+          // nullstill base på body
+          el.style.background = "";
+          el.style.backgroundColor = "";
+          el.style.backgroundImage = "";
+          el.style.backgroundRepeat = "";
+          el.style.backgroundSize = "";
+          el.style.backgroundPosition = "";
 
-      if (mode === "gradient") {
-        removeDynLayer();
-        const from = bg?.gradient?.from || "#142033";
-        const to   = bg?.gradient?.to   || "#0b0f14";
-        const angle = Number(bg?.gradient?.angle_deg ?? 180);
-        el.style.backgroundImage = `linear-gradient(${angle}deg, ${from}, ${to})`;
-        el.style.backgroundColor = "transparent";
-        el.style.backgroundRepeat = "no-repeat";
-        el.style.backgroundSize = "cover";
-        el.style.backgroundPosition = "center center";
-        return;
-      }
+          const mode = (bg.mode || "solid").toLowerCase();
 
-      if (mode === "image") {
-        removeDynLayer();
-        const url = (bg?.image?.url || "").trim();
-        if (!url) {
-          // ingen bilde → bruk solid fallback
+          // BASE-bygger (brukes også av dynamic)
+          function applyBase() {
+            const imgUrl = (bg?.image?.url || "").trim();
+            if (imgUrl) {
+              // IMAGE (med ev. tint)
+              const fit = (bg?.image?.fit || "cover").toLowerCase();
+              const tintC = bg?.image?.tint?.color || null;
+              const tintO = Number(bg?.image?.tint?.opacity ?? 0);
+              const layers = [];
+              if (tintC && tintO > 0) {
+                const rgba = hexToRgba(tintC, tintO);
+                layers.push(`linear-gradient(${rgba}, ${rgba})`);
+              }
+              layers.push(`url("${imgUrl}")`);
+              el.style.backgroundImage = layers.join(", ");
+              el.style.backgroundRepeat = "no-repeat, no-repeat";
+              el.style.backgroundSize =
+                (layers.length === 2 ? "auto, " : "") + (fit === "contain" ? "contain" : "cover");
+              el.style.backgroundPosition = "center center, center center";
+              el.style.backgroundColor = "transparent";
+              return "image";
+            }
+
+            // GRADIENT
+            const from = bg?.gradient?.from || "#142033";
+            const to = bg?.gradient?.to || "#0b0f14";
+            const angle = Number(bg?.gradient?.angle_deg ?? 180);
+            if (from && to) {
+              el.style.backgroundImage = `linear-gradient(${angle}deg, ${from}, ${to})`;
+              el.style.backgroundRepeat = "no-repeat";
+              el.style.backgroundSize = "cover";
+              el.style.backgroundPosition = "center center";
+              el.style.backgroundColor = "transparent";
+              return "gradient";
+            }
+
+            // SOLID (fallback)
+            el.style.backgroundColor = bg?.solid?.color || "#0b0f14";
+            el.style.backgroundImage = "none";
+            return "solid";
+          }
+
+          if (mode === "solid") {
+            removeDynLayer();
+            el.style.backgroundColor = bg?.solid?.color || "#0b0f14";
+            el.style.backgroundImage = "none";
+            return;
+          }
+
+          if (mode === "gradient") {
+            removeDynLayer();
+            const from = bg?.gradient?.from || "#142033";
+            const to = bg?.gradient?.to || "#0b0f14";
+            const angle = Number(bg?.gradient?.angle_deg ?? 180);
+            el.style.backgroundImage = `linear-gradient(${angle}deg, ${from}, ${to})`;
+            el.style.backgroundColor = "transparent";
+            el.style.backgroundRepeat = "no-repeat";
+            el.style.backgroundSize = "cover";
+            el.style.backgroundPosition = "center center";
+            return;
+          }
+
+          if (mode === "image") {
+            removeDynLayer();
+            const url = (bg?.image?.url || "").trim();
+            if (!url) {
+              // ingen bilde → bruk solid fallback
+              el.style.backgroundColor = "#0b0f14";
+              return;
+            }
+            const fit = (bg?.image?.fit || "cover").toLowerCase();
+            const tintC = bg?.image?.tint?.color || null;
+            const tintO = Number(bg?.image?.tint?.opacity ?? 0);
+
+            const layers = [];
+            if (tintC && tintO > 0) {
+              const rgba = hexToRgba(tintC, tintO);
+              layers.push(`linear-gradient(${rgba}, ${rgba})`);
+            }
+            layers.push(`url("${url}")`);
+            el.style.backgroundImage = layers.join(", ");
+            el.style.backgroundRepeat = "no-repeat, no-repeat";
+            el.style.backgroundSize = (layers.length === 2 ? "auto, " : "") + (fit === "contain" ? "contain" : "cover");
+            el.style.backgroundPosition = "center center, center center";
+            el.style.backgroundColor = "transparent";
+            return;
+          }
+
+          if (mode === "dynamic") {
+            // 1) Base først (image -> gradient -> solid)
+            applyBase();
+
+            // 2) Dynamisk lag på toppen
+            ensureDynKeyframes();
+            const layer = ensureDynLayer();
+
+            // Les parametre (med sikre defaults)
+            const dyn = bg?.dynamic || {};
+            const from = dyn.from || "#16233a";
+            const to = dyn.to || "#0e1a2f";
+            const rotateS = Math.max(5, Math.min(600, Number(dyn.rotate_s ?? 60)));
+            const blurPx = Math.max(0, Math.min(60, Number(dyn.blur_px ?? 18)));
+            const opa = Math.max(0, Math.min(1, Number(dyn.opacity ?? 0.9)));
+
+            layer.style.background =
+              `radial-gradient(1200px 700px at 10% -10%, ${from} 0%, transparent 60%),` +
+              `radial-gradient(900px 600px at 110% 5%, ${to} 0%, transparent 65%),` +
+              `conic-gradient(from 220deg at 50% 50%, #0b0f1400 0%, #0e142000 25%, #0b0f1400 50%, #101a2a00 75%, #0b0f1400 100%)`;
+
+            layer.style.filter = `blur(${blurPx}px)`;
+            layer.style.opacity = String(opa);
+            layer.style.animation = `dynbg-rotate ${rotateS}s linear infinite`;
+            return;
+          }
+
+          // ukjent → fallback solid
+          removeDynLayer();
           el.style.backgroundColor = "#0b0f14";
-          return;
         }
-        const fit = (bg?.image?.fit || "cover").toLowerCase();
-        const tintC = bg?.image?.tint?.color || null;
-        const tintO = Number(bg?.image?.tint?.opacity ?? 0);
-
-        const layers = [];
-        if (tintC && tintO > 0) {
-          const rgba = hexToRgba(tintC, tintO);
-          layers.push(`linear-gradient(${rgba}, ${rgba})`);
-        }
-        layers.push(`url("${url}")`);
-        el.style.backgroundImage = layers.join(", ");
-        el.style.backgroundRepeat = "no-repeat, no-repeat";
-        el.style.backgroundSize =
-          (layers.length === 2 ? "auto, " : "") + (fit === "contain" ? "contain" : "cover");
-        el.style.backgroundPosition = "center center, center center";
-        el.style.backgroundColor = "transparent";
-        return;
-      }
-
-      if (mode === "dynamic") {
-        // 1) Base først (image -> gradient -> solid)
-        applyBase();
-
-        // 2) Dynamisk lag på toppen
-        ensureDynKeyframes();
-        const layer = ensureDynLayer();
-
-        // Les parametre (med sikre defaults)
-        const dyn = bg?.dynamic || {};
-        const from = dyn.from || "#16233a";
-        const to   = dyn.to   || "#0e1a2f";
-        const rotateS = Math.max(5, Math.min(600, Number(dyn.rotate_s ?? 60)));
-        const blurPx  = Math.max(0, Math.min(60,  Number(dyn.blur_px  ?? 18)));
-        const opa     = Math.max(0, Math.min(1,   Number(dyn.opacity  ?? 0.9)));
-
-        layer.style.background =
-          `radial-gradient(1200px 700px at 10% -10%, ${from} 0%, transparent 60%),` +
-          `radial-gradient(900px 600px at 110% 5%, ${to} 0%, transparent 65%),` +
-          `conic-gradient(from 220deg at 50% 50%, #0b0f1400 0%, #0e142000 25%, #0b0f1400 50%, #101a2a00 75%, #0b0f1400 100%)`;
-
-        layer.style.filter = `blur(${blurPx}px)`;
-        layer.style.opacity = String(opa);
-        layer.style.animation = `dynbg-rotate ${rotateS}s linear infinite`;
-        return;
-      }
-
-      // ukjent → fallback solid
-      removeDynLayer();
-      el.style.backgroundColor = "#0b0f14";
-    }
         function applyCountdown() {
           $("#view_clock").style.display = "none";
           const root = $("#view_countdown");
@@ -325,8 +311,7 @@
 
           let color = c.color_normal;
           if (c.use_phase_colors) {
-            if (t.state === "overrun" || t.signed_display_ms < 0)
-              color = c.color_over || c.color_alert;
+            if (t.state === "overrun" || t.signed_display_ms < 0) color = c.color_over || c.color_alert;
             else if (t.mode === "alert") color = c.color_alert;
             else if (t.mode === "warn") color = c.color_warn;
           }
@@ -334,26 +319,16 @@
           digits.classList.toggle("blink", !!(c.use_blink && t.blink));
 
           const targetTextPrim =
-            c.show_target_time &&
-            c.show_message_primary &&
-            c.target_time_after === "primary" &&
-            t.target_hhmm
+            c.show_target_time && c.show_message_primary && c.target_time_after === "primary" && t.target_hhmm
               ? ` ${t.target_hhmm}`
               : "";
           const targetTextSec =
-            c.show_target_time &&
-            c.show_message_secondary &&
-            c.target_time_after === "secondary" &&
-            t.target_hhmm
+            c.show_target_time && c.show_message_secondary && c.target_time_after === "secondary" && t.target_hhmm
               ? ` ${t.target_hhmm}`
               : "";
 
-          const prim = c.show_message_primary
-            ? (c.message_primary || "") + targetTextPrim
-            : "";
-          const sec = c.show_message_secondary
-            ? (c.message_secondary || "") + targetTextSec
-            : "";
+          const prim = c.show_message_primary ? (c.message_primary || "") + targetTextPrim : "";
+          const sec = c.show_message_secondary ? (c.message_secondary || "") + targetTextSec : "";
 
           const above = c.messages_position === "above";
           $("#msgs_above").style.display = above ? "block" : "none";
@@ -389,9 +364,7 @@
           applyThemeBackground(document.body, state.cfg?.theme?.background);
 
           // Klokkens plassering
-          const clockPos = (
-            state.cfg?.clock?.position || "center"
-          ).toLowerCase();
+          const clockPos = (state.cfg?.clock?.position || "center").toLowerCase();
           const posMap = {
             center: { ai: "center", jc: "center" },
             "top-left": { ai: "flex-start", jc: "flex-start" },
@@ -451,13 +424,8 @@
             }
 
             wrap.style.display = showP || showS ? "flex" : "none";
-            wrap.style.alignItems =
-              { start: "flex-start", center: "center", end: "flex-end" }[
-                msgAlign
-              ] || "center";
-            wrap.style.textAlign =
-              { start: "left", center: "center", end: "right" }[msgAlign] ||
-              "center";
+            wrap.style.alignItems = { start: "flex-start", center: "center", end: "flex-end" }[msgAlign] || "center";
+            wrap.style.textAlign = { start: "left", center: "center", end: "right" }[msgAlign] || "center";
             wrap.style.gap = "0.25rem";
 
             elP.style.display = showP ? "block" : "none";
@@ -488,15 +456,10 @@
             const HH = String(d.getHours()).padStart(2, "0");
             const MM = String(d.getMinutes()).padStart(2, "0");
             const SS = String(d.getSeconds()).padStart(2, "0");
-            clkEl.textContent = clk.with_seconds
-              ? `${HH}:${MM}:${SS}`
-              : `${HH}:${MM}`;
+            clkEl.textContent = clk.with_seconds ? `${HH}:${MM}:${SS}` : `${HH}:${MM}`;
           };
           update();
-          state.clockTimer = setInterval(
-            update,
-            clk.with_seconds ? 1000 : 5000,
-          );
+          state.clockTimer = setInterval(update, clk.with_seconds ? 1000 : 5000);
           applyOverlays();
         }
 
@@ -526,9 +489,7 @@
           if (!root) return;
           root.innerHTML = "";
 
-          const list = Array.isArray(state.cfg?.overlays)
-            ? state.cfg.overlays
-            : [];
+          const list = Array.isArray(state.cfg?.overlays) ? state.cfg.overlays : [];
           if (!list.length) return;
 
           const mode = state.cfg?.mode || "daily";
@@ -539,8 +500,7 @@
                 : ["clock", "countdown", "daily", "once", "duration"];
             const show =
               (mode === "clock" && vis.includes("clock")) ||
-              ((mode === "duration" || mode === "daily" || mode === "once") &&
-                vis.some((v) => v !== "clock"));
+              ((mode === "duration" || mode === "daily" || mode === "once") && vis.some((v) => v !== "clock"));
             if (!show) continue;
 
             if (o.type !== "image") continue;
@@ -562,8 +522,7 @@
             const offVW = Number(o.offset_vw ?? 2);
             const offVH = Number(o.offset_vh ?? 2);
             const set = (prop, value) => (wrap.style[prop] = value);
-            const clr = (...props) =>
-              props.forEach((p) => (wrap.style[p] = ""));
+            const clr = (...props) => props.forEach((p) => (wrap.style[p] = ""));
             switch (pos) {
               case "top-left":
                 set("top", `${offVH}vh`);
@@ -629,19 +588,14 @@
             img.style.display = "block";
             img.style.width = "100%";
             img.style.height = "auto";
-            img.style.opacity = String(
-              Math.max(0, Math.min(1, Number(o.opacity ?? 1))),
-            );
+            img.style.opacity = String(Math.max(0, Math.min(1, Number(o.opacity ?? 1))));
             img.style.zIndex = String(z); // ligger under tint-laget (tint har zIndex z+1)
             img.style.position = "relative";
             wrap.appendChild(img);
 
             // tint (valgfritt) – klipp til logoens alfakanal
             const tint = o.tint || {};
-            const tintOpacity = Math.max(
-              0,
-              Math.min(1, Number(tint.opacity ?? 0)),
-            );
+            const tintOpacity = Math.max(0, Math.min(1, Number(tint.opacity ?? 0)));
             if (tintOpacity > 0) {
               const tintColor = (tint.color || "#000000").trim();
               const blend = (tint.blend || "multiply").trim();
@@ -712,9 +666,7 @@
         function showFsBtn() {
           if (!fsBtn) return;
           if (document.fullscreenElement) return;
-          fsBtn.style.display = document.fullscreenEnabled
-            ? "inline-block"
-            : "none";
+          fsBtn.style.display = document.fullscreenEnabled ? "inline-block" : "none";
           fsBtn.style.opacity = "1";
         }
         function hideFsBtn() {
@@ -727,11 +679,7 @@
           const on = !!document.fullscreenElement;
           document.documentElement.classList.toggle("is-fullscreen", on);
           if (fsBtn) {
-            fsBtn.style.display = on
-              ? "none"
-              : document.fullscreenEnabled
-                ? "inline-block"
-                : "none";
+            fsBtn.style.display = on ? "none" : document.fullscreenEnabled ? "inline-block" : "none";
             if (!on) fsBtn.style.opacity = "1";
           }
         });
@@ -745,8 +693,7 @@
           document.addEventListener(ev, bumpActivity, { passive: true }),
         );
         setInterval(() => {
-          if (!document.fullscreenElement && Date.now() - lastActivityTs > 5000)
-            hideFsBtn();
+          if (!document.fullscreenElement && Date.now() - lastActivityTs > 5000) hideFsBtn();
         }, 1000);
 
         if (fsBtn) {
