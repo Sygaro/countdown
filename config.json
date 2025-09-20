@@ -1,16 +1,16 @@
 {
-  "_updated_at": 1758399357,
+  "_updated_at": 1758403011,
   "admin_password": null,
   "alert_minutes": 2,
   "blink_seconds": 55,
   "clock": {
-    "color": "#e6edf3",
-    "message_primary": "Velkomment til bibelskole!\nHei",
-    "message_secondary": "Himmelpartner bibleskole!",
+    "color": "#bcdbf5",
+    "message_primary": "Velkomment til bibelskole!",
+    "message_secondary": "",
     "messages_align": "center",
     "messages_position": "above",
     "position": "center",
-    "size_vmin": 28,
+    "size_vmin": 20,
     "use_clock_messages": true,
     "with_seconds": true
   },
@@ -18,212 +18,32 @@
   "color_normal": "#a4c9ea",
   "color_over": "#ff0000",
   "color_warn": "#ffd166",
-  "daily_time": "23:29",
+  "daily_time": "23:30",
   "duration_minutes": 20,
   "duration_started_ms": 0,
   "hms_threshold_minutes": 60,
   "message_primary": "Velkommen!",
   "message_secondary": "Vi starter kl",
-  "messages_position": "below",
+  "messages_position": "above",
   "mode": "daily",
   "once_at": "",
   "overlays": [
     {
-      "id": "Apple_logo",
+      "id": "Apple",
       "offset_vh": 2.0,
       "offset_vw": 2.0,
       "opacity": 1.0,
-      "position": "top-right",
-      "size_vmin": 78.0,
-      "tint": {
-        "blend": "multiply",
-        "color": "#ff4747",
-        "opacity": 0.0
-      },
-      "type": "image",
-      "url": "https://freelogopng.com/images/all_img/1685901477apple-logo-transparent.png",
-      "visible_in": [
-        "countdown"
-      ],
-      "z_index": 9
-    },
-    {
-      "id": "GPT_logo",
-      "offset_vh": 2.0,
-      "offset_vw": 2.0,
-      "opacity": 1.0,
-      "position": "top-center",
-      "size_vmin": 30.0,
-      "tint": {
-        "blend": "normal",
-        "color": "#89a3e1",
-        "opacity": 0.0
-      },
-      "type": "image",
-      "url": "https://freelogopng.com/images/all_img/1681038472chatgpt-logo.png",
-      "visible_in": [
-        "countdown",
-        "clock"
-      ],
-      "z_index": 10
-    },
-    {
-      "id": "Ford_logo",
-      "offset_vh": 2.0,
-      "offset_vw": 2.0,
-      "opacity": 1.0,
-      "position": "bottom-right",
-      "size_vmin": 30.0,
-      "tint": {
-        "blend": "normal",
-        "color": "#61bd81",
-        "opacity": 0.0
-      },
-      "type": "image",
-      "url": "https://freelogopng.com/images/all_img/1692440941ford-logo-transparent.png",
-      "visible_in": [
-        "clock"
-      ],
-      "z_index": 11
-    },
-    {
-      "id": "Apple_logo2",
-      "offset_vh": 2.0,
-      "offset_vw": 2.0,
-      "opacity": 1.0,
-      "position": "bottom-left",
-      "size_vmin": 40.0,
-      "tint": {
-        "blend": "normal",
-        "color": "#26b537",
-        "opacity": 0.0
-      },
-      "type": "image",
-      "url": "https://freelogopng.com/images/all_img/1685901477apple-logo-transparent.png",
-      "visible_in": [
-        "countdown",
-        "clock"
-      ],
-      "z_index": 12
-    },
-    {
-      "id": "HP_logo",
-      "offset_vh": 5.0,
-      "offset_vw": 7.5,
-      "opacity": 0.15,
-      "position": "top-center",
-      "size_vmin": 70.0,
-      "tint": {
-        "blend": "hard-light",
-        "color": "#27ceb2",
-        "opacity": 0.0
-      },
-      "type": "image",
-      "url": "https://static.wixstatic.com/media/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png/v1/fill/w_1202,h_194,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png",
-      "visible_in": [
-        "clock",
-        "countdown"
-      ],
-      "z_index": 30
-    },
-    {
-      "id": "HP_logo2",
-      "offset_vh": 2.0,
-      "offset_vw": 2.0,
-      "opacity": 0.6,
-      "position": "center-left",
-      "size_vmin": 49.0,
-      "tint": {
-        "blend": "hard-light",
-        "color": "#b81414",
-        "opacity": 0.0
-      },
-      "type": "image",
-      "url": "https://static.wixstatic.com/media/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png/v1/fill/w_1202,h_194,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png",
-      "visible_in": [
-        "clock"
-      ],
-      "z_index": 6
-    },
-    {
-      "id": "HP_logo_3",
-      "offset_vh": 2.0,
-      "offset_vw": 2.0,
-      "opacity": 0.75,
-      "position": "center",
-      "size_vmin": 92.0,
-      "tint": {
-        "blend": "overlay",
-        "color": "#dc9898",
-        "opacity": 0.0
-      },
-      "type": "image",
-      "url": "https://static.wixstatic.com/media/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png/v1/fill/w_1202,h_194,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png",
-      "visible_in": [
-        "countdown",
-        "clock"
-      ],
-      "z_index": 7
-    },
-    {
-      "id": "Twitter Logo",
-      "offset_vh": 6.0,
-      "offset_vw": 6.5,
-      "opacity": 0.85,
       "position": "bottom-center",
-      "size_vmin": 35.0,
-      "tint": {
-        "blend": "normal",
-        "color": "#de8282",
-        "opacity": 0.0
-      },
-      "type": "image",
-      "url": "https://freelogopng.com/images/all_img/1657046580twitter-logo-png-white.png",
-      "visible_in": [
-        "clock",
-        "countdown"
-      ],
-      "z_index": 16
-    },
-    {
-      "id": "CNN",
-      "offset_vh": 2.0,
-      "offset_vw": 2.0,
-      "opacity": 1.0,
-      "position": "top-right",
-      "size_vmin": 30.0,
+      "size_vmin": 40.0,
       "tint": {
         "blend": "multiply",
         "color": "#000000",
         "opacity": 0.0
       },
       "type": "image",
-      "url": "https://freelogopng.com/images/all_img/1684126709cnn-logo-white.png",
-      "visible_in": [
-        "clock",
-        "countdown"
-      ],
-      "z_index": 16
-    },
-    {
-      "id": "HP_short",
-      "offset_vh": 2.0,
-      "offset_vw": 2.0,
-      "opacity": 1.0,
-      "position": "bottom-center",
-      "size_vmin": 50.0,
-      "tint": {
-        "blend": "multiply",
-        "color": "#11418d",
-        "opacity": 0.0
-      },
-      "type": "image",
-      "url": "https://static.wixstatic.com/media/8ff0d1_ecf8a3171efa484da67a5d9f7ab2b3a4~mv2.png",
-      "visible_in": [
-        "clock",
-        "countdown"
-      ],
-      "z_index": 10
+      "url": "https://freelogopng.com/images/all_img/1685901477apple-logo-transparent.png",
+      "visible_in": [],
+      "z_index": 1
     }
   ],
   "overrun_minutes": 35,
@@ -234,12 +54,12 @@
   "theme": {
     "background": {
       "dynamic": {
-        "base_mode": "gradient",
-        "blur_px": 60,
-        "from": "#23a8e1",
-        "opacity": 0.6,
+        "base_mode": "image",
+        "blur_px": 45,
+        "from": "#623104",
+        "opacity": 0.9,
         "rotate_s": 25,
-        "to": "#b97322"
+        "to": "#12397d"
       },
       "gradient": {
         "angle_deg": 160,
@@ -269,14 +89,14 @@
       "primary": {
         "color": "#6092d7",
         "size_rem": 3.0,
-        "size_vmin": 9.5,
+        "size_vmin": 11.0,
         "weight": 800
       },
       "secondary": {
-        "color": "#68a0ee",
+        "color": "#082144",
         "size_rem": 1,
-        "size_vmin": 7.5,
-        "weight": 400
+        "size_vmin": 10.0,
+        "weight": 600
       }
     }
   },

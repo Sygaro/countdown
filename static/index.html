@@ -83,19 +83,19 @@
           const s = state.cfg?.theme?.messages?.secondary || {};
 
           // Hjelper som skriver vmin i stedet for rem
-         const set = (sel, m) => {
-    const el = document.querySelector(sel);
-    if (!el) return;
-    const size = Number(m.size_vmin ?? 6);
-    el.style.fontSize = `${size}vmin`;
-    el.style.fontWeight = String(Number(m.weight ?? 400));
-    el.style.color = String(m.color ?? "#9aa4b2");
-  };
+          const set = (sel, m) => {
+            const el = document.querySelector(sel);
+            if (!el) return;
+            const size = Number(m.size_vmin ?? 6);
+            el.style.fontSize = `${size}vmin`;
+            el.style.fontWeight = String(Number(m.weight ?? 400));
+            el.style.color = String(m.color ?? "#9aa4b2");
+          };
 
-  set("#msg_primary_above", p);
-  set("#msg_secondary_above", s);
-  set("#msg_primary_below", p);
-  set("#msg_secondary_below", s);;
+          set("#msg_primary_above", p);
+          set("#msg_secondary_above", s);
+          set("#msg_primary_below", p);
+          set("#msg_secondary_below", s);
 
           // primær litt større enn sekundær
           set("#msg_primary_above", p, 2.0);
@@ -251,88 +251,88 @@
           }
 
           if (mode === "dynamic") {
-  const dyn = bg?.dynamic || {};
-  const basePref = (dyn.base_mode || "auto").toLowerCase();
+            const dyn = bg?.dynamic || {};
+            const basePref = (dyn.base_mode || "auto").toLowerCase();
 
-  // 1) Base bakgrunn (image | gradient | solid | auto)
-  function applyBase(pref) {
-    const want = pref || "auto";
-    const hasImg = !!(bg?.image?.url || "").trim();
+            // 1) Base bakgrunn (image | gradient | solid | auto)
+            function applyBase(pref) {
+              const want = pref || "auto";
+              const hasImg = !!(bg?.image?.url || "").trim();
 
-    if (want === "image" || (want === "auto" && hasImg)) {
-      const url  = (bg?.image?.url || "").trim();
-      const fit  = (bg?.image?.fit || "cover").toLowerCase();
-      const tintC = bg?.image?.tint?.color || null;
-      const tintO = Number(bg?.image?.tint?.opacity ?? 0);
-      const layers = [];
-      if (tintC && tintO > 0) {
-        const rgba = hexToRgba(tintC, tintO);
-        layers.push(`linear-gradient(${rgba}, ${rgba})`);
-      }
-      if (url) layers.push(`url("${url}")`);
-      if (layers.length) {
-        el.style.backgroundImage = layers.join(", ");
-        el.style.backgroundRepeat = "no-repeat, no-repeat";
-        el.style.backgroundSize = (layers.length === 2 ? "auto, " : "") + (fit === "contain" ? "contain" : "cover");
-        el.style.backgroundPosition = "center center, center center";
-        el.style.backgroundColor = "transparent";
-        return;
-      }
-    }
+              if (want === "image" || (want === "auto" && hasImg)) {
+                const url = (bg?.image?.url || "").trim();
+                const fit = (bg?.image?.fit || "cover").toLowerCase();
+                const tintC = bg?.image?.tint?.color || null;
+                const tintO = Number(bg?.image?.tint?.opacity ?? 0);
+                const layers = [];
+                if (tintC && tintO > 0) {
+                  const rgba = hexToRgba(tintC, tintO);
+                  layers.push(`linear-gradient(${rgba}, ${rgba})`);
+                }
+                if (url) layers.push(`url("${url}")`);
+                if (layers.length) {
+                  el.style.backgroundImage = layers.join(", ");
+                  el.style.backgroundRepeat = "no-repeat, no-repeat";
+                  el.style.backgroundSize =
+                    (layers.length === 2 ? "auto, " : "") + (fit === "contain" ? "contain" : "cover");
+                  el.style.backgroundPosition = "center center, center center";
+                  el.style.backgroundColor = "transparent";
+                  return;
+                }
+              }
 
-    if (want === "gradient" || want === "auto") {
-      const from  = bg?.gradient?.from  || "#142033";
-      const to    = bg?.gradient?.to    || "#0b0f14";
-      const angle = Number(bg?.gradient?.angle_deg ?? 180);
-      el.style.backgroundImage = `linear-gradient(${angle}deg, ${from}, ${to})`;
-      el.style.backgroundRepeat = "no-repeat";
-      el.style.backgroundSize = "cover";
-      el.style.backgroundPosition = "center center";
-      el.style.backgroundColor = "transparent";
-      return;
-    }
+              if (want === "gradient" || want === "auto") {
+                const from = bg?.gradient?.from || "#142033";
+                const to = bg?.gradient?.to || "#0b0f14";
+                const angle = Number(bg?.gradient?.angle_deg ?? 180);
+                el.style.backgroundImage = `linear-gradient(${angle}deg, ${from}, ${to})`;
+                el.style.backgroundRepeat = "no-repeat";
+                el.style.backgroundSize = "cover";
+                el.style.backgroundPosition = "center center";
+                el.style.backgroundColor = "transparent";
+                return;
+              }
 
-    // solid:
-    el.style.backgroundColor = bg?.solid?.color || "#0b0f14";
-    el.style.backgroundImage = "none";
-  }
+              // solid:
+              el.style.backgroundColor = bg?.solid?.color || "#0b0f14";
+              el.style.backgroundImage = "none";
+            }
 
-  applyBase(basePref);
+            applyBase(basePref);
 
-  // 2) Dynamisk lag oppå
-  ensureDynKeyframes();           // eksisterende helper hos deg
-  const layer = ensureDynLayer(); // eksisterende helper hos deg
+            // 2) Dynamisk lag oppå
+            ensureDynKeyframes(); // eksisterende helper hos deg
+            const layer = ensureDynLayer(); // eksisterende helper hos deg
 
-  const from = dyn.from || "#16233a";
-  const to   = dyn.to   || "#0e1a2f";
-  const rotateS = Math.max(5, Math.min(600, Number(dyn.rotate_s ?? 60)));
-  const blurPx  = Math.max(0, Math.min(60,  Number(dyn.blur_px  ?? 18)));
-  const opa     = Math.max(0, Math.min(1,   Number(dyn.opacity  ?? 0.9)));
+            const from = dyn.from || "#16233a";
+            const to = dyn.to || "#0e1a2f";
+            const rotateS = Math.max(5, Math.min(600, Number(dyn.rotate_s ?? 60)));
+            const blurPx = Math.max(0, Math.min(60, Number(dyn.blur_px ?? 18)));
+            const opa = Math.max(0, Math.min(1, Number(dyn.opacity ?? 0.9)));
 
-  layer.style.position = "fixed";
-  layer.style.inset = "-24vmin";
-  layer.style.zIndex = "0";
-  layer.style.pointerEvents = "none";
-  layer.style.filter = `blur(${blurPx}px)`;
-  layer.style.opacity = String(opa);
-  layer.style.animation = `dynbg-rotate ${rotateS}s linear infinite`;
+            layer.style.position = "fixed";
+            layer.style.inset = "-24vmin";
+            layer.style.zIndex = "0";
+            layer.style.pointerEvents = "none";
+            layer.style.filter = `blur(${blurPx}px)`;
+            layer.style.opacity = String(opa);
+            layer.style.animation = `dynbg-rotate ${rotateS}s linear infinite`;
 
-  // store, viewport-relative radialer
- //layer.style.background =
- // `radial-gradient(72vmax 54vmax at 12% 10%, ${from} 0%, transparent 62%),` +
- // `radial-gradient(70vmax 52vmax at 88% 12%, ${to} 0%, transparent 64%),` +
- // `conic-gradient(from 220deg at 50% 50%, #0000 0%, #0000 100%)`;
+            // store, viewport-relative radialer
+            //layer.style.background =
+            // `radial-gradient(72vmax 54vmax at 12% 10%, ${from} 0%, transparent 62%),` +
+            // `radial-gradient(70vmax 52vmax at 88% 12%, ${to} 0%, transparent 64%),` +
+            // `conic-gradient(from 220deg at 50% 50%, #0000 0%, #0000 100%)`;
 
-  // alternative instillinger
-  layer.style.background =
-  `radial-gradient(72vmax 54vmax at 12% 10%, ${from} 0%, transparent 62%),` +
-  `radial-gradient(70vmax 52vmax at 88% 12%, ${to} 0%, transparent 64%),` +
-  `conic-gradient(from 220deg at 50% 50%, #0000 0%, #0000 100%)`;
-  layer.style.inset = "0vmin";
+            // alternative instillinger
+            layer.style.background =
+              `radial-gradient(72vmax 54vmax at 12% 10%, ${from} 0%, transparent 62%),` +
+              `radial-gradient(70vmax 52vmax at 88% 12%, ${to} 0%, transparent 64%),` +
+              `conic-gradient(from 220deg at 50% 50%, #0000 0%, #0000 100%)`;
+            layer.style.inset = "0vmin";
 
-
-  return; // ferdig med dynamic-grenen
-}
+            return; // ferdig med dynamic-grenen
+          }
           // ukjent → fallback solid
           removeDynLayer();
           el.style.backgroundColor = "#0b0f14";
@@ -499,10 +499,10 @@
             const themeMsg = state.cfg?.theme?.messages || {};
             const pTheme = themeMsg.primary || {};
             const sTheme = themeMsg.secondary || {};
-elP.style.fontSize = `${Number(pTheme.size_vmin ?? 6)}vmin`;
+            elP.style.fontSize = `${Number(pTheme.size_vmin ?? 6)}vmin`;
             elP.style.fontWeight = String(pTheme.weight ?? 600);
             elP.style.color = String(pTheme.color ?? "#9aa4b2");
- elS.style.fontSize = `${Number(sTheme.size_vmin ?? 4)}vmin`;
+            elS.style.fontSize = `${Number(sTheme.size_vmin ?? 4)}vmin`;
             elS.style.fontWeight = String(sTheme.weight ?? 400);
             elS.style.color = String(sTheme.color ?? "#9aa4b2");
           }

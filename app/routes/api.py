@@ -142,6 +142,7 @@ def api_post_config() -> Response:
             "use_phase_colors",
             "hms_threshold_minutes",
             "clock",
+            "overlays_mode",
             "overlays",
         )
         patch = {k: data[k] for k in passthrough if k in data}

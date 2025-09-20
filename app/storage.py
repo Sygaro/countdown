@@ -264,7 +264,6 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
 
     base_th["messages"] = msg
 
-
     bg = base_th.get("background", {})
     mode = (bg.get("mode") or "solid").lower()
     if mode not in ("solid", "gradient", "image", "dynamic"):

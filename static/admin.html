@@ -125,8 +125,9 @@
 
         <div class="row">
           <strong>Hovedmelding</strong>
-          <label>Størrelse (vmin)
-           <input id="theme_p_size_vmin" type="number" step="0.5" min="2" max="50" />
+          <label
+            >Størrelse (vmin)
+            <input id="theme_p_size_vmin" type="number" step="0.5" min="2" max="50" />
           </label>
           <label
             >Vekt
@@ -148,7 +149,7 @@
           <strong>Sekundær</strong>
           <label
             >Størrelse (vmin)
-             <input id="theme_s_size_vmin" type="number" step="0.5" min="2" max="50" />
+            <input id="theme_s_size_vmin" type="number" step="0.5" min="2" max="50" />
           </label>
           <label
             >Vekt
@@ -300,15 +301,15 @@
             >Opacity (0–1)
             <input id="bg_dyn_opacity" type="number" min="0" max="1" step="0.05" value="0.9" />
           </label>
-          <label>Base for dynamisk
-  <select id="bg_dyn_base">
-    <option value="auto">(auto: bilde → gradient → ensfarget)</option>
-    <option value="solid">Ensfarget</option>
-    <option value="gradient">Gradient</option>
-    <option value="image">Bilde</option>
-  </select>
-</label>
-
+          <label
+            >Base for dynamisk
+            <select id="bg_dyn_base">
+              <option value="auto">(auto: bilde → gradient → ensfarget)</option>
+              <option value="solid">Ensfarget</option>
+              <option value="gradient">Gradient</option>
+              <option value="image">Bilde</option>
+            </select>
+          </label>
         </div>
 
         <div id="bg_img_cfg">
@@ -849,7 +850,8 @@
             mode: m,
             daily_time: val("#daily_time"),
             once_at: val("#once_at"),
-            overlays: overlaysLocal,
+            overlays_mode: "replace", // ← VIKTIG: si at backend skal erstatte lista
+            overlays: overlaysLocal, //     (sletting og tom liste blir respektert)
 
             // meldinger
             show_message_primary: checked("#show_message_primary"),
@@ -884,8 +886,8 @@
                   weight: Number(val("#theme_p_weight", "600")),
                   color: val("#theme_p_color", "#9aa4b2"),
                 },
-                secondary: {size_vmin: Number(val("#theme_s_size_vmin", "4")),
-size_vmin: Number(val("#theme_s_size_vmin", "4")),
+                secondary: {
+                  size_vmin: Number(val("#theme_s_size_vmin", "4")),
                   weight: Number(val("#theme_s_weight", "400")),
                   color: val("#theme_s_color", "#9aa4b2"),
                 },
@@ -906,7 +908,6 @@ size_vmin: Number(val("#theme_s_size_vmin", "4")),
                   blur_px: Number(val("#bg_dyn_blur", "18")),
                   opacity: Number(val("#bg_dyn_opacity", "0.9")),
                   base_mode: val("#bg_dyn_base", "auto"),
-
                 },
                 image: {
                   url: val("#bg_img_url", ""),
@@ -985,7 +986,7 @@ size_vmin: Number(val("#theme_s_size_vmin", "4")),
             z_index: Number($("#ov_z").value || "10"),
             offset_vw: Number($("#ov_off_vw").value || "2"),
             offset_vh: Number($("#ov_off_vh").value || "2"),
-            visible_in: vis.length ? vis : ["countdown", "clock"],
+            visible_in: vis,
             tint: {
               // <- tint med
               color: $("#ov_tint_color").value || "#000000",
@@ -1164,7 +1165,9 @@ size_vmin: Number(val("#theme_s_size_vmin", "4")),
             $("#bg_img_tint_op") && ($("#bg_img_tint_op").value = 0.4);
           } else if (p === "photo-HP") {
             ($(`input[name=bg_mode][value=image]`) || {}).checked = true;
-            $("#bg_img_url") && ($("#bg_img_url").value = "https://static.wixstatic.com/media/8ff0d1_1e540e760d3d4a77af3d5cd39e2be4f8~mv2.jpg");
+            $("#bg_img_url") &&
+              ($("#bg_img_url").value =
+                "https://static.wixstatic.com/media/8ff0d1_1e540e760d3d4a77af3d5cd39e2be4f8~mv2.jpg");
             $("#bg_img_fit") && ($("#bg_img_fit").value = "cover");
             $("#bg_img_op") && ($("#bg_img_op").value = 1);
             $("#bg_img_tint") && ($("#bg_img_tint").value = "#10408e");
@@ -1248,10 +1251,10 @@ size_vmin: Number(val("#theme_s_size_vmin", "4")),
                 B = d.theme.background,
                 D = d.theme.digits;
               $("#digits_size_preset") && ($("#digits_size_preset").value = String(D.size_vw));
- $("#theme_p_size_vmin") && ($("#theme_p_size_vmin").value = String(M.primary.size_vmin));
+              $("#theme_p_size_vmin") && ($("#theme_p_size_vmin").value = String(M.primary.size_vmin));
               $("#theme_p_weight") && ($("#theme_p_weight").value = String(M.primary.weight));
               $("#theme_p_color") && ($("#theme_p_color").value = M.primary.color);
- $("#theme_s_size_vmin") && ($("#theme_s_size_vmin").value = String(M.secondary.size_vmin));
+              $("#theme_s_size_vmin") && ($("#theme_s_size_vmin").value = String(M.secondary.size_vmin));
               $("#theme_s_weight") && ($("#theme_s_weight").value = String(M.secondary.weight));
               $("#theme_s_color") && ($("#theme_s_color").value = M.secondary.color);
               ($(`input[name=bg_mode][value=${B.mode}]`) || {}).checked = true;
@@ -1320,7 +1323,6 @@ size_vmin: Number(val("#theme_s_size_vmin", "4")),
       <iframe id="preview_frame" src="/?preview=1" title="Live preview" loading="eager"></iframe>
     </aside>
     <script src="/static/js/admin.js" defer></script>
-    <script src="/static/js/admin_overlays.js" defer></script>
     <script src="/static/js/overlays_preview_fix.js" defer></script>
   </body>
 </html>

@@ -4,7 +4,7 @@
   position: sticky;
   top: 0;
   left: 0;
-  right: 0; 
+  right: 0;
   z-index: 1200;
   padding: 8px 12px;
   background: rgba(11, 15, 20, 0.85);
@@ -17,10 +17,13 @@
   flex-wrap: wrap;
 }
 /* Viktig for sticky: ingen forfader må bryte sticky-oppførselen */
-.admin, .grid, main, body {
-  overflow: visible;    /* ikke overflow:auto/hidden på forfedre til .actions */
-  transform: none;      /* ingen transform på forfedre */
-  contain: none;        /* unngå å lage ny containing block */
+.admin,
+.grid,
+main,
+body {
+  overflow: visible; /* ikke overflow:auto/hidden på forfedre til .actions */
+  transform: none; /* ingen transform på forfedre */
+  contain: none; /* unngå å lage ny containing block */
 }
 .actions button {
   padding: 6px 10px;
@@ -227,7 +230,7 @@
   #save_hint {
     display: none;
   }
-} 
+}
 
 /* --- Preview-dock --- */
 #preview_dock {
@@ -241,8 +244,7 @@
   background: #0b0f14;
   display: grid;
   grid-template-rows: 1fr;
-  z-index: 0;           /* under baren */
-
+  z-index: 0; /* under baren */
 }
 #preview_dock iframe {
   width: 100%;
@@ -315,9 +317,10 @@
   filter: brightness(1.05);
 }
 /* Kill legacy tiled background og sett solid fallback */
-html, body {
+html,
+body {
   min-height: 100%;
-  background: #0b0f14;          /* fallback */
+  background: #0b0f14; /* fallback */
   background-image: none !important;
   overflow-y: auto; /* lar hele siden scrolle */
 }
@@ -325,13 +328,16 @@ html, body {
 /* Det dynamiske gradient-laget dekker hele viewporten */
 #dynbg-layer {
   position: fixed;
-  inset: 0;                     /* viktig: ingen positiv/negativ margin her */
-  z-index: 0;                   /* bak innholdet */
-  pointer-events: none;         /* aldri klikkbar */
+  inset: 0; /* viktig: ingen positiv/negativ margin her */
+  z-index: 0; /* bak innholdet */
+  pointer-events: none; /* aldri klikkbar */
 }
 
 /* Alt vanlig innhold ligger over */
-#app-root, main, header, .card {
+#app-root,
+main,
+header,
+.card {
   position: relative;
   z-index: 1;
 }
@@ -343,7 +349,11 @@ html, body {
 }
 
 /* Sørg for at ingen forfedre bryter sticky */
-html, body, main, .grid, .admin {
+html,
+body,
+main,
+.grid,
+.admin {
   overflow: visible !important;
   transform: none !important;
   contain: none !important;
@@ -355,10 +365,11 @@ body.admin {
   background-image: none !important;
   padding-top: var(--actions-h);
   margin-top: var(--actions-h);
-
 }
-#app-root, main, header, .card {
+#app-root,
+main,
+header,
+.card {
   position: relative;
   z-index: 1;
 }
-
