@@ -32,7 +32,7 @@ En liten, robust visningsapp for nedtelling (og klokke) – laget for Raspberry 
 ```bash
 # Logg inn som vanlig bruker og hent repoet
 cd ~
-git clone <repo-url> countdown
+git clone https://github.com/Sygaro/countdown
 
 # Kjør oppsettet (som root/sudo)
 sudo bash setup/setup_kiosk.sh
