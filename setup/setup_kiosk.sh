@@ -141,10 +141,6 @@ After=network-online.target time-sync.target
 [Service]
 Environment=COUNTDOWN_VERSION=1.0.0
 Environment=COUNTDOWN_COMMIT=%h
-# Vent maks 60s på NTP-synk (beskyttelse hvis time-sync.target ikke oppfører seg)
-ExecStartPre=/bin/sh -c 'i=0; while [ $i -lt 60 ]; do \
-  s=$(timedatectl show -p NTPSynchronized --value 2>/dev/null || echo no); \
-  [ "$s" = "yes" ] && exit 0; sleep 1; i=$((i+1)); done; exit 0'
 WorkingDirectory=__APP_DIR__
 ExecStart=__APP_DIR__/venv/bin/gunicorn wsgi:app \
   --bind 0.0.0.0:__PORT__ --workers 2 --threads 4 --timeout 0 \
@@ -230,13 +226,6 @@ Environment=COG_PLATFORM_DRM_MODE_MAX=1920x1080@30
 Environment=COG_PLATFORM_DRM_NO_CURSOR=1
 Environment=COUNTDOWN_VERSION=1.0.0
 Environment=COUNTDOWN_COMMIT=%h
-
-# Sørg for at systemd-timesyncd peker på lokal NTP (ntp.uio.no)
-ExecStartPre=/usr/bin/bash -c 'mkdir -p /etc/systemd; \
-  if ! grep -q "^NTP=ntp.uio.no" /etc/systemd/timesyncd.conf 2>/dev/null; then \
-    printf "[Time]\nNTP=ntp.uio.no\n" > /etc/systemd/timesyncd.conf; fi'
-ExecStartPre=/bin/systemctl restart systemd-timesyncd.service
-ExecStartPre=/bin/systemctl start systemd-time-wait-sync.service
 
 ExecStartPre=/bin/sh -c 'for i in $(seq 1 150); do \
   ss -ltn | grep -q ":__PORT__ " && exit 0; \
