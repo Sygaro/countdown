@@ -1,0 +1,30 @@
+/* static/css/about.css */
+.kv {
+  display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem;
+}
+.kv dt { color: #9aa4b2; }
+
+.services {
+  display: grid; gap: .6rem; grid-template-columns: 1fr;
+}
+@media (min-width: 840px) {
+  .services { grid-template-columns: 1fr 1fr; }
+}
+
+.service {
+  border: 1px solid var(--border, #1c2436);
+  border-radius: 12px;
+  padding: .8rem;
+  display: grid; gap: .2rem;
+  background: var(--panel, #0e1320);
+}
+.service .head {
+  display: flex; align-items:center; justify-content: space-between; gap: .75rem;
+}
+.badge {
+  padding: .2rem .5rem; border-radius: .6rem; font-weight: 600;
+}
+.badge.ok   { background:#123a22; color:#9ef0a6; border:1px solid #275a32; }
+.badge.fail { background:#3a1b1e; color:#ff9ea1; border:1px solid #7a2d33; }
+.service code { background:#111826; padding:.1rem .4rem; border-radius:.35rem; }
+.service .muted { opacity:.75; font-size:.95em; }

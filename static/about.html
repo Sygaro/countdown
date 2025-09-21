@@ -5,26 +5,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Countdown · Om</title>
-<link rel="stylesheet" href="/static/css/ui.css" />
+    <link rel="stylesheet" href="/static/css/ui.css" />
     <link rel="stylesheet" href="/static/css/admin.css" />
-    <style>
-      .kv {
-        display: grid;
-        grid-template-columns: max-content 1fr;
-        gap: 0.25rem 1rem;
-      }
-      .kv dt {
-        color: #9aa4b2;
-      }
-      code {
-        background: #111826;
-        padding: 0.1rem 0.4rem;
-        border-radius: 0.35rem;
-      }
-    </style>
+    <link rel="stylesheet" href="/static/css/about.css" />
+
   </head>
   <body class="admin">
     <header>
+  
+
       <h1>Om Countdown</h1>
       <nav>
         <a href="/">Visning</a>
@@ -34,7 +23,7 @@
       </nav>
     </header>
 
-    <main class="grid">
+    <main class="grid grid-auto">
       <section class="card">
         <h2>Hva er dette?</h2>
         <p>Countdown er en liten, robust visningsapp for Raspberry Pi (kiosk) med fokus på enkel drift.</p>
@@ -50,72 +39,50 @@
       <section class="card">
         <h2>Teknologi</h2>
         <dl class="kv">
-          <dt>Backend</dt>
-          <dd>Flask (Gunicorn/Wsgi), systemd bruker-tjeneste</dd>
-          <dt>Frontend</dt>
-          <dd>Vanilla HTML/CSS/JS</dd>
-          <dt>Plattform</dt>
-          <dd>RPi (WPE/Cog el. Chromium kiosk)</dd>
-          <dt>Konfig</dt>
-          <dd><code>config.json</code> (atomisk skriving)</dd>
+          <dt>Backend</dt><dd>Flask (Gunicorn/WSGI), systemd-tjenester</dd>
+          <dt>Frontend</dt><dd>Vanilla HTML/CSS/JS</dd>
+          <dt>Plattform</dt><dd>RPi (WPE/Cog eller Chromium kiosk)</dd>
+          <dt>Konfig</dt><dd><code>config.json</code> (atomisk skriving)</dd>
         </dl>
+      </section>
+
+      <section class="card">
+        <h2>Status & versjon</h2>
+        <p id="about_error" class="fail" style="display:none"></p>
+        <div id="about_status" style="display:none">
+          <dl class="kv">
+            <dt>Version</dt><dd><span id="v_version">—</span></dd>
+            <dt>Commit</dt><dd><code id="v_commit">—</code></dd>
+            <dt>OS</dt><dd><span id="v_os">—</span></dd>
+            <dt>Kernel</dt><dd><span id="v_kernel">—</span></dd>
+            <dt>Arkitektur</dt><dd><span id="v_arch">—</span></dd>
+            <dt>Maskin</dt><dd><span id="v_model">—</span></dd>
+            <dt>Server-tid</dt><dd><span id="v_server_time">—</span></dd>
+          </dl>
+
+          <h3>Tjenester</h3>
+          <div class="services" id="v_services_wrap">
+            <!-- Fylles av JS -->
+          </div>
+        </div>
       </section>
 
       <section class="card">
         <h2>Endepunkter</h2>
         <ul>
-          <li>
-            <code>GET /</code> visning · <code>/admin</code> · <code>/diag</code> ·
-            <code>/about</code>
-          </li>
+          <li><code>GET /</code> visning · <code>/admin</code> · <code>/diag</code> · <code>/about</code></li>
           <li><code>GET /api/config</code> → <em>{ ok, config, tick }</em></li>
           <li><code>POST /api/config</code> → lagre/patch konfig (inkl. bytte modus)</li>
           <li><code>POST /api/start-duration</code> → <em>{"minutes": N}</em></li>
           <li><code>GET /tick</code> → status (for visning/diagnose)</li>
           <li><code>GET /health</code> → 200 OK</li>
+          <li><code>GET /api/sys/about-status</code> → metadata/status (krever admin-passord)</li>
         </ul>
       </section>
-
-      <section class="card">
-        <h2>Konfig (utdrag)</h2>
-        <pre class="mono" style="white-space: pre; overflow: auto">
-{
-  "mode": "daily|once|duration|clock",
-  "daily_time": "HH:MM",
-  "once_at": "YYYY-MM-DDTHH:MM(+TZ)",
-  "duration_minutes": 10,
-  "clock": {
-    "with_seconds": false,
-    "color": "#e6edf3",
-    "size_vmin": 12,
-    "position": "center|top-left|top-center|top-right|
-    bottom-left|bottom-center|bottom-right",
-    "messages_position": "right|left|above|below",
-    "messages_align": "start|center|end",
-    "use_clock_messages": false,
-    "message_primary": "",
-    "message_secondary": ""
-  },
-  "theme": {
-    "digits":   { "size_vw": 14 },
-    "messages": {
-      "primary":   { "size_rem": 1.0, "weight": 600, "color": "#9aa4b2" },
-      "secondary": { "size_rem": 1.0, "weight": 400, "color": "#9aa4b2" }
-    },
-    "background": {
-      "mode": "solid|gradient|image",
-      "solid":    { "color": "#0b0f14" },
-      "gradient": { "from": "#142033", "to": "#0b0f14", "angle_deg": 180 },
-      "image":    {
-        "url": "", "fit": "cover|contain", "opacity": 1,
-        "tint": { "color": "#000000", "opacity": 0.0 }
-      }
-    }
-  }
-}
-      </pre
-        >
-      </section>
     </main>
+
+    <script type="module" src="/static/js/about.js"></script>
+    <script type="module" src="/static/js/statusbar.js"></script>
+
   </body>
 </html>

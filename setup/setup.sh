@@ -29,7 +29,7 @@ apt -o Dpkg::Options::="--force-confnew" \
 # --force-confold = behold alltid din eksisterende fil
 # --force-confdef = bruk standardvalg automatisk der det er mulig
 
-sudo apt install -y git samba htop vim curl wget tree net-tools nmap
+sudo  instalaptl -y git samba htop vim curl wget tree net-tools nmap
 
 echo "=== Legger til aliaser i $BASHRC ==="
 ALIASES=$(cat <<'EOF'

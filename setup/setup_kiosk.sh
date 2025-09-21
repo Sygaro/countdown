@@ -67,21 +67,34 @@ usermod -aG video,render "$USER_NAME" || true
 mkdir -p /var/log/journal
 systemctl restart systemd-journald
 
-echo "==> Slår på NTP og venter-tjeneste for tidssynk…"
+# Sett lokal NTP-server for systemd-timesyncd via drop-in
+set -euo pipefail
 
-# Slå på NTP via systemd-timesyncd (vanlig på Pi OS Lite)
-if systemctl list-unit-files | grep -q '^systemd-timesyncd.service'; then
-  sudo timedatectl set-ntp true || true
-  sudo systemctl enable --now systemd-timesyncd.service || true
-fi
+NTP_SERVER="${1:-ntp.uio.no}"     # bruk "tools/ntp.sh <server>", default ntp.uio.no
+CONF_DIR="/etc/systemd/timesyncd.conf.d"
+DROPIN="$CONF_DIR/10-local.conf"
 
-# Aktiver 'systemd-time-wait-sync' hvis den finnes (venter til klokke er synk’et)
-if systemctl list-unit-files | grep -q '^systemd-time-wait-sync.service'; then
-  sudo systemctl enable systemd-time-wait-sync.service || true
-  sudo systemctl start  systemd-time-wait-sync.service || true
+if [[ "${NTP_SERVER}" == "--unset" || "${NTP_SERVER}" == "off" ]]; then
+  echo "==> Fjerner lokal drop-in for timesyncd …"
+  rm -f "${DROPIN}"
 else
-  echo "   → systemd-time-wait-sync.service ikke tilgjengelig på dette imaget (hopper over)."
+  echo "==> Setter NTP-server til: ${NTP_SERVER}"
+  sudo mkdir -p "${CONF_DIR}"
+  sudo tee "${DROPIN}" >/dev/null <<EOF
+[Time]
+NTP=${NTP_SERVER}
+EOF
 fi
+
+# Slå på NTP og (re)start tjenesten trygt
+echo "==> Aktiverer og restart-er systemd-timesyncd …"
+sudo timedatectl set-ntp true || true
+sudo systemctl enable --now systemd-timesyncd.service || true
+sudo systemctl restart systemd-timesyncd.service || true
+
+# Liten status-visning
+echo "==> Gjeldende timedatectl-status:"
+timedatectl show-timesync | sed -n '1,25p'
 
 
 ### ─────────────────────────────────────────────────────────────────────────────
@@ -126,6 +139,8 @@ Wants=network-online.target time-sync.target
 After=network-online.target time-sync.target
 
 [Service]
+Environment=COUNTDOWN_VERSION=1.0.0
+Environment=COUNTDOWN_COMMIT=%h
 # Vent maks 60s på NTP-synk (beskyttelse hvis time-sync.target ikke oppfører seg)
 ExecStartPre=/bin/sh -c 'i=0; while [ $i -lt 60 ]; do \
   s=$(timedatectl show -p NTPSynchronized --value 2>/dev/null || echo no); \
@@ -213,6 +228,15 @@ Environment=COG_PLATFORM_DRM_OUTPUT=__ACTIVE_OUT__
 Environment=COG_PLATFORM_DRM_VIDEO_MODE=1920x1080
 Environment=COG_PLATFORM_DRM_MODE_MAX=1920x1080@30
 Environment=COG_PLATFORM_DRM_NO_CURSOR=1
+Environment=COUNTDOWN_VERSION=1.0.0
+Environment=COUNTDOWN_COMMIT=%h
+
+# Sørg for at systemd-timesyncd peker på lokal NTP (ntp.uio.no)
+ExecStartPre=/usr/bin/bash -c 'mkdir -p /etc/systemd; \
+  if ! grep -q "^NTP=ntp.uio.no" /etc/systemd/timesyncd.conf 2>/dev/null; then \
+    printf "[Time]\nNTP=ntp.uio.no\n" > /etc/systemd/timesyncd.conf; fi'
+ExecStartPre=/bin/systemctl restart systemd-timesyncd.service
+ExecStartPre=/bin/systemctl start systemd-time-wait-sync.service
 
 ExecStartPre=/bin/sh -c 'for i in $(seq 1 150); do \
   ss -ltn | grep -q ":__PORT__ " && exit 0; \

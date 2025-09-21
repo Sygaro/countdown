@@ -35,7 +35,7 @@ cd ~
 git clone https://github.com/Sygaro/countdown
 
 # Kjør oppsettet (som root/sudo)
-sudo bash setup/setup_kiosk.sh
+sudo bash countdown/setup/setup_kiosk.sh
 ```
 
 Scriptet gjør bl.a. dette:
@@ -59,7 +59,7 @@ Scriptet gjør bl.a. dette:
 Eksempel:
 
 ```bash
-sudo APP_DIR=/home/pi/countdown PORT=8080 bash setup/setup_kiosk.sh
+sudo APP_DIR=/home/pi/countdown PORT=5000 bash setup/setup_kiosk.sh
 ```
 
 ---

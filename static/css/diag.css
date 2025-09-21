@@ -1,0 +1,113 @@
+/* static/css/diag.css */
+/* Kun for diagnose: gjøre nedtelling mer synlig og få ryddig layout */
+
+.big {
+  font-size: 8vh;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.muted { opacity: 0.75; }
+
+.ok   { color: #6dd96d; }
+.fail { color: #ff6b6b; }
+
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+  row-gap: 1.25rem;
+}
+
+@media (min-width: 960px) {
+  .grid { grid-template-columns: 1fr 1fr; }
+}
+
+.chip {
+  border: 1px solid var(--border, #1c2436);
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+#selftest { list-style: none; padding: 0; margin: 0; }
+#selftest li {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .4rem .6rem; border-radius: .6rem;
+  background: var(--panel, #0e1320);
+  border: 1px solid var(--border, #1c2436);
+}
+#selftest li.ok   { color:#9ef0a6; border-color:#275a32; background:#0e1a14; }
+#selftest li.fail { color:#ff9ea1; border-color:#7a2d33; background:#2a1416; }
+
+/* Gjør tabs flate og fine */
+.tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .5rem; }
+.tabs > button { border-radius: .6rem; padding: .3rem .6rem; }
+
+/* --- Sticky kontrollbar (øverst) --- */
+.controlbar {
+  position: sticky;
+  top: 0;                      /* heng i toppen ved scroll */
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .6rem .9rem;
+  border-bottom: 1px solid var(--border, #1c2436);
+  background: color-mix(in srgb, #0b0f14 80%, transparent);
+  backdrop-filter: saturate(140%) blur(6px);
+  -webkit-backdrop-filter: saturate(140%) blur(6px);
+}
+.controlbar .title {
+  font-weight: 650;
+  letter-spacing: .2px;
+  opacity: .9;
+}
+.controlbar .actions {
+  display: flex; flex-wrap: wrap; gap: .5rem;
+}
+.controlbar .actions .danger {
+  /* litt mindre “farlig” i baren, men fortsatt tydelig */
+  border-color: #7a2d33 !important;
+}
+@media (max-width: 720px) {
+  .controlbar { flex-wrap: wrap; }
+  .controlbar .actions { width: 100%; justify-content: flex-start; }
+}
+/* Strekk kort i samme grid-rad til lik høyde */
+main.grid { align-items: stretch; 
+column-gap: 1rem;                /* behold som før */
+  row-gap: 2.25rem;                /* litt mer luft nedover */
+}
+main.grid > .card { margin: 4; }
+main.grid { row-gap: 1.5rem !important; }
+
+
+/* Kort som fleksbokser */
+.card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* La JSON-<pre> fylle resten av kortet og scrolle internt */
+.card > pre {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  max-height: 25rem;    /* overstyr ev. tidligere max-height */
+}
+
+/* (valgfritt) litt luft under knapperekka i Debug-kortet */
+ .card.debug h2 + div { margin-bottom: 0.75rem; }
+/* Debug-kort: ikke la JSON-<pre> bli uendelig høyt */
+
+.card.debug pre#raw {
+  flex: 0 1 auto;                 /* ikke strekk for å fylle hele kortet */
+  max-height: clamp(20rem, 48vh, 34rem);
+  overflow: auto;
+}

@@ -311,3 +311,21 @@ input[type="datetime-local"] {
   -webkit-mask-composite: source-over;
   mask-composite: add; /* standard-ekvivalent (best effort) */
 }
+/* --- Responsive grid utility (auto-fit kort) --- */
+.grid-auto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 1.2rem;
+  align-items: start;
+}
+
+/* Uncap container width for admin pages that use grid */
+body.admin main.grid,
+body.admin main.grid-auto {
+  max-width: none;            /* override ev. tidligere max-width */
+  width: min(1800px, 96vw);   /* hyggelig øvre grense */
+  margin-inline: auto;
+}
+
+/* Cards must be allowed to grow/shrink inside grid  */
+.card { min-width: 0; }
