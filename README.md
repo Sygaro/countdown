@@ -1,232 +1,157 @@
-# Countdown (RPi · Flask/Gunicorn · systemd)
+# Countdown
 
-En enkel, driftssikker visningsapp for Raspberry Pi i kiosk-modus.  
-Modi: **daily**, **once**, **duration**, **clock**.  
-Konfig lagres atomisk i `config.json`. Admin-endringer slår inn i visningen uten refresh.
+En liten, robust visningsapp for nedtelling (og klokke) – laget for Raspberry Pi i kiosk‑modus, men kan også kjøres lokalt på en vanlig PC.
 
----
+## Hensikt
 
-## Innhold
+- Vise tidsnedtelling mot et mål (daglig, engangs, eller i et gitt antall minutter)
+- Vise klokke med valgfri primær/sekundærtekst
+- Konfigurasjon via enkel adminside, lagring i `config.json`
+- Trygg drift på RPi i kiosk (WPE/Cog på DRM/KMS)
 
-- [Funksjoner](#funksjoner)
-- [Mappestruktur](#mappestruktur)
-- [Krav](#krav)
-- [Kom i gang (lokalt)](#kom-i-gang-lokalt)
-- [Produksjon (RPi)](#produksjon-rpi)
-- [API](#api)
-- [Konfig (utdrag)](#konfig-utdrag)
-- [Utvikling](#utvikling)
-- [Driftstips](#driftstips)
-- [Lisens](#lisens)
+## Viktige funksjoner
 
----
+- **Modi:** `daily`, `once`, `duration`, `clock`
+- **Tema:** bakgrunn (solid/gradient/bilde m/ tint eller dynamisk), farger, typografi, meldinger
+- **Overlays:** plasserbare logoer/grafikk med synlighetsregler (clock vs countdown)
+- **Live‑oppdatering:** visningen henter status fra `/tick` og endrer seg uten refresh
+- **Diagnose:** `/diag` viser live‑data, egen selvtest og nyttige debug‑endepunkter
 
-## Funksjoner
+## Plattform
 
-- **Modi**
-  - `daily` – visning teller ned mot valgt tid hver dag (f.eks. 23:00)
-  - `once` – engangs tidspunkt (ISO, f.eks. `2025-09-13T19:30+02:00`)
-  - `duration` – start nedtelling på X minutter fra nå
-  - `clock` – stor klokke (HH:MM / HH:MM:SS)
-- **Tema & bakgrunn**
-  - Farger og størrelser for tall og meldinger
-  - Bakgrunn: solid, gradient eller bilde (med tint/opacity)
-- **Meldinger**
-  - Primær og sekundær melding i nedtelling
-  - Valgfri **egen melding i klokkemodus** (posisjon: høyre/venstre/over/under, egen justering)
-- **Live-oppdatering**
-  - Admin-endringer oppdaterer visningen uten reload (bakgrunn, farger, meldinger mm.)
-- **Kiosk-vennlig**
-  - Fullskjerm-knapp skjules automatisk i fullscreen og vises ikke ved musebevegelse
-- **Robust lagring**
-  - Atomisk skriving av `config.json` (fsync + `os.replace`)
+- Raspberry Pi OS Lite (Bookworm, 64‑bit). Kiosk via **Cog** (WPE WebKit) på DRM/KMS.
+- Python 3.11+, Flask + Gunicorn som **user‑service** i systemd.
+- Fungerer også i en «vanlig» nettleser (uten kiosk‑delen).
 
 ---
 
-## Mappestruktur
+## Installasjon (RPi / kiosk)
 
+> Kortversjonen: legg koden i `~/countdown` og kjør setup‑scriptet som root.
 
 ```bash
-countdown/
-├─ app/
-│ ├─ init.py # create_app + blueprint-registrering
-│ ├─ routes/ # pages, admin, api, public, diag
-│ ├─ countdown.py # kjernelogikk/tick
-│ ├─ storage.py # lasting/validering/skriving av config (atomisk)
-│ ├─ settings.py # miljø/paths/tz
-│ └─ models.py # (ev. simple typer/DTO-er)
-├─ static/
-│ ├─ index.html # visning
-│ ├─ admin.html # adminpanel
-│ ├─ diag.html # diagnose
-│ ├─ about.html # om-siden
-│ ├─ css/ # ui.css / style.css
-│ └─ js/ # (valgfritt) util/theme-moduler om du ønsker
-├─ wsgi.py # gunicorn entry
-├─ requirements.txt
-└─ config.json # runtime-konfig (genereres automatisk ved første start)
+# Logg inn som vanlig bruker og hent repoet
+cd ~
+git clone <repo-url> countdown
+
+# Kjør oppsettet (som root/sudo)
+sudo bash setup/setup_kiosk.sh
 ```
 
+Scriptet gjør bl.a. dette:
 
----
+- Installerer systempakker (cog, wpewebkit, python venv, mm.)
+- Setter opp venv + `pip install -r requirements.txt`
+- Oppretter systemd **user‑service** `countdown.service` (Gunicorn)
+- Oppretter systemd **kiosk‑service** `kiosk-cog.service` (DRM på tty1)
+- Slår på NTP og (hvis tilgjengelig) `systemd-time-wait-sync` slik at appen starter etter tidssynk
+- Låser skjermutgang til 1080p30 og aktiverer HDMI‑hotplug
 
-## Krav
+> **Etter kjøring:** `sudo reboot` anbefales.
 
-- Python **3.10+**
-- Linux (RPi OS anbefalt)
-- `systemd` (bruker-tjeneste)
-- Kiosk-nettleser: **WPE/Cog** eller **Chromium** i kiosk-modus
+### Variabler
 
----
+- `APP_DIR` (default: `~/countdown`)
+- `VENVDIR` (default: `~/countdown/venv`)
+- `PORT` (default: `5000`)
+- `USER_NAME` (brukeren som skal eie/drive tjenestene)
 
-## Kom i gang (lokalt)
+Eksempel:
 
 ```bash
-git clone https://github.com/<org>/<repo>.git
-cd countdown
+sudo APP_DIR=/home/pi/countdown PORT=8080 bash setup/setup_kiosk.sh
+```
+
+---
+
+## Kjøring lokalt (uten kiosk)
+
+```bash
 python3 -m venv venv
-. venv/bin/activate
+source venv/bin/activate
 pip install -r requirements.txt
-
-# dev-kjøring
-FLASK_APP=wsgi.py FLASK_ENV=development python wsgi.py
-# åpne http://127.0.0.1:5000
+export FLASK_APP=wsgi:app
+flask run --debug
+# Åpne http://127.0.0.1:5000
 ```
-## Produksjon (RPi)
 
-#### 1. Installer avhengigheter
-sudo apt update
-sudo apt install -y python3-venv
-python3 -m venv venv
-. venv/bin/activate
-pip install -r requirements.txt
+---
 
-### 2. systemd (brukertjeneste)
-```console
-~/.config/systemd/user/countdown.service
-```
-```ini
-[Unit]
-Description=Countdown (Flask/Gunicorn)
-After=network-online.target
+## Tjenester
 
-[Service]
-WorkingDirectory=%h/countdown
-ExecStart=%h/countdown/venv/bin/gunicorn -w 2 -b 127.0.0.1:5000 wsgi:app
-Restart=on-failure
-Environment=PYTHONUNBUFFERED=1
+- **App:** `systemctl --user status countdown.service`
+- **Kiosk (DRM):** `sudo systemctl status kiosk-cog.service`
 
-[Install]
-WantedBy=default.target
+Vanlige operasjoner:
 
-```
-Aktiver:
 ```bash
-systemctl --user daemon-reload
-systemctl --user enable --now countdown.service
-systemctl --user status countdown.service
+# Som bruker (for appen):
+systemctl --user restart countdown.service
+
+# Som root (for kiosk):
+sudo systemctl restart kiosk-cog.service
 ```
 
-### 3. Kiosk-nettleser
-
-WPE/Cog: `cog http://localhost:5000/ --platform=wl`
-
-Chromium: `chromium --kiosk --app=http://localhost:5000/ --noerrdialogs --disable-session-crashed-bubble`
-
----
-## API
-
-| Metode | Sti                   | Beskrivelse                             |
-| -----: | --------------------- | --------------------------------------- |
-|    GET | `/`                   | Visning                                 |
-|    GET | `/admin`              | Admin                                   |
-|    GET | `/diag`               | Diagnose                                |
-|    GET | `/about`              | Om                                      |
-|    GET | `/api/config`         | Hent `{ ok, config, tick }`             |
-|   POST | `/api/config`         | Lagre/patch konfig (inkl. bytte `mode`) |
-|   POST | `/api/start-duration` | Start varighetsmodus: `{"minutes": N}`  |
-|    GET | `/tick`               | Status for visning/diagnose             |
-|    GET | `/health`             | 200 OK (helse-sjekk)                    |
-
-
-Admin-passord (valgfritt): hvis satt, sendes i header `X-Admin-Password`.
-
 ---
 
-### Konfig (utdrag)
+## Konfigurasjon
+
+- Fil: `config.json` i prosjektroten
+- API: `GET /api/config` og `POST /api/config`
+- Admin‑UI lagrer delvise endringer atomisk og sender bare diff
+
+Overlays styres pr. element:
 
 ```json
 {
-  "mode": "daily|once|duration|clock",
-  "daily_time": "HH:MM",
-  "once_at": "YYYY-MM-DDTHH:MM(+TZ)",
-  "duration_minutes": 10,
-
-  "clock": {
-    "with_seconds": false,
-    "color": "#e6edf3",
-    "size_vmin": 12,
-    "position": "center|top-left|top-center|top-right|bottom-left|bottom-center|bottom-right",
-    "messages_position": "right|left|above|below",
-    "messages_align": "start|center|end",
-    "use_clock_messages": false,
-    "message_primary": "",
-    "message_secondary": ""
-  },
-
-  "theme": {
-    "digits":   { "size_vw": 14 },
-    "messages": {
-      "primary":   { "size_rem": 1.0, "weight": 600, "color": "#9aa4b2" },
-      "secondary": { "size_rem": 1.0, "weight": 400, "color": "#9aa4b2" }
-    },
-    "background": {
-      "mode": "solid|gradient|image",
-      "solid":    { "color": "#0b0f14" },
-      "gradient": { "from": "#142033", "to": "#0b0f14", "angle_deg": 180 },
-      "image":    {
-        "url": "", "fit": "cover|contain", "opacity": 1,
-        "tint": { "color": "#000000", "opacity": 0.0 }
-      }
-    }
-  }
+  "type": "image",
+  "url": "/static/logo.png",
+  "visible_in": ["clock"],
+  "position": "top-right",
+  "size_vmin": 12
 }
-
 ```
 
-## Utvikling
-- Kjør lokalt
-
-```bash
-. venv/bin/activate
-FLASK_APP=wsgi.py FLASK_ENV=development python wsgi.py
-```
-
-
-- Lint/format (anbefalt)
-
-pip install -r requirements-dev.txt  # hvis du bruker egen dev-fil
-ruff check app
-black app static
-
-
-- Enkel røyk-test (CI/Action)
-
-curl -sf http://127.0.0.1:5000/health
-
-
-- Editor
-
-.editorconfig for consistent LF/UTF-8
-
-Pre-commit hooks: ruff/black/prettier
+> Tom liste `"visible_in": []` betyr **vis aldri**.
 
 ---
 
-### Driftstips
+## Tid & robusthet
 
-- `config.json` skrives atomisk (tempfil + `os.replace()`).
--Endringer i admin pushes live til visningen (periodisk polling av `/api/config`).
--Fullskjerm-knappen skjules i fullscreen og vises ikke ved musebevegelse.
--Logg:
-`journalctl --user -u countdown.service -b -n 200 --no-pager`
+- Appen bruker server‑tid fra `/tick` og jevner ut smådrift (slew) i klienten.
+- Oppsettet venter på NTP‑synk via `time-sync.target` (og en ekstra «belt & suspenders»‑sjekk i systemd‑unit).
+
+---
+
+## Sikkerhet
+
+- Enkle admin‑kall bruker headeren `X-Admin-Password`. Sett passordet i admin‑UI.
+- For maskinkontroll (restart/reboot/shutdown) anbefales en begrenset sudoers‑regel (se forslag i issues/PR mal under).
+
+---
+
+## Utvikling
+
+- Backend: se `app/routes/*` (blueprints) og `wsgi.py`
+- Frontend: `static/` (HTML/JS/CSS). Visning i `static/index.html`.
+- Tester: enkel «selvtest» eksponert via `/debug/selftest`.
+
+### Branch & deploy
+
+```bash
+git checkout -b feature/xyz
+# … gjør endringer …
+git commit -m "feat: xyz"
+git push -u origin feature/xyz
+# PR / merge → main
+```
+
+---
+
+## Feilsøking
+
+- `journalctl --user -u countdown -f`
+- `sudo journalctl -u kiosk-cog -f`
+- `/diag` viser live `/tick` og latency, `/debug/selftest` kjører sanity‑checks
+
+

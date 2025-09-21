@@ -214,3 +214,13 @@ __pycache__/
 ._.DS_Store
 .env
 paste_out/
+node_modules/
+setup/countdown.service
+setup/enable_journal.sh
+setup/kiosk-cog.service
+.editorconfig
+.editorconfig
+.prettierrc
+config.json
+README_DEV.md
+requirements-dev.txt
