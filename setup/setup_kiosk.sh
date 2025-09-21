@@ -87,18 +87,20 @@ fi
 ### ─────────────────────────────────────────────────────────────────────────────
 ### 2) requirements.txt + venv + pip install
 ### ─────────────────────────────────────────────────────────────────────────────
+
 REQ_FILE="${APP_DIR}/requirements.txt"
 echo "==> Oppdaterer requirements.txt…"
-if [[ -f "${REQ_FILE}" ]]; then
-  cp -a "${REQ_FILE}" "${REQ_FILE}.bak.$(date +%Y%m%d%H%M%S)" || true
-fi
-cat > "${REQ_FILE}" <<'REQS'
+if [[ ! -f "${REQ_FILE}" ]]; then
+  cat > "${REQ_FILE}" <<'REQS'
 Flask==3.1.2
 gunicorn==23.0.0
-waitress==3.0.0
+waitress==3.0.2
 blinker==1.9.0
 REQS
-chown "${USER_NAME}:${USER_NAME}" "${REQ_FILE}"
+  chown "${USER_NAME}:${USER_NAME}" "${REQ_FILE}"
+else
+  echo "==> requirements.txt finnes fra før – beholder den."
+fi
 
 echo "==> Setter opp venv og installerer Python-avhengigheter…"
 sudo -u "${USER_NAME}" -H bash -lc "
@@ -137,6 +139,10 @@ StandardOutput=null
 StandardError=journal
 Restart=always
 RestartSec=2
+KillMode=process
+TimeoutStopSec=10
+NoNewPrivileges=yes
+
 
 [Install]
 WantedBy=default.target
@@ -190,6 +196,9 @@ echo "   → ACTIVE_OUT=${ACTIVE_OUT}, DRM_DEV=${DRM_DEV}"
 echo "==> Oppretter kiosk (Cog/DRM) som system-service…"
 cat > /etc/systemd/system/kiosk-cog.service <<'UNIT'
 [Unit]
+After=network-online.target systemd-user-sessions.service user@__USER_UID__.service time-sync.target
+Wants=network-online.target user@__USER_UID__.service time-sync.target
+
 Description=Kiosk (Cog on DRM/KMS) on tty1
 After=network-online.target systemd-user-sessions.service user@__USER_UID__.service
 Wants=network-online.target user@__USER_UID__.service

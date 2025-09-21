@@ -5,7 +5,7 @@
 # Notes: Avhenger av storage-funksjoner og require_password-dekoratør. Endepunktkontrakter beholdt.
 
 from __future__ import annotations
-
+import subprocess, shlex
 from datetime import datetime
 from typing import Any, Dict
 
@@ -25,6 +25,7 @@ from ..auth import require_password
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
+ADMIN_HEADER = "X-Admin-Password"
 
 # === Utilities =================================================================
 
@@ -233,3 +234,58 @@ def _coerce_positive_int(v: Any) -> int | None:
     if iv is None or iv <= 0:
         return None
     return iv
+
+def _check_admin() -> bool:
+    """Sammenlikn header med ADMIN_PASSWORD i config (tom = ingen auth)."""
+    want = (current_app.config.get("ADMIN_PASSWORD") or "").strip()
+    if not want:
+        return True
+    got = (request.headers.get(ADMIN_HEADER) or "").strip()
+    return got == want
+
+def _run(argv, *, sudo: bool = False, timeout: int = 20):
+    """Kjør en hvitlistet kommando trygt (ingen shell)."""
+    if isinstance(argv, str):
+        argv = shlex.split(argv)
+    if sudo:
+        argv = ["sudo", "--non-interactive", "--"] + argv
+    p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+    return p.returncode, (p.stdout or "").strip(), (p.stderr or "").strip()
+
+@bp.post("/system")
+def api_system():
+    """Kontroller maskin/tjenester fra UI (krever X-Admin-Password hvis satt)."""
+    if not _check_admin():
+        return jsonify(ok=False, error="unauthorized"), 401
+
+    data = request.get_json(silent=True) or {}
+    action = (data.get("action") or "").strip()
+
+    # hvitliste
+    mapping: dict[str, tuple[list[str], bool]] = {
+        "restart-app":   (["systemctl", "--user", "restart", "countdown.service"], False),
+        "status-app":    (["systemctl", "--user", "is-active", "countdown.service"], False),
+        "restart-kiosk": (["systemctl", "restart", "kiosk-cog.service"], True),
+        "status-kiosk":  (["systemctl", "is-active", "kiosk-cog.service"], True),
+        "reboot":        (["systemctl", "reboot"], True),
+        "shutdown":      (["systemctl", "poweroff"], True),
+    }
+    if action not in mapping:
+        return jsonify(ok=False, error="unknown action"), 400
+
+    argv, need_sudo = mapping[action]
+    try:
+        rc, out, err = _run(argv, sudo=need_sudo, timeout=20)
+    except subprocess.TimeoutExpired:
+        return jsonify(ok=False, error="timeout"), 504
+
+    return jsonify(ok=(rc == 0), rc=rc, stdout=out, stderr=err, action=action)
+
+# (valgfritt) – rute-oversikt for rask verifikasjon
+@bp.get("/_routes")
+def api_routes():
+    routes = []
+    for r in current_app.url_map.iter_rules():
+        methods = sorted(m for m in r.methods if m in {"GET","POST","PUT","DELETE","PATCH"})
+        routes.append({"rule": str(r), "endpoint": r.endpoint, "methods": methods})
+    return jsonify(ok=True, routes=routes)

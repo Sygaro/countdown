@@ -45,6 +45,16 @@
       .mono {
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
       }
+      #selftest { list-style: none; padding: 0; margin: 0; }
+#selftest li { 
+  display:flex; align-items:center; gap:.5rem;
+  padding:.4rem .6rem; border-radius:.6rem;
+  background: var(--panel, #0e1320);
+  border: 1px solid var(--border, #1c2436);
+}
+#selftest li.ok   { color:#9ef0a6; border-color:#275a32; background:#0e1a14; }
+#selftest li.fail { color:#ff9ea1; border-color:#7a2d33; background:#2a1416; }
+
     </style>
   </head>
   <body class="admin">
@@ -72,6 +82,7 @@
         </div>
       </section>
 
+
       <section class="card">
         <h2>Debug</h2>
         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem">
@@ -91,6 +102,15 @@
           <button id="run_selftest">Kjør selvtest</button>
         </div>
       </section>
+     <section class="card">
+  <h2>Kontroll</h2>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <button data-sysctl data-action="restart-app">Restart app</button>
+    <button data-sysctl data-action="restart-kiosk">Restart kiosk</button>
+    <button data-sysctl data-action="reboot">Reboot RPi</button>
+    <button data-sysctl data-action="shutdown">Shutdown RPi</button>
+  </div>
+</section>
     </main>
 
     <script>
@@ -109,6 +129,7 @@
             hms: `${sgn}${h}:${pad(m)}:${pad(s)}`,
           };
         };
+        
         async function poll() {
           const t0 = performance.now();
           const r = await fetch("/tick");
@@ -155,6 +176,28 @@
         poll().catch(console.error);
         setInterval(poll, 1000);
       })();
+      (function () {
+  function readAdminPass() {
+    const i = document.getElementById("admin-password");
+    return (i && i.value) || localStorage.getItem("admin_password") || "";
+  }
+  async function doAction(act) {
+    const r = await fetch("/api/system", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Admin-Password": readAdminPass()
+      },
+      body: JSON.stringify({ action: act })
+    });
+    const js = await r.json().catch(() => ({}));
+    alert(js.ok ? `OK: ${act}` : `Feil: ${js.error || r.status}`);
+  }
+  document.querySelectorAll("[data-act]").forEach(btn => {
+    btn.addEventListener("click", () => doAction(btn.dataset.act));
+  });
+})();
+
     </script>
   </body>
 </html>
