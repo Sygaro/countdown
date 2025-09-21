@@ -224,3 +224,4 @@ setup/kiosk-cog.service
 config.json
 README_DEV.md
 requirements-dev.txt
+.vscode/
