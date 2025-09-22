@@ -322,10 +322,12 @@ input[type="datetime-local"] {
 /* Uncap container width for admin pages that use grid */
 body.admin main.grid,
 body.admin main.grid-auto {
-  max-width: none;            /* override ev. tidligere max-width */
-  width: min(1800px, 96vw);   /* hyggelig øvre grense */
+  max-width: none; /* override ev. tidligere max-width */
+  width: min(1800px, 96vw); /* hyggelig øvre grense */
   margin-inline: auto;
 }
 
 /* Cards must be allowed to grow/shrink inside grid  */
-.card { min-width: 0; }
+.card {
+  min-width: 0;
+}

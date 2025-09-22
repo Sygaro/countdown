@@ -23,21 +23,21 @@
   var syncTimer = null;
   var paintTimer = null;
   var cfgTimer = null;
-function ovModeFromCfg(c) {
-  return c && String(c.mode).toLowerCase() === "clock" ? "clock" : "countdown";
-}
-function applyOverlayVisibility() {
-  if (!cfg || !Array.isArray(cfg.overlays)) return;
-  const mode = ovModeFromCfg(cfg);
-  const layer = document.getElementById("overlays") || document.body;
-  cfg.overlays.forEach(function (ov) {
-    var el = layer.querySelector('[data-overlay-id="' + ov.id + '"]');
-    if (!el) return;
-    var v = ov && ov.visible_in;
-    var show = Array.isArray(v) ? (v.length > 0 && v.indexOf(mode) !== -1) : true;
-    el.style.display = show ? "" : "none";
-  });
-}
+  function ovModeFromCfg(c) {
+    return c && String(c.mode).toLowerCase() === "clock" ? "clock" : "countdown";
+  }
+  function applyOverlayVisibility() {
+    if (!cfg || !Array.isArray(cfg.overlays)) return;
+    const mode = ovModeFromCfg(cfg);
+    const layer = document.getElementById("overlays") || document.body;
+    cfg.overlays.forEach(function (ov) {
+      var el = layer.querySelector('[data-overlay-id="' + ov.id + '"]');
+      if (!el) return;
+      var v = ov && ov.visible_in;
+      var show = Array.isArray(v) ? v.length > 0 && v.indexOf(mode) !== -1 : true;
+      el.style.display = show ? "" : "none";
+    });
+  }
   // Tid/offset
   var offsetMs = 0; // serverNow - clientNow (glattes)
   var pendingSlewMs = 0; // rest som skal slewes

@@ -5,7 +5,7 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  padding: .6rem .9rem;
+  padding: 0.6rem 0.9rem;
   border-bottom: 1px solid var(--border, #1c2436);
   background: color-mix(in srgb, #0b0f14 80%, transparent);
   backdrop-filter: saturate(140%) blur(8px);
@@ -15,7 +15,7 @@
 /* --- KOMPAKT LAYOUT --- */
 .topbar.compact {
   display: grid;
-  gap: .6rem 1rem;
+  gap: 0.6rem 1rem;
   grid-template-columns: 1fr;
   grid-template-rows: auto auto;
 }
@@ -25,25 +25,68 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: .75rem 1rem;
+  gap: 0.75rem 1rem;
   flex-wrap: wrap;
 }
-.tb-left { display: inline-flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
-.tb-clock { font-weight: 700; font-size: 1.05rem; }
-.tb-cd { font-variant-numeric: tabular-nums; opacity: .9; }
+.tb-left {
+  display: inline-flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.tb-clock {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.tb-cd {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
+}
 
-.tb-svcs { display: inline-flex; gap: .6rem; align-items: center; }
-.tb-svc { display: inline-flex; gap: .35rem; align-items: center; font-size: .95rem; }
-.dot { width: .6rem; height: .6rem; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); }
-.dot.ok { background:#16a34a; border-color:#166534; }
-.dot.bad { background:#dc2626; border-color:#7f1d1d; }
-.dot.warn { background:#f59e0b; border-color:#92400e; }
+.tb-svcs {
+  display: inline-flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+.tb-svc {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  font-size: 0.95rem;
+}
+.dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+.dot.ok {
+  background: #16a34a;
+  border-color: #166534;
+}
+.dot.bad {
+  background: #dc2626;
+  border-color: #7f1d1d;
+}
+.dot.warn {
+  background: #f59e0b;
+  border-color: #92400e;
+}
 
 /* Andre rad (actions) */
-.tb-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
-.tb-actions .danger { border-color:#7a2d33 !important; }
+.tb-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.tb-actions .danger {
+  border-color: #7a2d33 !important;
+}
 
 /* Små skjermer: stable services under klokka */
 @media (max-width: 720px) {
-  .tb-meta { flex-direction: column; align-items: flex-start; }
+  .tb-meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

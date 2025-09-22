@@ -8,12 +8,9 @@
     <link rel="stylesheet" href="/static/css/ui.css" />
     <link rel="stylesheet" href="/static/css/admin.css" />
     <link rel="stylesheet" href="/static/css/about.css" />
-
   </head>
   <body class="admin">
     <header>
-  
-
       <h1>Om Countdown</h1>
       <nav>
         <a href="/">Visning</a>
@@ -39,25 +36,36 @@
       <section class="card">
         <h2>Teknologi</h2>
         <dl class="kv">
-          <dt>Backend</dt><dd>Flask (Gunicorn/WSGI), systemd-tjenester</dd>
-          <dt>Frontend</dt><dd>Vanilla HTML/CSS/JS</dd>
-          <dt>Plattform</dt><dd>RPi (WPE/Cog eller Chromium kiosk)</dd>
-          <dt>Konfig</dt><dd><code>config.json</code> (atomisk skriving)</dd>
+          <dt>Backend</dt>
+          <dd>Flask (Gunicorn/WSGI), systemd-tjenester</dd>
+          <dt>Frontend</dt>
+          <dd>Vanilla HTML/CSS/JS</dd>
+          <dt>Plattform</dt>
+          <dd>RPi (WPE/Cog eller Chromium kiosk)</dd>
+          <dt>Konfig</dt>
+          <dd><code>config.json</code> (atomisk skriving)</dd>
         </dl>
       </section>
 
       <section class="card">
         <h2>Status & versjon</h2>
-        <p id="about_error" class="fail" style="display:none"></p>
-        <div id="about_status" style="display:none">
+        <p id="about_error" class="fail" style="display: none"></p>
+        <div id="about_status" style="display: none">
           <dl class="kv">
-            <dt>Version</dt><dd><span id="v_version">—</span></dd>
-            <dt>Commit</dt><dd><code id="v_commit">—</code></dd>
-            <dt>OS</dt><dd><span id="v_os">—</span></dd>
-            <dt>Kernel</dt><dd><span id="v_kernel">—</span></dd>
-            <dt>Arkitektur</dt><dd><span id="v_arch">—</span></dd>
-            <dt>Maskin</dt><dd><span id="v_model">—</span></dd>
-            <dt>Server-tid</dt><dd><span id="v_server_time">—</span></dd>
+            <dt>Version</dt>
+            <dd><span id="v_version">—</span></dd>
+            <dt>Commit</dt>
+            <dd><code id="v_commit">—</code></dd>
+            <dt>OS</dt>
+            <dd><span id="v_os">—</span></dd>
+            <dt>Kernel</dt>
+            <dd><span id="v_kernel">—</span></dd>
+            <dt>Arkitektur</dt>
+            <dd><span id="v_arch">—</span></dd>
+            <dt>Maskin</dt>
+            <dd><span id="v_model">—</span></dd>
+            <dt>Server-tid</dt>
+            <dd><span id="v_server_time">—</span></dd>
           </dl>
 
           <h3>Tjenester</h3>
@@ -83,6 +91,5 @@
 
     <script type="module" src="/static/js/about.js"></script>
     <script type="module" src="/static/js/statusbar.js"></script>
-
   </body>
 </html>

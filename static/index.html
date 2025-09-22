@@ -558,12 +558,12 @@
           // --- synlighetsregel: respekter [] = skjul overalt ---
           function overlayIsVisible(ov, m) {
             const v = ov && ov.visible_in;
-            if (!Array.isArray(v)) return true;   // mangler felt → vis (bakoverkompatibelt)
-            if (v.length === 0) return false;     // eksplisitt tom → skjul
+            if (!Array.isArray(v)) return true; // mangler felt → vis (bakoverkompatibelt)
+            if (v.length === 0) return false; // eksplisitt tom → skjul
             return m === "clock" ? v.includes("clock") : v.includes("countdown");
           }
           for (const o of list) {
-           if (!overlayIsVisible(o, mode)) continue;
+            if (!overlayIsVisible(o, mode)) continue;
 
             if (o.type !== "image") continue;
             const url = (o.url || "").trim();

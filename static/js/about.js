@@ -3,8 +3,8 @@
   const qs = (s, r) => (r || document).querySelector(s);
 
   function authHeaders() {
-    const pwd = localStorage.getItem("admin_password") || (qs('meta[name="admin-password"]')?.content || "");
-    const h = { "Accept": "application/json" };
+    const pwd = localStorage.getItem("admin_password") || qs('meta[name="admin-password"]')?.content || "";
+    const h = { Accept: "application/json" };
     if (pwd) h["X-Admin-Password"] = pwd;
     return h;
   }
@@ -54,7 +54,7 @@
       wrap.innerHTML = "";
       const services = a.services || {};
       // Stabil rekkefølge: app, kiosk, web (web = alias)
-      ["app", "kiosk", "web"].forEach(name => {
+      ["app", "kiosk", "web"].forEach((name) => {
         if (services[name]) wrap.appendChild(serviceCard(name, services[name]));
       });
 

@@ -3,8 +3,8 @@
   const qs = (s, r) => (r || document).querySelector(s);
 
   function authHeaders() {
-    const pwd = localStorage.getItem("admin_password") || (qs('meta[name="admin-password"]')?.content || "");
-    const h = { "Accept": "application/json" };
+    const pwd = localStorage.getItem("admin_password") || qs('meta[name="admin-password"]')?.content || "";
+    const h = { Accept: "application/json" };
     if (pwd) h["X-Admin-Password"] = pwd;
     return h;
   }
@@ -16,15 +16,17 @@
   }
 
   function fmtClock(d) {
-    const pad = n => String(n).padStart(2, "0");
+    const pad = (n) => String(n).padStart(2, "0");
     return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
 
   function fmtMMSS(ms) {
-    const neg = ms < 0, abs = Math.abs(ms);
+    const neg = ms < 0,
+      abs = Math.abs(ms);
     const s = Math.floor(abs / 1000);
-    const mm = Math.floor(s / 60), ss = s % 60;
-    const pad = n => String(n).padStart(2, "0");
+    const mm = Math.floor(s / 60),
+      ss = s % 60;
+    const pad = (n) => String(n).padStart(2, "0");
     return (neg ? "−" : "") + `${mm}:${pad(ss)}`;
   }
 
@@ -33,7 +35,9 @@
       const r = await fetch("/tick", { cache: "no-store" });
       const t = await r.json();
       qs("#sb_cd").textContent = fmtMMSS(t.signed_display_ms);
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      /* ignore */
+    }
   }
 
   async function pollServices() {
@@ -53,14 +57,18 @@
 
   function startClock() {
     const el = qs("#sb_clock");
-    const tick = () => { el.textContent = fmtClock(new Date()); };
+    const tick = () => {
+      el.textContent = fmtClock(new Date());
+    };
     tick();
     setInterval(tick, 1000);
   }
 
   document.addEventListener("DOMContentLoaded", () => {
     startClock();
-    pollTick(); setInterval(pollTick, 1000);
-    pollServices(); setInterval(pollServices, 10000);
+    pollTick();
+    setInterval(pollTick, 1000);
+    pollServices();
+    setInterval(pollServices, 10000);
   });
 })();

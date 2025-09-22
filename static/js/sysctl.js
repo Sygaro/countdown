@@ -36,9 +36,7 @@
 
         if (action === "reboot" || action === "shutdown") {
           const ok = confirm(
-            action === "reboot"
-              ? "Bekreft omstart av Raspberry Pi?"
-              : "Bekreft nedstenging av Raspberry Pi?",
+            action === "reboot" ? "Bekreft omstart av Raspberry Pi?" : "Bekreft nedstenging av Raspberry Pi?",
           );
           if (!ok) return;
         }

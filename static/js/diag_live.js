@@ -53,13 +53,12 @@
   document.addEventListener("DOMContentLoaded", () => {
     qs("#refresh").addEventListener("click", () => poll().catch(console.error));
     qs("#run_selftest").addEventListener("click", () => selftest().catch(console.error));
-    document.querySelectorAll("[data-dump]").forEach(btn => {
+    document.querySelectorAll("[data-dump]").forEach((btn) => {
       btn.addEventListener("click", () => dump(btn.dataset.dump).catch(console.error));
     });
 
     poll().catch(console.error);
     setInterval(poll, 1000);
   });
-    window.__runSelftest = selftest;
-
+  window.__runSelftest = selftest;
 })();

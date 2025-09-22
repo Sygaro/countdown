@@ -47,7 +47,7 @@
   function overlayIsVisible(ov, mode /* "countdown" | "clock" */) {
     const v = ov && ov.visible_in;
     if (!Array.isArray(v)) return true; // eldre config → vis som før
-    if (v.length === 0) return false;   // eksplisitt tom → aldri vis
+    if (v.length === 0) return false; // eksplisitt tom → aldri vis
     return v.includes(mode);
   }
   window.overlayIsVisible = overlayIsVisible;

@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="/static/css/diag.css" />
     <link rel="stylesheet" href="/static/css/statusbar.css" />
     <link rel="stylesheet" href="/static/css/topbar.css" />
-
   </head>
   <body class="admin">
     <header>
@@ -23,7 +22,6 @@
       </nav>
     </header>
     <div id="topbar"></div>
-
 
     <main class="grid grid-auto">
       <section class="card">
@@ -62,13 +60,12 @@
       </section>
     </main>
     <script type="module">
-  import { Topbar } from "/static/js/topbar.js";
-  Topbar.init({ el: "#topbar", layout: "compact" });
-</script>
+      import { Topbar } from "/static/js/topbar.js";
+      Topbar.init({ el: "#topbar", layout: "compact" });
+    </script>
 
     <script type="module" src="/static/js/diag_live.js"></script>
     <script type="module" src="/static/js/diag.js"></script>
     <script type="module" src="/static/js/statusbar.js"></script>
-
   </body>
 </html>
