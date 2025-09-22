@@ -207,32 +207,37 @@ echo "   → ACTIVE_OUT=${ACTIVE_OUT}, DRM_DEV=${DRM_DEV}"
 echo "==> Oppretter kiosk (Cog/DRM) som system-service…"
 cat > /etc/systemd/system/kiosk-cog.service <<'UNIT'
 [Unit]
-After=network-online.target systemd-user-sessions.service user@__USER_UID__.service time-sync.target
-Wants=network-online.target user@__USER_UID__.service time-sync.target
-
 Description=Kiosk (Cog on DRM/KMS) on tty1
-After=network-online.target systemd-user-sessions.service user@__USER_UID__.service
-Wants=network-online.target user@__USER_UID__.service
+Wants=network-online.target user@__USER_UID__.service time-sync.target
+After=network-online.target user@__USER_UID__.service time-sync.target
+ConditionPathExists=/dev/tty1
 
 [Service]
 User=__USER_NAME__
 Environment=XDG_RUNTIME_DIR=/run/user/__USER_UID__
+Environment=HOME=__USER_HOME__
+WorkingDirectory=__APP_DIR__
 
 Environment=WPE_BACKEND_FDO_DRM_DEVICE=__DRM_DEV__
 Environment=COG_PLATFORM_DRM_OUTPUT=__ACTIVE_OUT__
-
 Environment=COG_PLATFORM_DRM_VIDEO_MODE=1920x1080
 Environment=COG_PLATFORM_DRM_MODE_MAX=1920x1080@30
 Environment=COG_PLATFORM_DRM_NO_CURSOR=1
-Environment=COUNTDOWN_VERSION=1.0.0
-Environment=COUNTDOWN_COMMIT=%h
+Environment=COG_PLATFORM_DRM_DISABLE_MODIFIERS=1
 
-ExecStartPre=/bin/sh -c 'for i in $(seq 1 150); do \
-  ss -ltn | grep -q ":__PORT__ " && exit 0; \
-  curl -fsS "http://127.0.0.1:__PORT__/health" >/dev/null 2>&1 && exit 0; \
-  code=$(curl -fsSI -o /dev/null -w "%{http_code}" "http://127.0.0.1:__PORT__/" || true); \
-  echo "$code" | grep -qE "^(200|30[0-9])$" && exit 0; \
-  sleep 0.5; done; exit 1'
+ExecStartPre=/bin/sh -c '\
+  for i in $(seq 1 40); do \
+    test -d "/run/user/__USER_UID__" && break; sleep 0.25; done; \
+  for i in $(seq 1 40); do \
+    test -S "/run/user/__USER_UID__/systemd/private" && break; sleep 0.25; done; \
+  for i in $(seq 1 150); do \
+    ss -ltn | grep -q ":__PORT__ " && exit 0; \
+    curl -fsS "http://127.0.0.1:__PORT__/health" >/dev/null 2>&1 && exit 0; \
+    code=$(curl -fsSI -o /dev/null -w "%{http_code}" "http://127.0.0.1:__PORT__/" || true); \
+    echo "$code" | grep -qE "^(200|30[0-9])$" && exit 0; \
+    sleep 0.5; \
+  done; \
+  echo "Flask/Gunicorn svarte ikke i tide"; exit 1'
 
 ExecStart=/usr/bin/cog --platform=drm --platform-params=renderer=gles "http://127.0.0.1:__PORT__/?kiosk=1"
 
@@ -240,11 +245,13 @@ TTYPath=/dev/tty1
 TTYReset=yes
 TTYVHangup=yes
 StandardInput=tty
-StandardOutput=null
+StandardOutput=journal
 StandardError=journal
 
 Restart=always
 RestartSec=2
+TimeoutStopSec=10
+KillMode=process
 
 [Install]
 WantedBy=multi-user.target
@@ -254,15 +261,17 @@ UNIT
 sed -i \
   -e "s#__USER_NAME__#${USER_NAME}#g" \
   -e "s#__USER_UID__#${USER_UID}#g" \
+  -e "s#__USER_HOME__#${USER_HOME}#g" \
+  -e "s#__APP_DIR__#${APP_DIR}#g" \
   -e "s#__DRM_DEV__#${DRM_DEV}#g" \
   -e "s#__ACTIVE_OUT__#${ACTIVE_OUT}#g" \
   -e "s#__PORT__#${PORT}#g" \
   /etc/systemd/system/kiosk-cog.service
 
-# Slå av getty og enable kiosk
 systemctl disable --now getty@tty1.service || true
 systemctl daemon-reload
 systemctl enable --now kiosk-cog.service
+
 
 
 

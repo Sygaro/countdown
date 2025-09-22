@@ -163,3 +163,53 @@ main.grid {
 .sys-pill.muted {
   opacity: 0.9;
 }
+/* Sysbar-layout (som før) */
+.sysbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 0;
+}
+.sysbar .left,
+.sysbar .right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Host-pill (brukt av diag.js i .sysbar .right) */
+.sys-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: #f2f4f7;
+  color: #111;
+  border: 1px solid #e2e6ea;
+  font: 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+.sys-pill.muted { opacity: .8; }
+
+/* NTP-boksen – skal være en "container", ikke en pill */
+#ntp_status {
+  display: inline-block;
+  padding: 8px 10px;
+  border-radius: 12px;
+  /* dark-friendly */
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.12);
+  color: inherit;
+  font: 13px/1.3 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+/* Linjene som diag.js skriver inn */
+#ntp_status > div {
+  display: inline-block;
+  margin-right: 12px;
+}
+#ntp_status > div:last-child { margin-right: 0; }
+/* Litt luft når host-pill vises i Topbar ved siden av tjenestelysene */
+#topbar .tb-svcs .sys-pill { margin-left: 8px; }
