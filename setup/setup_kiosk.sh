@@ -90,6 +90,11 @@ fi
 echo "==> Aktiverer og restart-er systemd-timesyncd …"
 sudo timedatectl set-ntp true || true
 sudo systemctl enable --now systemd-timesyncd.service || true
+
+# Vent på første synk ved boot (systemd-time-wait-sync)
+# Dette sikrer at time-sync.target ikke bare er “aktiv tjeneste”,
+# men at klokken faktisk er synkronisert minst én gang.
+sudo systemctl enable --now systemd-time-wait-sync.service || true
 sudo systemctl restart systemd-timesyncd.service || true
 
 # Liten status-visning
@@ -152,8 +157,6 @@ Restart=always
 RestartSec=2
 KillMode=process
 TimeoutStopSec=10
-NoNewPrivileges=yes
-
 
 [Install]
 WantedBy=default.target
@@ -211,6 +214,9 @@ Description=Kiosk (Cog on DRM/KMS) on tty1
 Wants=network-online.target user@__USER_UID__.service time-sync.target
 After=network-online.target user@__USER_UID__.service time-sync.target
 ConditionPathExists=/dev/tty1
+# Vent på faktisk klokkesynk før start (best-effort)
+Wants=systemd-time-wait-sync.service
+After=systemd-time-wait-sync.service
 
 [Service]
 User=__USER_NAME__
