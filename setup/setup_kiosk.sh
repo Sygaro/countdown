@@ -299,4 +299,52 @@ hdmi_mode=82   # 1080p30
 hdmi_drive=2
 EOF
 
+### ─────────────────────────────────────────────────────────────────────────────
+### X) Root-helpers for diag + smal sudoers (NOPASSWD kun for disse)
+###     - cdown-restart   -> restart countdown.service
+###     - cdown-reboot    -> system reboot
+###     - cdown-shutdown  -> system poweroff
+###  Idempotent: safe å kjøre flere ganger.
+### ─────────────────────────────────────────────────────────────────────────────
+echo "==> Installerer countdown root-helpers + sudoers…"
+
+# Helper: restart app-tjenesten
+install -m 0755 -o root -g root /dev/stdin /usr/local/sbin/cdown-restart <<'SH'
+#!/bin/sh
+exec /usr/bin/systemctl restart --no-block --quiet --fail countdown.service
+SH
+
+# Helper: reboot
+install -m 0755 -o root -g root /dev/stdin /usr/local/sbin/cdown-reboot <<'SH'
+#!/bin/sh
+exec /usr/sbin/reboot
+SH
+
+# Helper: shutdown
+install -m 0755 -o root -g root /dev/stdin /usr/local/sbin/cdown-shutdown <<'SH'
+#!/bin/sh
+exec /usr/sbin/poweroff
+SH
+
+# Sudoers-regel – kun disse tre helperne uten passord for ${USER_NAME}
+# (bruk visudo-syntaks-sjekk ved å skrive via temp og så move)
+TMP_SUDOERS="$(mktemp)"
+cat > "${TMP_SUDOERS}" <<EOF
+# Countdown kiosk: tillat begrensede handlinger uten passord
+${USER_NAME} ALL=(root) NOPASSWD: /usr/local/sbin/cdown-restart, /usr/local/sbin/cdown-reboot, /usr/local/sbin/cdown-shutdown
+EOF
+visudo -c -f "${TMP_SUDOERS}" >/dev/null 2>&1 && \
+  install -m 0440 -o root -g root "${TMP_SUDOERS}" /etc/sudoers.d/countdown || \
+  { echo "FEIL: sudoers-validering feilet – endrer ingenting."; rm -f "${TMP_SUDOERS}"; exit 1; }
+rm -f "${TMP_SUDOERS}"
+
+# Hurtig sanity-check (ikke fatal)
+if sudo -n /usr/local/sbin/cdown-restart >/dev/null 2>&1; then
+  echo "   → sudoers OK (cdown-restart kan kjøres uten passord)."
+else
+  echo "   → OBS: sudoers ser ikke aktiv ut. Sjekk /etc/sudoers.d/countdown"
+fi
+
+
+
 echo "==> Ferdig! Anbefalt: sudo reboot"
