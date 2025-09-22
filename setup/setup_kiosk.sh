@@ -208,8 +208,8 @@ echo "==> Oppretter kiosk (Cog/DRM) som system-service…"
 cat > /etc/systemd/system/kiosk-cog.service <<'UNIT'
 [Unit]
 Description=Kiosk (Cog on DRM/KMS) on tty1
-Wants=network-online.target user@__USER_UID__.service time-sync.target
-After=network-online.target user@__USER_UID__.service time-sync.target
+Wants=network-online.target user@__USER_UID__.service
+After=network-online.target user@__USER_UID__.service
 ConditionPathExists=/dev/tty1
 
 [Service]
@@ -245,7 +245,7 @@ TTYPath=/dev/tty1
 TTYReset=yes
 TTYVHangup=yes
 StandardInput=tty
-StandardOutput=journal
+StandardOutput=null
 StandardError=journal
 
 Restart=always
