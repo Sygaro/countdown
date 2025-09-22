@@ -205,26 +205,56 @@ def _extract_action_name() -> tuple[str, str]:
     return action, name
 
 # ── sys/service ────────────────────────────────────────────────────────────────
-@bp.route("/sys/service", methods=["GET","POST"])
+@bp.post("/sys/service")
 @require_password
 def sys_service():
-    """{ action: restart|reload|start|stop|status, name: app|web|kiosk }"""
-    action, name = _extract_action_name()
+    """POST { action: restart|reload|start|stop|status, name: app|web|kiosk }
+       Bakoverkompatibel: støtter både JSON og form-encoded."""
+    # Les først fra form/query (typisk for eldre frontend), deretter JSON
+    action = (request.values.get("action") or "").strip().lower()
+    name   = (request.values.get("name")   or "").strip().lower()
+    if (not action or not name) and _is_json_request():
+        data = request.get_json(silent=True) or {}
+        if isinstance(data, dict):
+            action = action or str(data.get("action") or "").strip().lower()
+            name   = name   or str(data.get("name")   or "").strip().lower()
+
     services = _svc_map()
     if name not in services:
-        return jsonify(ok=False, error=f"Unknown service '{name}'", allowed=list(services.keys())), 400
-    if action not in {"restart","reload","start","stop","status"}:
+        return (
+            jsonify(ok=False, error=f"Unknown service '{name}'", allowed=list(services.keys())),
+            400,
+        )
+    if action not in {"restart", "reload", "start", "stop", "status"}:
         return jsonify(ok=False, error=f"Invalid action '{action}'"), 400
 
-    meta = services[name]; unit = meta["unit"]; scope = meta["scope"]
-    cmd = ([action,"--no-block",unit] if action in {"restart","start","stop","reload"} else [action,unit])
+    meta = services[name]
+    unit = meta["unit"]
+    scope = meta["scope"]
 
-    if scope == "user":
-        ok, out, err, rc = _run_user_systemctl(cmd)
+    base = ["systemctl"] + (["--user"] if scope == "user" else [])
+    # --no-block for å ikke henge API-responsen
+    args = list(base)
+    if action in {"restart", "start", "stop", "reload"}:
+        args += [action, "--no-block", unit]
     else:
-        ok, out, err, rc = _run_cmd(["systemctl", *cmd])
+        args += [action, unit]
 
-    return jsonify(ok=(rc==0), rc=rc, stdout=out, stderr=err, service=unit, scope=scope, action=action), (200 if rc==0 else 202)
+    ok, out, err, rc = _run_cmd(args)
+    status_code = 200 if rc == 0 else 202  # 202 = accepted/igangsatt
+    return (
+        jsonify(
+            ok=(rc == 0),
+            rc=rc,
+            stdout=out,
+            stderr=err,
+            service=unit,
+            scope=scope,
+            action=action,
+        ),
+        status_code,
+    )
+
 
 # ── alias-endepunkt (bakoverkomp) ─────────────────────────────────────────────
 @bp.post("/sys/restart-app")
@@ -243,12 +273,15 @@ def sys_kiosk_restart_alias():
 @bp.post("/sys/reboot")
 @require_password
 def sys_reboot():
+    # Kjør whitelista helper (NOPASSWD i sudoers)
     ok, out, err, rc = _run_cmd(["/usr/local/sbin/cdown-reboot"])
     return jsonify(ok=ok, rc=rc, stdout=out, stderr=err), (200 if ok else 500)
+
 
 @bp.post("/sys/shutdown")
 @require_password
 def sys_shutdown():
+    # Kjør whitelista helper (NOPASSWD i sudoers)
     ok, out, err, rc = _run_cmd(["/usr/local/sbin/cdown-shutdown"])
     return jsonify(ok=ok, rc=rc, stdout=out, stderr=err), (200 if ok else 500)
 
