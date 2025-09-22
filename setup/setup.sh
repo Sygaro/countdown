@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 USERNAME="reidar"
 SAMBA_CONF="/etc/samba/smb.conf"
@@ -17,19 +17,20 @@ else
     sudo usermod -aG sudo $USERNAME
 fi
 
-echo "=== Oppdaterer system og installerer pakker ==="
-sudo apt update
+echo "=== Oppdaterer systempakker ==="
+sudo apt-get update
 echo "=== Oppdaterer system og installerer pakker ==="
 sudo DEBIAN_FRONTEND=noninteractive \
-apt -o Dpkg::Options::="--force-confnew" \
-    -o Dpkg::Options::="--force-confold" \
-    full-upgrade -y
+  apt-get -o Dpkg::Options::="--force-confnew" \
+          -o Dpkg::Options::="--force-confold" \
+          -y full-upgrade
 
 # --force-confnew = bruk alltid den nye filen fra pakken
 # --force-confold = behold alltid din eksisterende fil
 # --force-confdef = bruk standardvalg automatisk der det er mulig
 
-sudo  instalaptl -y git samba htop vim curl wget tree net-tools nmap
+sudo apt-get install -y git samba htop vim curl wget tree net-tools nmap
+sudo apt-get autoremove -y
 
 echo "=== Legger til aliaser i $BASHRC ==="
 ALIASES=$(cat <<'EOF'
