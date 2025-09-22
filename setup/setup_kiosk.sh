@@ -301,20 +301,14 @@ EOF
 
 ### ─────────────────────────────────────────────────────────────────────────────
 ### X) Root-helpers for diag + smal sudoers (NOPASSWD kun for disse)
-###     - cdown-restart   -> restart countdown.service
-###     - cdown-reboot    -> system reboot
-###     - cdown-shutdown  -> system poweroff
-###  Idempotent: safe å kjøre flere ganger.
+###     - cdown-restart   -> restart countdown.service (user-scope)
+###     - cdown-reboot    -> system reboot (system-scope)
+###     - cdown-shutdown  -> system poweroff (system-scope)
+### Idempotent.
 ### ─────────────────────────────────────────────────────────────────────────────
 echo "==> Installerer countdown root-helpers + sudoers…"
 
-# Helper: restart app-tjenesten
-install -m 0755 -o root -g root /dev/stdin /usr/local/sbin/cdown-restart <<'SH'
-#!/bin/sh
-exec /usr/bin/systemctl restart --no-block --quiet --fail countdown.service
-SH
-
-# Helper: reboot
+# Helper: restart app (USER-SCOPE via --user)
 install -m 0755 -o root -g root /dev/stdin /usr/local/sbin/cdown-restart <<'SH'
 #!/bin/sh
 set -eu
@@ -322,22 +316,26 @@ APP_USER="__APP_USER__"
 APP_UID="__APP_UID__"
 export XDG_RUNTIME_DIR="/run/user/${APP_UID}"
 if RUNUSER="$(command -v runuser 2>/dev/null)"; then
-    exec "$RUNUSER" -u "$APP_USER" -- systemctl --user restart --no-block --quiet --fail countdown.service
+  exec "$RUNUSER" -u "$APP_USER" -- systemctl --user restart --no-block --quiet --fail countdown.service
 else
-    exec su -s /bin/sh - "$APP_USER" -c "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR systemctl --user restart --no-block --quiet --fail countdown.service"
+  exec su -s /bin/sh - "$APP_USER" -c "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR systemctl --user restart --no-block --quiet --fail countdown.service"
 fi
 SH
 sed -i -e "s#__APP_USER__#${USER_NAME}#g" -e "s#__APP_UID__#${USER_UID}#g" /usr/local/sbin/cdown-restart
 
+# Helper: reboot (SYSTEM-SCOPE)
+install -m 0755 -o root -g root /dev/stdin /usr/local/sbin/cdown-reboot <<'SH'
+#!/bin/sh
+exec /usr/sbin/reboot
+SH
 
-# Helper: shutdown
+# Helper: shutdown (SYSTEM-SCOPE)
 install -m 0755 -o root -g root /dev/stdin /usr/local/sbin/cdown-shutdown <<'SH'
 #!/bin/sh
 exec /usr/sbin/poweroff
 SH
 
-# Sudoers-regel – kun disse tre helperne uten passord for ${USER_NAME}
-# (bruk visudo-syntaks-sjekk ved å skrive via temp og så move)
+# Sudoers-regel – NOPASSWD kun for de tre helperne over
 TMP_SUDOERS="$(mktemp)"
 cat > "${TMP_SUDOERS}" <<EOF
 # Countdown kiosk: tillat begrensede handlinger uten passord
@@ -348,11 +346,11 @@ visudo -c -f "${TMP_SUDOERS}" >/dev/null 2>&1 && \
   { echo "FEIL: sudoers-validering feilet – endrer ingenting."; rm -f "${TMP_SUDOERS}"; exit 1; }
 rm -f "${TMP_SUDOERS}"
 
-# Hurtig sanity-check (ikke fatal)
+# Non-invasive sanity check
 if sudo -u "${USER_NAME}" -n /usr/local/sbin/cdown-restart >/dev/null 2>&1; then
   echo "   → sudoers + user-restart OK."
 else
-  echo "   → OBS: restart via user-service feiler. Sjekk sudoers og countdown.service (user)."
+  echo "   → OBS: restart via user-service feiler. Sjekk /etc/sudoers.d/countdown og user@UID."
 fi
 
 
