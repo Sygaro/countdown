@@ -3,8 +3,12 @@
 #          konsistent feilmeldingsformat, tydelige statuskoder, og server_time i alle svar.
 
 from __future__ import annotations
-import shlex, subprocess, re, time
-from datetime import datetime, timezone
+import os
+import re
+import shlex
+import subprocess
+import time
+from datetime import datetime
 from typing import Any, Dict, Tuple
 
 from flask import Blueprint, request, jsonify, Response, current_app
@@ -23,8 +27,8 @@ from ..auth import require_password
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
-# === Utilities =================================================================
 
+# === Utilities =================================================================
 
 def _now_iso() -> str:
     return datetime.now(TZ).isoformat()
@@ -81,25 +85,30 @@ def _coerce_positive_int(v: Any) -> int | None:
 
 
 def _run_cmd(args, timeout: int = 8) -> Tuple[bool, str, str, int]:
-    """Kjør hvitlistede kommandoer uten shell. Prøv sudo -n, fall tilbake uten sudo."""
+    """
+    Kjør kommando med forsøk på sudo først (NOPASSWD), fall tilbake uten sudo.
+    Bruk denne KUN for system-scope kommandoer.
+    """
     try:
         r = subprocess.run(
             ["sudo", "-n", *args], capture_output=True, text=True, timeout=timeout
         )
         if r.returncode == 0:
-            return (
-                True,
-                (r.stdout or "").strip(),
-                (r.stderr or "").strip(),
-                r.returncode,
-            )
+            return True, (r.stdout or "").strip(), (r.stderr or "").strip(), r.returncode
         r2 = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
-        return (
-            (r2.returncode == 0),
-            (r2.stdout or "").strip(),
-            (r2.stderr or "").strip(),
-            r2.returncode,
-        )
+        return (r2.returncode == 0), (r2.stdout or "").strip(), (r2.stderr or "").strip(), r2.returncode
+    except Exception as e:
+        return False, "", str(e), -1
+
+
+def _run_cmd_direct(args, timeout: int = 8) -> Tuple[bool, str, str, int]:
+    """
+    Kjør kommando uten sudo. Brukes for user-scope (systemctl --user)
+    for å unngå å forstyrre user-bus med root/sudo.
+    """
+    try:
+        r = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
+        return (r.returncode == 0), (r.stdout or "").strip(), (r.stderr or "").strip(), r.returncode
     except Exception as e:
         return False, "", str(e), -1
 
@@ -114,7 +123,6 @@ def _parse_kv(text: str) -> dict:
 
 
 # === Config/defaults ===========================================================
-
 
 @bp.get("/defaults")
 def api_defaults() -> Response:
@@ -136,15 +144,11 @@ def api_get_config() -> Response:
 @require_password
 def api_post_config() -> Response:
     if not _is_json_request():
-        return _json_err(
-            "expected application/json", status=415, code="unsupported_media_type"
-        )
+        return _json_err("expected application/json", status=415, code="unsupported_media_type")
 
     data = request.get_json(silent=True) or {}
     if not isinstance(data, dict):
-        return _json_err(
-            "payload must be a JSON object", status=400, code="bad_request"
-        )
+        return _json_err("payload must be a JSON object", status=400, code="bad_request")
 
     try:
         # 1) Eventuelt bytte modus
@@ -155,9 +159,7 @@ def api_post_config() -> Response:
                 daily_time=str(data.get("daily_time") or ""),
                 once_at=str(data.get("once_at") or ""),
                 duration_minutes=_coerce_int_or_none(data.get("duration_minutes")),
-                clock=(
-                    data.get("clock") if isinstance(data.get("clock"), dict) else None
-                ),
+                clock=(data.get("clock") if isinstance(data.get("clock"), dict) else None),
             )
         else:
             cfg = load_config()
@@ -207,21 +209,16 @@ def api_post_config() -> Response:
 
 # === Duration controls =========================================================
 
-
 @bp.post("/start-duration")
 @require_password
 def api_start_duration() -> Response:
     if not _is_json_request():
-        return _json_err(
-            "expected application/json", status=415, code="unsupported_media_type"
-        )
+        return _json_err("expected application/json", status=415, code="unsupported_media_type")
 
     data = request.get_json(silent=True) or {}
     minutes = _coerce_positive_int(data.get("minutes"))
     if minutes is None:
-        return _json_err(
-            "'minutes' must be a positive integer", status=400, code="validation_error"
-        )
+        return _json_err("'minutes' must be a positive integer", status=400, code="validation_error")
 
     try:
         cfg = start_duration(minutes)
@@ -258,21 +255,17 @@ def status() -> Response:
 
 # === Meta: routes listing ======================================================
 
-
 @bp.get("/_routes")
 def api_routes():
     routes = []
     for r in current_app.url_map.iter_rules():
         meths = getattr(r, "methods", set()) or set()
-        methods = sorted(
-            m for m in meths if m in {"GET", "POST", "PUT", "DELETE", "PATCH"}
-        )
+        methods = sorted(m for m in meths if m in {"GET", "POST", "PUT", "DELETE", "PATCH"})
         routes.append({"rule": str(r), "endpoint": r.endpoint, "methods": methods})
     return jsonify(ok=True, routes=routes)
 
 
 # === System/services helpers ===================================================
-
 
 def _svc_map() -> dict:
     """name -> {unit, scope}; 'web' er alias til 'app' for bakoverkomp."""
@@ -283,8 +276,16 @@ def _svc_map() -> dict:
     }
 
 
-# === Service control endpoints ================================================
+def _run_user_systemctl(cmd: list[str], timeout: int = 8) -> Tuple[bool, str, str, int]:
+    """
+    Kjør systemctl --user i *denne* brukerens session, uten sudo.
+    Forutsetter at appen kjører som riktig bruker (gunicorn user-service).
+    """
+    base = ["systemctl", "--user"]
+    return _run_cmd_direct(base + cmd, timeout=timeout)
 
+
+# === Service control endpoints ================================================
 
 @bp.post("/sys/service")
 @require_password
@@ -296,14 +297,7 @@ def sys_service():
     services = _svc_map()
 
     if name not in services:
-        return (
-            jsonify(
-                ok=False,
-                error=f"Unknown service '{name}'",
-                allowed=list(services.keys()),
-            ),
-            400,
-        )
+        return jsonify(ok=False, error=f"Unknown service '{name}'", allowed=list(services.keys())), 400
     if action not in {"restart", "reload", "start", "stop", "status"}:
         return jsonify(ok=False, error=f"Invalid action '{action}'"), 400
 
@@ -311,26 +305,21 @@ def sys_service():
     unit = meta["unit"]
     scope = meta["scope"]
 
-    base = ["systemctl"] + (["--user"] if scope == "user" else [])
-    # --no-block for å unngå at vi dreper vår egen HTTP-respons
-    args = list(base)
+    # Bygg kommando
     if action in {"restart", "start", "stop", "reload"}:
-        args += [action, "--no-block", unit]
+        cmd = [action, "--no-block", unit]
     else:
-        args += [action, unit]
+        cmd = [action, unit]
 
-    ok, out, err, rc = _run_cmd(args)
+    # Kjør i riktig scope
+    if scope == "user":
+        ok, out, err, rc = _run_user_systemctl(cmd)
+    else:
+        ok, out, err, rc = _run_cmd(["systemctl", *cmd])
+
     status_code = 200 if rc == 0 else 202  # 202 = accepted/igangsatt
     return (
-        jsonify(
-            ok=(rc == 0),
-            rc=rc,
-            stdout=out,
-            stderr=err,
-            service=unit,
-            scope=scope,
-            action=action,
-        ),
+        jsonify(ok=(rc == 0), rc=rc, stdout=out, stderr=err, service=unit, scope=scope, action=action),
         status_code,
     )
 
@@ -338,19 +327,20 @@ def sys_service():
 @bp.post("/sys/reboot")
 @require_password
 def sys_reboot():
-    ok, out, err, rc = _run_cmd(["systemctl", "reboot"])
+    # Bruk helper som er whitelista i sudoers (NOPASSWD)
+    ok, out, err, rc = _run_cmd(["/usr/local/sbin/cdown-reboot"])
     return jsonify(ok=ok, rc=rc, stdout=out, stderr=err), (200 if ok else 500)
 
 
 @bp.post("/sys/shutdown")
 @require_password
 def sys_shutdown():
-    ok, out, err, rc = _run_cmd(["systemctl", "poweroff"])
+    # Bruk helper som er whitelista i sudoers (NOPASSWD)
+    ok, out, err, rc = _run_cmd(["/usr/local/sbin/cdown-shutdown"])
     return jsonify(ok=ok, rc=rc, stdout=out, stderr=err), (200 if ok else 500)
 
 
 # === NTP utilities (robust last-contact) ======================================
-
 
 def _ntp_last_sync_from_journal(max_lines: int = 500):
     """
@@ -358,16 +348,7 @@ def _ntp_last_sync_from_journal(max_lines: int = 500):
     basert på systemd journal. Bruker -o short-unix for enkel tidsstempel-parsing.
     """
     ok, out, err, rc = _run_cmd(
-        [
-            "journalctl",
-            "-u",
-            "systemd-timesyncd",
-            "--no-pager",
-            "-n",
-            str(max_lines),
-            "-o",
-            "short-unix",
-        ],
+        ["journalctl", "-u", "systemd-timesyncd", "--no-pager", "-n", str(max_lines), "-o", "short-unix"],
         timeout=6,
     )
     if not ok or not out:
@@ -379,11 +360,7 @@ def _ntp_last_sync_from_journal(max_lines: int = 500):
             continue
         ts_epoch = float(m.group(1))
         msg = m.group(2)
-        if (
-            ("Initial clock synchronization" in msg)
-            or ("Synchronized to time server" in msg)
-            or ("Contacted time server" in msg)
-        ):
+        if ("Initial clock synchronization" in msg) or ("Synchronized to time server" in msg) or ("Contacted time server" in msg):
             src = None
             m2 = re.search(r"server\s+([0-9A-Za-z\.\-:]+)(?:[:\s]|$)", msg)
             if m2:
@@ -469,11 +446,7 @@ def _compute_ntp_payload() -> dict:
         "ServerAddress": ts.get("ServerAddress"),
         "LastSyncUSec": ts.get("LastSyncUSec"),
         "LastContactMS": last_ms,
-        "LastContactISO": (
-            datetime.fromtimestamp(last_ms / 1000, tz=TZ).isoformat()
-            if last_ms
-            else None
-        ),
+        "LastContactISO": (datetime.fromtimestamp(last_ms / 1000, tz=TZ).isoformat() if last_ms else None),
         "LastContactSource": src,
         "NTPMessage": base.get("NTPMessage"),
         "PollIntervalUSec": ts.get("PollIntervalUSec"),
@@ -484,7 +457,6 @@ def _compute_ntp_payload() -> dict:
 
 
 # === NTP/API endpoints =========================================================
-
 
 @bp.get("/sys/ntp-status")
 @require_password
@@ -501,16 +473,12 @@ def sys_ntp_status():
 @require_password
 def sys_about_status():
     """Aggregert metadata/status for About-siden (inkl. starttid og tjenester)."""
-    import os, platform
+    import platform
 
     # Versjon/commit (fra env hvis tilgjengelig, ellers git)
     ver = (os.environ.get("COUNTDOWN_VERSION") or "").strip() or None
     ok_git, out_git, _, _ = _run_cmd(["git", "rev-parse", "--short", "HEAD"])
-    commit = (
-        out_git
-        if ok_git and out_git
-        else (os.environ.get("COUNTDOWN_COMMIT") or "").strip() or None
-    )
+    commit = out_git if ok_git and out_git else (os.environ.get("COUNTDOWN_COMMIT") or "").strip() or None
 
     # OS / HW
     uname = platform.uname()
@@ -542,18 +510,28 @@ def sys_about_status():
     for name, meta in services_map.items():
         unit = meta["unit"]
         scope = meta["scope"]
-        base = ["systemctl"] + (["--user"] if scope == "user" else [])
-        ok_is, out_is, err_is, _ = _run_cmd(base + ["is-active", unit])
-        active = out_is.strip() == "active"
-        ok_show, out_show, err_show, _ = _run_cmd(
-            base
-            + [
+
+        if scope == "user":
+            # Kjør uten sudo for å bruke korrekt user-bus
+            ok_is, out_is, err_is, _ = _run_user_systemctl(["is-active", unit])
+            active = (out_is.strip() == "active")
+            ok_show, out_show, err_show, _ = _run_user_systemctl([
                 "show",
                 unit,
                 "--no-pager",
                 "--property=ActiveState,SubState,ActiveEnterTimestamp,ExecMainStartTimestamp,Description",
-            ]
-        )
+            ])
+        else:
+            ok_is, out_is, err_is, _ = _run_cmd(["systemctl", "is-active", unit])
+            active = (out_is.strip() == "active")
+            ok_show, out_show, err_show, _ = _run_cmd([
+                "systemctl",
+                "show",
+                unit,
+                "--no-pager",
+                "--property=ActiveState,SubState,ActiveEnterTimestamp,ExecMainStartTimestamp,Description",
+            ])
+
         info = {}
         if ok_show:
             for line in out_show.splitlines():

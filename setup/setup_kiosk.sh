@@ -315,10 +315,20 @@ exec /usr/bin/systemctl restart --no-block --quiet --fail countdown.service
 SH
 
 # Helper: reboot
-install -m 0755 -o root -g root /dev/stdin /usr/local/sbin/cdown-reboot <<'SH'
+install -m 0755 -o root -g root /dev/stdin /usr/local/sbin/cdown-restart <<'SH'
 #!/bin/sh
-exec /usr/sbin/reboot
+set -eu
+APP_USER="__APP_USER__"
+APP_UID="__APP_UID__"
+export XDG_RUNTIME_DIR="/run/user/${APP_UID}"
+if RUNUSER="$(command -v runuser 2>/dev/null)"; then
+    exec "$RUNUSER" -u "$APP_USER" -- systemctl --user restart --no-block --quiet --fail countdown.service
+else
+    exec su -s /bin/sh - "$APP_USER" -c "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR systemctl --user restart --no-block --quiet --fail countdown.service"
+fi
 SH
+sed -i -e "s#__APP_USER__#${USER_NAME}#g" -e "s#__APP_UID__#${USER_UID}#g" /usr/local/sbin/cdown-restart
+
 
 # Helper: shutdown
 install -m 0755 -o root -g root /dev/stdin /usr/local/sbin/cdown-shutdown <<'SH'
@@ -339,11 +349,12 @@ visudo -c -f "${TMP_SUDOERS}" >/dev/null 2>&1 && \
 rm -f "${TMP_SUDOERS}"
 
 # Hurtig sanity-check (ikke fatal)
-if sudo -n /usr/local/sbin/cdown-restart >/dev/null 2>&1; then
-  echo "   → sudoers OK (cdown-restart kan kjøres uten passord)."
+if sudo -u "${USER_NAME}" -n /usr/local/sbin/cdown-restart >/dev/null 2>&1; then
+  echo "   → sudoers + user-restart OK."
 else
-  echo "   → OBS: sudoers ser ikke aktiv ut. Sjekk /etc/sudoers.d/countdown"
+  echo "   → OBS: restart via user-service feiler. Sjekk sudoers og countdown.service (user)."
 fi
+
 
 
 
