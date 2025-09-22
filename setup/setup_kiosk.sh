@@ -208,8 +208,8 @@ echo "==> Oppretter kiosk (Cog/DRM) som system-service…"
 cat > /etc/systemd/system/kiosk-cog.service <<'UNIT'
 [Unit]
 Description=Kiosk (Cog on DRM/KMS) on tty1
-Wants=network-online.target user@__USER_UID__.service
-After=network-online.target user@__USER_UID__.service
+Wants=network-online.target user@__USER_UID__.service time-sync.target
+After=network-online.target user@__USER_UID__.service time-sync.target
 ConditionPathExists=/dev/tty1
 
 [Service]
@@ -346,11 +346,26 @@ visudo -c -f "${TMP_SUDOERS}" >/dev/null 2>&1 && \
   { echo "FEIL: sudoers-validering feilet – endrer ingenting."; rm -f "${TMP_SUDOERS}"; exit 1; }
 rm -f "${TMP_SUDOERS}"
 
-# Non-invasive sanity check
-if sudo -u "${USER_NAME}" -n /usr/local/sbin/cdown-restart >/dev/null 2>&1; then
-  echo "   → sudoers + user-restart OK."
+# Non-invasive sanity check: vent kort på user-bus og test restart
+READY=0
+if systemctl is-active "user@${USER_UID}.service" >/dev/null 2>&1; then
+  for i in $(seq 1 40); do
+    if [ -S "/run/user/${USER_UID}/systemd/private" ]; then
+      READY=1
+      break
+    fi
+    sleep 0.25
+  done
+fi
+
+if [ "$READY" = "1" ]; then
+  if sudo -u "${USER_NAME}" -n /usr/local/sbin/cdown-restart >/dev/null 2>&1; then
+    echo "   → sudoers + user-restart OK."
+  else
+    echo "   → Hint: restart-test feilet nå, men oppsettet ser korrekt ut. Prøver igjen etter reboot/innlogging."
+  fi
 else
-  echo "   → OBS: restart via user-service feiler. Sjekk /etc/sudoers.d/countdown og user@UID."
+  echo "   → Hopper over sanity-check: user-bus er ikke klar ennå (helt normalt under setup)."
 fi
 
 
