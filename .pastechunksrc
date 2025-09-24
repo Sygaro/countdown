@@ -1,0 +1,28 @@
+# .pastechunksrc
+ROOT_DIR=/home/reidar/countdown
+OUT_DIR=/home/reidar/countdown/paste_out
+MAX_LINES=4000
+ALLOW_BINARY=0
+
+INCLUDES='
+**/{admin}.{js}
+'
+
+EXCLUDES='
+**/.git/**
+**/venv/**
+**/node_modules/**
+**/__pycache__/**
+**/.pytest_cache/**
+**/.mypy_cache/**
+**/.DS_Store
+.vscode/settings.json
+'
+
+# *.md
+#**/tools /**
+#**/bin
+#**/setup
+#app/**/*.py
+#tools/**/*.py
+#static/**/*.{js,css,html}

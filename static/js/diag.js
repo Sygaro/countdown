@@ -80,7 +80,7 @@
     let tries = 0;
     const attach = async () => {
       const ok = await ensureHostPill();
-      if (ok || tries > 30) return;     // ~15s maks
+      if (ok || tries > 30) return; // ~15s maks
       tries++;
       setTimeout(attach, 500);
     };

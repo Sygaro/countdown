@@ -1,40 +1,31 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-make_paste_chunks.py
-Samler tekstfiler fra et repo i én/flere utdatafiler klare for innliming i chat,
-uten å splitte enkeltfiler. Hver fil pakkes i en ramme med metadata.
-
-Bruk:
-  python3 tools/make_paste_chunks.py --root . --out ./paste_out \
-    --max-lines 4000 \
-    --include "app/**/*.py" \
-    --include "static/**/*.{js,css,html}" \
-    --exclude "**/.git/**" --exclude "**/venv/**" --exclude "**/node_modules/**"
-
-Endringer:
-- Støtter {a,b,c}-mønstre (brace expansion) i include/exclude.
-- Normaliserer mønstre: fjerner ledende '/' (må være relative for Path.glob()).
-- Robust filtrering av excludes.
+make_paste_chunks.py (ryddet)
+- Ryddet DEFAULT_EXCLUDES (ingen duplikater, ingen feilmellomrom i globs)
+- Nytt: --list-only for å se treff uten å skrive filer
 """
 import argparse
 import hashlib
-import os
 from pathlib import Path
 from typing import List, Tuple
 
 DEFAULT_INCLUDES = [
     "**/*.py", "**/*.js", "**/*.ts", "**/*.tsx",
     "**/*.css", "**/*.scss", "**/*.html",
-    "**/*.json", "**/*.md", "**/*.sh"
+    "**/*.json", "**/*.md", "**/*.sh",
 ]
+
+# Ryddet liste
 DEFAULT_EXCLUDES = [
     "**/.git/**", "**/.hg/**", "**/.svn/**",
     "**/venv/**", "**/.venv/**", "**/env/**",
     "**/node_modules/**", "**/__pycache__/**",
     "**/.mypy_cache/**", "**/.pytest_cache/**",
-    "*.md", "**/tools /**", "**/bin /**", "**/setup /**", "**/.git/**", "**/venv/**", "**/node_modules/**","**/.DS_Store"
-
+    "**/.DS_Store",
+    # Hvis du alltid vil utelate markdown:
+    # "*.md",
+    # Prosjektspesifikke mapper kan legges i .pastechunksrc i stedet
 ]
 
 FRAME_TOP = "===== BEGIN FILE ====="
@@ -42,7 +33,10 @@ FRAME_END = "===== END FILE ====="
 CODE_BEGIN = "----- BEGIN CODE -----"
 CODE_END = "----- END CODE -----"
 
+import os
+
 def sha256_file(path: Path) -> str:
+    import hashlib
     h = hashlib.sha256()
     with path.open("rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
@@ -67,10 +61,6 @@ def normalize_newlines(s: str) -> str:
     return s.replace("\r\n", "\n").replace("\r", "\n")
 
 def _brace_expand_one(pattern: str) -> List[str]:
-    """
-    Utvider første forekomst av {...} i et mønster.
-    Støtter én eller flere grupper rekursivt.
-    """
     start = pattern.find("{")
     if start == -1:
         return [pattern]
@@ -81,7 +71,6 @@ def _brace_expand_one(pattern: str) -> List[str]:
         elif pattern[i] == "}":
             depth -= 1
             if depth == 0:
-                # funnet avslutning
                 inside = pattern[start+1:i]
                 before = pattern[:start]
                 after = pattern[i+1:]
@@ -89,16 +78,13 @@ def _brace_expand_one(pattern: str) -> List[str]:
                 expanded = []
                 for p in parts:
                     expanded.append(before + p + after)
-                # rekursiv ekspansjon i tilfelle flere brace-sett
                 result = []
                 for e in expanded:
                     result.extend(_brace_expand_one(e))
                 return result
-    # hvis vi havner her: ingen avsluttende '}', returner uendret
     return [pattern]
 
 def brace_expand(pattern: str) -> List[str]:
-    # Kjør rekursiv ekspansjon til alle er uten braces
     acc = [pattern]
     changed = True
     while changed:
@@ -113,7 +99,6 @@ def brace_expand(pattern: str) -> List[str]:
     return acc
 
 def normalize_pattern(pat: str) -> str:
-    # Fjern ledende '/' slik at Path.glob kan bruke det (må være relativt)
     while pat.startswith("/"):
         pat = pat[1:]
     return pat
@@ -123,7 +108,6 @@ def expand_patterns(patterns: List[str]) -> List[str]:
     for pat in patterns:
         pat = normalize_pattern(pat)
         out.extend(brace_expand(pat))
-    # Fjern duplikater, bevar rekkefølge
     seen = set()
     uniq = []
     for p in out:
@@ -137,28 +121,23 @@ def collect_files(root: Path, includes: List[str], excludes: List[str]) -> List[
     includes = expand_patterns(includes)
     excludes = expand_patterns(excludes)
 
-    # Samle inkluderte filer
     files = set()
     for pattern in includes:
         for p in root.glob(pattern):
             if p.is_file():
                 files.add(p.resolve())
 
-    # Bygg ekskluder-mengde
     excluded = set()
     for pattern in excludes:
         for p in root.glob(pattern):
             if p.is_file():
                 excluded.add(p.resolve())
-            else:
-                # Hvis mappe: ekskluder alt under
-                if p.exists() and p.is_dir():
-                    for sub in p.rglob("*"):
-                        if sub.is_file():
-                            excluded.add(sub.resolve())
+            elif p.exists() and p.is_dir():
+                for sub in p.rglob("*"):
+                    if sub.is_file():
+                        excluded.add(sub.resolve())
 
-    result = sorted([p for p in files if p not in excluded])
-    return result
+    return sorted([p for p in files if p not in excluded])
 
 def build_framed_block(path: Path, content: str, sha256: str) -> str:
     content = normalize_newlines(content)
@@ -173,8 +152,7 @@ def build_framed_block(path: Path, content: str, sha256: str) -> str:
         CODE_BEGIN,
     ]
     footer = [CODE_END, FRAME_END]
-    block = "\n".join(header) + "\n" + content + "\n" + "\n".join(footer) + "\n"
-    return block
+    return "\n".join(header) + "\n" + content + "\n" + "\n".join(footer) + "\n"
 
 def count_lines(s: str) -> int:
     return s.count("\n") + (0 if s.endswith("\n") else 1)
@@ -189,7 +167,7 @@ def write_chunks(blocks: List[Tuple[Path, str]], out_dir: Path, max_lines: int) 
     def flush():
         nonlocal buf, buf_lines, part
         if not buf:
-            return None
+            return
         out_path = out_dir / f"paste_{part:03d}.txt"
         with out_path.open("w", encoding="utf-8") as f:
             f.write("".join(buf))
@@ -228,6 +206,7 @@ def main():
     ap.add_argument("--include", action="append", default=None, help="Glob-mønster å inkludere (kan gjentas). Støtter {a,b,c}.")
     ap.add_argument("--exclude", action="append", default=None, help="Glob-mønster å ekskludere (kan gjentas). Støtter {a,b,c}.")
     ap.add_argument("--allow-binary", action="store_true", help="Tillat binærfiler (som hex dump). Default: hopper over.")
+    ap.add_argument("--list-only", action="store_true", help="Bare list filene som ville blitt inkludert og avslutt.")
     args = ap.parse_args()
 
     root = Path(args.root).resolve()
@@ -238,6 +217,12 @@ def main():
     sources = collect_files(root, includes, excludes)
     if not sources:
         print("Ingen filer funnet med de angitte mønstrene.")
+        return
+
+    if args.list_only:
+        print(f"{len(sources)} fil(er):")
+        for s in sources:
+            print("-", s.relative_to(root).as_posix())
         return
 
     blocks = []
@@ -264,7 +249,6 @@ def main():
     blocks.sort(key=lambda t: t[0].as_posix())
     outputs = write_chunks(blocks, out_dir, args.max_lines)
 
-    # Rekonstruer mapping (hvilke filer i hvilken paste_xxx.txt)
     mapping = []
     for out_file in outputs:
         with out_file.open("r", encoding="utf-8") as f:
@@ -278,7 +262,7 @@ def main():
     print(f"Skrev {len(outputs)} output-fil(er) til: {out_dir.as_posix()}")
     for p in outputs:
         with p.open("r", encoding="utf-8") as fh:
-            lc = sum(1 for _ in fh)
+          lc = sum(1 for _ in fh)
         print(f" - {p.name}  ({lc} linjer)")
     if skipped:
         print("\nHoppet over binær/ikke-UTF8-filer (bruk --allow-binary for å inkludere):")

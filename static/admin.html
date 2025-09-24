@@ -1,4 +1,9 @@
 <!doctype html>
+<!--
+# File: static/admin.html · # Purpose: Admin-GUI for Countdown (full funksjon, ingen size_vw/vh legacy)
+# Replaces: static/admin.html
+# Notes: Bruker kun size_vmin i alle relevante felter (digits/messages/clock). Støtter theme.background.dynamic.layer.
+-->
 <html lang="no">
   <head>
     <meta charset="utf-8" />
@@ -37,7 +42,7 @@
     </div>
 
     <main class="grid">
-      <!-- Modus -->
+      <!-- === Modus === -->
       <section class="card">
         <h2>Modus</h2>
         <label><input type="radio" name="mode" value="daily" /> Daglig klokkeslett</label>
@@ -54,7 +59,7 @@
         <p id="active_mode" class="muted">Aktiv modus: —</p>
       </section>
 
-      <!-- Start med varighet -->
+      <!-- === Start med varighet === -->
       <section class="card">
         <h2>Start med varighet</h2>
         <div class="row">
@@ -70,7 +75,7 @@
         <p class="hint">Starter alltid varighetsmodus umiddelbart.</p>
       </section>
 
-      <!-- Meldinger -->
+      <!-- === Meldinger === -->
       <section class="card">
         <h2>Meldinger</h2>
 
@@ -116,7 +121,7 @@
         <hr style="opacity: 0.15" />
       </section>
 
-      <!-- Tema for meldinger (eget kort) -->
+      <!-- === Tema for meldinger === -->
       <section class="card">
         <h2>Tema for meldinger</h2>
 
@@ -165,7 +170,7 @@
         </div>
       </section>
 
-      <!-- Nedtelling & atferd (samlet) -->
+      <!-- === Nedtelling & atferd === -->
       <section class="card">
         <h2>Nedtelling & atferd</h2>
 
@@ -195,7 +200,6 @@
 
         <hr style="opacity: 0.15" />
 
-        <!-- Flyttet til bunnen + hjelpetekst under feltet -->
         <div class="row">
           <label
             >Tidsformat → H:MM:SS når over (min)
@@ -207,20 +211,15 @@
         </div>
       </section>
 
-      <!-- Tall & farger (samlet) -->
+      <!-- === Tall & farger === -->
       <section class="card">
         <h2>Tall & farger</h2>
 
         <div class="row">
           <strong>Nedtelling</strong>
           <label
-            >Størrelse
-            <select id="digits_size_preset">
-              <option value="10">Liten</option>
-              <option value="14">Normal</option>
-              <option value="19">Stor</option>
-              <option value="23">Ekstra stor</option>
-            </select>
+            >Størrelse (vmin)
+            <input id="digits_size_vmin" type="number" min="4" max="60" step="0.5" />
           </label>
         </div>
 
@@ -254,7 +253,7 @@
         </div>
       </section>
 
-      <!-- Utseende – Bakgrunn (visningen) -->
+      <!-- === Utseende – Bakgrunn (visningen) === -->
       <section class="card">
         <h2>Utseende – Bakgrunn</h2>
         <div class="row">
@@ -266,6 +265,7 @@
               <option value="dark-grad">Mørk gradient</option>
               <option value="dynamic">Dynamisk bakgrunn</option>
               <option value="photo-tint">Foto m/tint</option>
+              
               <option value="photo-HP">Skole m/tint</option>
             </select>
           </label>
@@ -275,6 +275,8 @@
         <label><input type="radio" name="bg_mode" value="gradient" />Gradient</label>
         <label><input type="radio" name="bg_mode" value="dynamic" /> Dynamisk</label>
         <label><input type="radio" name="bg_mode" value="image" /> Bilde</label>
+        <label><input type="radio" name="bg_mode" value="picsum" /> Picsum (random foto)</label>
+
         <div id="bg_solid_cfg">
           <label>Farge <input id="bg_solid_color" type="color" value="#0b0f14" /></label>
         </div>
@@ -307,6 +309,14 @@
               <option value="image">Bilde</option>
             </select>
           </label>
+          <!-- Lagets plassering -->
+          <label
+            >Lagets plassering
+            <select id="bg_dyn_layer">
+              <option value="under" selected>Under innhold</option>
+              <option value="over">Over innhold (under overlays)</option>
+            </select>
+          </label>
         </div>
 
         <div id="bg_img_cfg">
@@ -324,8 +334,66 @@
             >Tint-opacity (0–1) <input id="bg_img_tint_op" type="number" min="0" max="1" step="0.05" value="0"
           /></label>
         </div>
+        <div id="bg_picsum_cfg">
+  <label>Fit
+    <select id="bg_picsum_fit">
+      <option>cover</option>
+      <option>contain</option>
+    </select>
+  </label>
+  <label>Blur (1–10)
+    <input id="bg_picsum_blur" type="number" min="0" max="10" step="1" value="0" />
+  </label>
+  <label><input id="bg_picsum_gray" type="checkbox" /> Grayscale</label>
+  <label><input id="bg_picsum_lock" type="checkbox" /> Lås på seed</label>
+  <label>Seed
+    <input id="bg_picsum_seed" type="text" placeholder="f.eks. skole-foaje" />
+
+  </label>
+   <label>Bildets ID
+    <input id="bg_picsum_id" type="number" min="1" step="1" placeholder="f.eks. 237" />
+  </label>
+
+  <small class="hint">Hvis ID er satt, brukes den i stedet for seed.</small>
+
+  <label>Tint-farge
+    <input id="bg_picsum_tint" type="color" value="#000000" />
+  </label>
+  <label>Tint-opacity (0–1)
+    <input id="bg_picsum_tint_op" type="number" min="0" max="1" step="0.05" value="0" />
+  </label>
+</div>
+
+<fieldset style="margin-top: .75rem">
+  <legend>Kuratert Picsum-liste</legend>
+  <div class="row" style="align-items:flex-start; gap: 12px">
+    <select id="bg_picsum_list" size="5" style="min-width: 280px"></select>
+    <div>
+      <label>Bildets ID
+        <input id="bg_picsum_item_id" type="number" min="1" step="1" placeholder="f.eks. 237" />
+      </label>
+      <label>Beskrivelse
+        <input id="bg_picsum_item_label" type="text" placeholder="valgfri tekst" />
+      </label>
+      <div class="row" style="gap: 8px; margin-top: 6px">
+        <button id="bg_picsum_add">Legg til / Oppdater</button>
+        <button id="bg_picsum_delete">Slett</button>
+        <button id="bg_picsum_use" class="primary">Bruk som bakgrunn</button>
+      </div>
+      <small class="hint">Tips: “Bruk som bakgrunn” setter feltet <em>Bildets ID</em> over (overstyrer seed/lock).</small>
+    </div>
+  </div>
+</fieldset>
+
+</div>
       </section>
-      <!-- Overlays (logo/grafikk) -->
+
+
+
+
+
+
+      <!-- === Overlays (logo/grafikk) === -->
       <section class="card" id="card_overlays">
         <h2>Overlays (logo/grafikk)</h2>
 
@@ -402,7 +470,7 @@
         </div>
       </section>
 
-      <!-- Klokke -->
+      <!-- === Klokke === -->
       <section class="card">
         <h2>Klokke</h2>
         <div class="row">
@@ -454,872 +522,16 @@
       </section>
     </main>
 
-    <script>
-      // Debounce
-      function debounce(fn, ms = 600) {
-        let t;
-        return (...a) => {
-          clearTimeout(t);
-          t = setTimeout(() => fn(...a), ms);
-        };
-      }
-      let overlaysLocal = []; // lokal redigerbar liste
+<!-- Scripts flyttet ut for vedlikeholdbarhet -->
+<!-- Scripts (ekstrahert) -->
+<script src="/static/js/contrast.js" defer></script>
+<script src="/static/js/admin.js" defer></script>
+<script src="/static/js/overlays_preview_fix.js" defer></script>
 
-      function overlayDefaults() {
-        return {
-          id: `logo-${Date.now()}`,
-          type: "image",
-          url: "",
-          position: "top-right",
-          size_vmin: 30,
-          opacity: 1.0,
-          offset_vw: 2,
-          offset_vh: 2,
-          z_index: 10,
-          visible_in: ["clock", "countdown"],
-          tint: { color: "#000000", opacity: 0.0, blend: "multiply" }, // NYTT
-        };
-      }
 
-      // Dyp flette (liten, trygg)
-      function deepMerge(base, patch) {
-        if (patch == null || typeof patch !== "object") return base;
-        const out = Array.isArray(base) ? [...base] : { ...base };
-        for (const [k, v] of Object.entries(patch)) {
-          if (v && typeof v === "object" && !Array.isArray(v)) {
-            out[k] = deepMerge(out[k] ?? {}, v);
-          } else {
-            out[k] = v;
-          }
-        }
-        return out;
-      }
-
-      (function () {
-        const $ = (s) => document.querySelector(s);
-        const $$ = (s) => Array.from(document.querySelectorAll(s));
-        const pill = $("#sync_pill"),
-          hint = $("#save_hint");
-        let lastCfg = null,
-          defaultsCache = null;
-
-        // -------- helpers --------
-        const val = (sel, def = "") => document.querySelector(sel)?.value ?? def;
-        const checked = (sel) => !!document.querySelector(sel)?.checked;
-        const num = (sel, def = 0) => {
-          const v = parseFloat(val(sel, ""));
-          return Number.isFinite(v) ? v : def;
-        };
-
-        // Mini-toast nederst til høyre
-        function showStatusToast(msg, tone = "info", ms = 2500) {
-          let el = document.getElementById("status_toast");
-          if (!el) {
-            el = document.createElement("div");
-            el.id = "status_toast";
-            el.setAttribute("aria-live", "polite");
-            document.body.appendChild(el);
-          }
-          // reset classes
-          el.className = "";
-          el.textContent = String(msg || "");
-          el.classList.add(tone || "info", "show"); // .ok | .warn | .error | .info
-
-          clearTimeout(el._hideTimer);
-          el._hideTimer = setTimeout(
-            () => {
-              el.classList.remove("show");
-            },
-            Math.max(600, Number(ms) || 1600),
-          );
-        }
-
-        function setTopbarHint(text, opts) {
-          const hint = document.getElementById("save_hint");
-          const bar = document.querySelector(".actions");
-          const save = document.getElementById("btn_save");
-          const msg = text || "";
-
-          if (hint) hint.title = msg;
-          if (bar) bar.title = msg;
-          if (save) save.title = msg;
-
-          // valgfri auto-clear
-          const ms = (opts && opts.ephemeralMs) || 0;
-          if (ms > 0) {
-            setTimeout(() => {
-              if (hint) hint.title = "";
-              if (bar) bar.title = "";
-              if (save) save.title = "";
-            }, ms);
-          }
-        }
-
-        async function fetchDefaults() {
-          if (defaultsCache) return defaultsCache;
-          const r = await fetch("/api/defaults");
-          const js = await r.json();
-          defaultsCache = js.defaults;
-          return defaultsCache;
-        }
-        function headers() {
-          const pwd = ($("#admin_password")?.value || "").trim();
-          const h = { "Content-Type": "application/json" };
-          if (pwd) h["X-Admin-Password"] = pwd;
-          return h;
-        }
-        const selMode = () => $$("input[name=mode]:checked")[0]?.value || "daily";
-        const selBgMode = () => $$("input[name=bg_mode]:checked")[0]?.value || "solid";
-
-        function lock() {
-          const m = selMode();
-          const bg = selBgMode();
-
-          // Modus-avhengig
-          const daily = $("#daily_time"),
-            onceAt = $("#once_at");
-          //if (daily) daily.disabled = m !== "daily";
-          if (onceAt) onceAt.disabled = m !== "once";
-
-          // Bakgrunn (visning)
-          $("#bg_solid_cfg") && ($("#bg_solid_cfg").style.display = bg === "solid" ? "block" : "none");
-          $("#bg_grad_cfg") && ($("#bg_grad_cfg").style.display = bg === "gradient" ? "block" : "none");
-          $("#bg_img_cfg") && ($("#bg_img_cfg").style.display = bg === "image" ? "block" : "none");
-          $("#bg_dyn_cfg") && ($("#bg_dyn_cfg").style.display = bg === "dynamic" ? "block" : "none");
-
-          // Klokke-felter er valgfrie – hvis de finnes, deaktiver utenom clock-modus
-          const isClock = m === "clock";
-          const own = !!$("#clk_use_own_msgs")?.checked;
-          $("#clk_with_seconds") && ($("#clk_with_seconds").disabled = false);
-          $("#clk_color") && ($("#clk_color").disabled = false);
-          $("#clk_size_vmin") && ($("#clk_size_vmin").disabled = false);
-          $("#clk_position") && ($("#clk_position").disabled = false);
-          $("#clk_msg_position") && ($("#clk_msg_position").disabled = false);
-          $("#clk_msg_align") && ($("#clk_msg_align").disabled = false);
-          $("#clk_use_own_msgs") && ($("#clk_use_own_msgs").disabled = false);
-          $("#clk_msg_primary") && ($("#clk_msg_primary").disabled = !own);
-          $("#clk_msg_secondary") && ($("#clk_msg_secondary").disabled = !own);
-        }
-        // -------- kontrast-hint (som før) --------
-        const hexToRgb = (h) => {
-          const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((h || "").trim());
-          return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [230, 237, 243];
-        };
-        const luminance = ([r, g, b]) => {
-          const a = [r, g, b].map((v) => {
-            v /= 255;
-            return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-          });
-          return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
-        };
-        const contrast = (c1, c2) => {
-          const L1 = luminance(hexToRgb(c1)),
-            L2 = luminance(hexToRgb(c2));
-          const [hi, lo] = L1 > L2 ? [L1, L2] : [L2, L1];
-          return (hi + 0.05) / (lo + 0.05);
-        };
-        function currentPreviewBgColor() {
-          const bgMode = selBgMode();
-          if (bgMode === "solid") return val("#bg_solid_color", "#0b0f14");
-          if (bgMode === "gradient") return val("#bg_grad_to", "#0b0f14");
-          if (bgMode === "dynamic") {
-            const base = document.querySelector("#bg_dyn_base")?.value || "auto";
-            if (base === "solid") return val("#bg_solid_color", "#0b0f14");
-            if (base === "gradient") return val("#bg_grad_to", "#0b0f14");
-            if (base === "image") return val("#bg_img_tint", "#000000"); // tint brukes som bakgrunnsmål
-            // auto – prioritet: image → gradient → solid
-            const hasImg = val("#bg_img_url", "").trim().length > 0;
-            if (hasImg) return val("#bg_img_tint", "#000000");
-            const gradTo = val("#bg_grad_to", "");
-            return gradTo || val("#bg_solid_color", "#0b0f14");
-          }
-          return val("#bg_img_tint", "#000000");
-        }
-
-        function updateDigitContrastHints() {
-          const bg = currentPreviewBgColor();
-          const set = (id, color) => {
-            const el = $(id);
-            if (!el) return;
-            const ratio = contrast(color, bg);
-            el.textContent = `kontrast ${ratio.toFixed(2)}${ratio >= 3 ? " ✔" : " ⚠"}`;
-            el.style.color = ratio >= 3 ? "#69db7c" : "#ffd166";
-          };
-          set("#c_contrast_normal", val("#color_normal", "#e6edf3"));
-          set("#c_contrast_warn", val("#color_warn", "#ffd166"));
-          set("#c_contrast_alert", val("#color_alert", "#ff6b6b"));
-          set("#c_contrast_over", val("#color_over", "#9ad0ff"));
-        }
-        function updateMessageContrastHints() {
-          const bg = currentPreviewBgColor();
-          const set = (id, color) => {
-            const el = $(id);
-            if (!el) return;
-            const ratio = contrast(color, bg);
-            el.textContent = `${ratio.toFixed(2)}${ratio >= 3 ? " ✔" : " ⚠"}`;
-            el.style.color = ratio >= 3 ? "#69db7c" : "#ffd166";
-          };
-          $("#m_contrast_p") && set("#m_contrast_p", val("#theme_p_color", "#9aa4b2"));
-          $("#m_contrast_s") && set("#m_contrast_s", val("#theme_s_color", "#9aa4b2"));
-        }
-
-        function updateClockContrastHint() {
-          const bg = currentPreviewBgColor(); // solid: solid, gradient: 'to', image: tint
-          const color = val("#clk_color", "#e6edf3");
-          const el = $("#clk_contrast");
-          if (!el) return;
-          const ratio = contrast(color, bg);
-          el.textContent = `kontrast ${ratio.toFixed(2)}${ratio >= 3 ? " ✔" : " ⚠"}`;
-          el.style.color = ratio >= 3 ? "#69db7c" : "#ffd166";
-        }
-
-        // -------- apply() --------
-        function apply(cfg, tick) {
-          lastCfg = cfg;
-
-          // Modus + info
-          ($(`input[name=mode][value=${cfg.mode || "daily"}]`) || {}).checked = true;
-          $("#daily_time") && ($("#daily_time").value = cfg.daily_time || "");
-          $("#once_at") && ($("#once_at").value = (cfg.once_at || "").replace("Z", ""));
-          $("#active_mode") &&
-            ($("#active_mode").textContent =
-              `Aktiv modus: ${cfg.mode} · Fase: ${tick?.mode || "—"} (${tick?.state || "—"})`);
-
-          // Meldinger
-          $("#show_message_primary") && ($("#show_message_primary").checked = !!cfg.show_message_primary);
-          $("#show_message_secondary") && ($("#show_message_secondary").checked = !!cfg.show_message_secondary);
-          $("#message_primary") && ($("#message_primary").value = cfg.message_primary || "");
-          $("#message_secondary") && ($("#message_secondary").value = cfg.message_secondary || "");
-
-          // Varsler/blink
-          $("#warn_minutes") && ($("#warn_minutes").value = cfg.warn_minutes ?? 4);
-          $("#alert_minutes") && ($("#alert_minutes").value = cfg.alert_minutes ?? 2);
-          $("#blink_seconds") && ($("#blink_seconds").value = cfg.blink_seconds ?? 10);
-          $("#overrun_minutes") && ($("#overrun_minutes").value = cfg.overrun_minutes ?? 1);
-
-          // Visning/oppførsel
-          $("#use_phase_colors") && ($("#use_phase_colors").checked = !!cfg.use_phase_colors);
-          $("#use_blink") && ($("#use_blink").checked = !!cfg.use_blink);
-          $("#color_normal") && ($("#color_normal").value = cfg.color_normal || "#e6edf3");
-          $("#color_warn") && ($("#color_warn").value = cfg.color_warn || "#ffd166");
-          $("#color_alert") && ($("#color_alert").value = cfg.color_alert || "#ff6b6b");
-          $("#color_over") && ($("#color_over").value = cfg.color_over || "#9ad0ff");
-          $("#show_target_time") && ($("#show_target_time").checked = !!cfg.show_target_time);
-          $("#target_time_after") && ($("#target_time_after").value = cfg.target_time_after || "secondary");
-          $("#messages_position") && ($("#messages_position").value = cfg.messages_position || "below");
-          $("#hms_threshold_minutes") && ($("#hms_threshold_minutes").value = cfg.hms_threshold_minutes ?? 60);
-
-          // Theme
-          const p = cfg?.theme?.messages?.primary || {};
-          const s = cfg?.theme?.messages?.secondary || {};
-          $("#theme_p_size_vmin") && ($("#theme_p_size_vmin").value = String(p.size_vmin ?? 6));
-          $("#theme_p_weight") && ($("#theme_p_weight").value = String(p.weight ?? 600));
-          $("#theme_p_color") && ($("#theme_p_color").value = String(p.color ?? "#9aa4b2"));
-          $("#theme_s_size_vmin") && ($("#theme_s_size_vmin").value = String(s.size_vmin ?? 4));
-          $("#theme_s_weight") && ($("#theme_s_weight").value = String(s.weight ?? 400));
-          $("#theme_s_color") && ($("#theme_s_color").value = String(s.color ?? "#9aa4b2"));
-          $("#digits_size_preset") && ($("#digits_size_preset").value = String(cfg?.theme?.digits?.size_vw ?? 14));
-          // Overlays
-          overlaysLocal = Array.isArray(cfg.overlays) ? JSON.parse(JSON.stringify(cfg.overlays)) : [];
-          renderOverlaysUI();
-
-          // Bakgrunn (visningen)
-          const bg = cfg?.theme?.background || {};
-          ($(`input[name=bg_mode][value=${bg.mode || "solid"}]`) || {}).checked = true;
-          $("#bg_solid_color") && ($("#bg_solid_color").value = bg.solid?.color || "#0b0f14");
-          $("#bg_grad_from") && ($("#bg_grad_from").value = bg.gradient?.from || "#142033");
-          $("#bg_grad_to") && ($("#bg_grad_to").value = bg.gradient?.to || "#0b0f14");
-          $("#bg_grad_angle") && ($("#bg_grad_angle").value = bg.gradient?.angle_deg ?? 180);
-          $("#bg_img_url") && ($("#bg_img_url").value = bg.image?.url || "");
-          $("#bg_img_fit") && ($("#bg_img_fit").value = bg.image?.fit || "cover");
-          $("#bg_img_op") && ($("#bg_img_op").value = bg.image?.opacity ?? 1);
-          $("#bg_img_tint") && ($("#bg_img_tint").value = bg.image?.tint?.color || "#000000");
-          $("#bg_img_tint_op") && ($("#bg_img_tint_op").value = bg.image?.tint?.opacity ?? 0);
-          $("#bg_dyn_base") && ($("#bg_dyn_base").value = bg.dynamic?.base_mode || "auto");
-
-          // Dynamic
-          $("#bg_dyn_from") && ($("#bg_dyn_from").value = bg.dynamic?.from || "#16233a");
-          $("#bg_dyn_to") && ($("#bg_dyn_to").value = bg.dynamic?.to || "#0e1a2f");
-          $("#bg_dyn_rotate") && ($("#bg_dyn_rotate").value = bg.dynamic?.rotate_s ?? 60);
-          $("#bg_dyn_blur") && ($("#bg_dyn_blur").value = bg.dynamic?.blur_px ?? 18);
-          $("#bg_dyn_opacity") && ($("#bg_dyn_opacity").value = bg.dynamic?.opacity ?? 0.9);
-
-          // Ny: klokke (top-level) – hvis feltene finnes
-          const clk = cfg?.clock || {};
-          $("#clk_with_seconds") && ($("#clk_with_seconds").checked = !!clk.with_seconds);
-          $("#clk_color") && ($("#clk_color").value = clk.color || "#e6edf3");
-          $("#clk_size_vmin") && ($("#clk_size_vmin").value = clk.size_vmin ?? 12);
-          $("#clk_position") && ($("#clk_position").value = clk.position || "center");
-          $("#clk_msg_position") && ($("#clk_msg_position").value = cfg?.clock?.messages_position || "right");
-          $("#clk_msg_align") && ($("#clk_msg_align").value = cfg?.clock?.messages_align || "center");
-          $("#clk_use_own_msgs") && ($("#clk_use_own_msgs").checked = !!cfg?.clock?.use_clock_messages);
-          $("#clk_msg_primary") && ($("#clk_msg_primary").value = cfg?.clock?.message_primary || "");
-          $("#clk_msg_secondary") && ($("#clk_msg_secondary").value = cfg?.clock?.message_secondary || "");
-          // -- Overlays – bindings --
-          $("#ov_select") &&
-            $("#ov_select").addEventListener("change", () => {
-              const cur = currentOverlay();
-              if (cur) fillOverlayFields(cur); // <- bare fylle feltene, ikke rebuild liste
-            });
-
-          $("#ov_add") && $("#ov_add").addEventListener("click", addOverlay);
-          $("#ov_dup") && $("#ov_dup").addEventListener("click", dupOverlay);
-          $("#ov_del") && $("#ov_del").addEventListener("click", delOverlay);
-
-          [
-            "#ov_id",
-            "#ov_type",
-            "#ov_url",
-            "#ov_pos",
-            "#ov_size",
-            "#ov_opacity",
-            "#ov_z",
-            "#ov_off_vw",
-            "#ov_off_vh",
-            "#ov_in_clock",
-            "#ov_in_countdown",
-            "#ov_tint_color", // <- tint-feltene må også trigge commit
-            "#ov_tint_opacity",
-            "#ov_tint_blend",
-          ].forEach((sel) => {
-            const el = $(sel);
-            if (!el) return;
-            el.addEventListener("input", commitOverlay);
-            el.addEventListener("change", commitOverlay);
-          });
-
-          updateClockContrastHint();
-
-          lock();
-          updateDigitContrastHints();
-          updateMessageContrastHints();
-        }
-
-        // -------- I/O --------
-        async function loadAll() {
-          const r = await fetch("/api/config");
-          const js = await r.json();
-          js.config.tick = js.tick;
-          apply(js.config, js.tick);
-          pushPreview();
-
-          // Vis midlertidig toast, og rydd bort eventuelle gamle titler
-          showStatusToast("Status oppdatert", "info", 1200);
-          const bar = document.querySelector(".actions");
-          if (bar) bar.title = "";
-          const saveBtn = document.getElementById("btn_save");
-          if (saveBtn) saveBtn.title = "";
-        }
-        function buildPatch() {
-          const m = selMode();
-
-          // Bygg clock-del, men bare hvis feltene finnes – ellers bruk lastCfg.clock som fallback
-          const clock = (function () {
-            const hasClockFields =
-              $("#clk_with_seconds") ||
-              $("#clk_color") ||
-              $("#clk_size_vmin") ||
-              $("#clk_position") ||
-              $("#clk_msg_position") ||
-              $("#clk_msg_align") ||
-              $("#clk_use_own_msgs") ||
-              $("#clk_msg_primary") ||
-              $("#clk_msg_secondary");
-
-            if (hasClockFields) {
-              return {
-                with_seconds: checked("#clk_with_seconds"),
-                color: val("#clk_color", "#e6edf3"),
-                size_vmin: Number(val("#clk_size_vmin", "12")),
-                position: val("#clk_position", "center"),
-
-                messages_position: val("#clk_msg_position", "right"),
-                messages_align: val("#clk_msg_align", "center"),
-                use_clock_messages: checked("#clk_use_own_msgs"),
-                message_primary: val("#clk_msg_primary", ""),
-                message_secondary: val("#clk_msg_secondary", ""),
-              };
-            }
-            return lastCfg?.clock || {};
-          })();
-
-          const body = {
-            mode: m,
-            daily_time: val("#daily_time"),
-            once_at: val("#once_at"),
-            overlays_mode: "replace", // ← VIKTIG: si at backend skal erstatte lista
-            overlays: overlaysLocal, //     (sletting og tom liste blir respektert)
-
-            // meldinger
-            show_message_primary: checked("#show_message_primary"),
-            show_message_secondary: checked("#show_message_secondary"),
-            message_primary: val("#message_primary"),
-            message_secondary: val("#message_secondary"),
-
-            // varsler/blink
-            warn_minutes: num("#warn_minutes", 4),
-            alert_minutes: num("#alert_minutes", 2),
-            blink_seconds: num("#blink_seconds", 10),
-            overrun_minutes: num("#overrun_minutes", 1),
-
-            // visning/oppførsel
-            use_phase_colors: checked("#use_phase_colors"),
-            use_blink: checked("#use_blink"),
-            color_normal: val("#color_normal", "#e6edf3"),
-            color_warn: val("#color_warn", "#ffd166"),
-            color_alert: val("#color_alert", "#ff6b6b"),
-            color_over: val("#color_over", "#9ad0ff"),
-            show_target_time: checked("#show_target_time"),
-            target_time_after: val("#target_time_after", "secondary"),
-            messages_position: val("#messages_position", "below"),
-            hms_threshold_minutes: parseInt(val("#hms_threshold_minutes", "60"), 10),
-
-            // theme (digits/messages/bg)
-            theme: {
-              digits: { size_vw: Number(val("#digits_size_preset", "14")) },
-              messages: {
-                primary: {
-                  size_vmin: Number(val("#theme_p_size_vmin", "6")),
-                  weight: Number(val("#theme_p_weight", "600")),
-                  color: val("#theme_p_color", "#9aa4b2"),
-                },
-                secondary: {
-                  size_vmin: Number(val("#theme_s_size_vmin", "4")),
-                  weight: Number(val("#theme_s_weight", "400")),
-                  color: val("#theme_s_color", "#9aa4b2"),
-                },
-              },
-              background: {
-                mode: selBgMode(),
-                solid: { color: val("#bg_solid_color", "#0b0f14") },
-                gradient: {
-                  from: val("#bg_grad_from", "#142033"),
-                  to: val("#bg_grad_to", "#0b0f14"),
-                  angle_deg: Number(val("#bg_grad_angle", "180")),
-                },
-                // NY: dynamisk
-                dynamic: {
-                  from: val("#bg_dyn_from", "#16233a"),
-                  to: val("#bg_dyn_to", "#0e1a2f"),
-                  rotate_s: Number(val("#bg_dyn_rotate", "60")),
-                  blur_px: Number(val("#bg_dyn_blur", "18")),
-                  opacity: Number(val("#bg_dyn_opacity", "0.9")),
-                  base_mode: val("#bg_dyn_base", "auto"),
-                },
-                image: {
-                  url: val("#bg_img_url", ""),
-                  fit: val("#bg_img_fit", "cover"),
-                  opacity: Number(val("#bg_img_op", "1")),
-                  tint: {
-                    color: val("#bg_img_tint", "#000000"),
-                    opacity: Number(val("#bg_img_tint_op", "0")),
-                  },
-                },
-              },
-            },
-
-            // ny topp-nøkkel
-            clock,
-          };
-
-          return body;
-        }
-        function ovSel() {
-          return document.getElementById("ov_select");
-        }
-        function ovIdx() {
-          return Math.max(0, ovSel().selectedIndex);
-        }
-        function currentOverlay() {
-          return overlaysLocal[ovIdx()] || null;
-        }
-
-        function renderOverlaysUI(desiredIndex) {
-          const sel = ovSel();
-          if (!sel) return;
-
-          const prev = Number.isInteger(desiredIndex) ? desiredIndex : sel.selectedIndex;
-          sel.innerHTML = "";
-          overlaysLocal.forEach((o, i) => {
-            const opt = document.createElement("option");
-            opt.value = String(i);
-            opt.textContent = o.id || `(overlay ${i + 1})`;
-            sel.appendChild(opt);
-          });
-
-          const idx = Math.max(0, Math.min(sel.options.length - 1, prev >= 0 ? prev : 0));
-          sel.selectedIndex = idx;
-          fillOverlayFields(overlaysLocal[idx] || overlayDefaults());
-        }
-
-        function fillOverlayFields(o) {
-          $("#ov_id").value = o.id || "";
-          $("#ov_type").value = o.type || "image";
-          $("#ov_url").value = o.url || "";
-          $("#ov_pos").value = o.position || "top-right";
-          $("#ov_size").value = String(o.size_vmin ?? 12);
-          $("#ov_opacity").value = String(o.opacity ?? 1);
-          $("#ov_z").value = String(o.z_index ?? 10);
-          $("#ov_off_vw").value = String(o.offset_vw ?? 2);
-          $("#ov_off_vh").value = String(o.offset_vh ?? 2);
-          $("#ov_in_clock").checked = !!(o.visible_in || []).includes("clock");
-          $("#ov_in_countdown").checked = !!(o.visible_in || []).some((v) => v !== "clock");
-          $("#ov_tint_color").value = o?.tint?.color || "#000000";
-          $("#ov_tint_opacity").value = String(o?.tint?.opacity ?? 0);
-          $("#ov_tint_blend").value = o?.tint?.blend || "multiply";
-        }
-
-        function readOverlayFields() {
-          const vis = [];
-          if ($("#ov_in_clock").checked) vis.push("clock");
-          if ($("#ov_in_countdown").checked) vis.push("countdown");
-          return {
-            id: ($("#ov_id").value || "").trim(),
-            type: $("#ov_type").value || "image",
-            url: ($("#ov_url").value || "").trim(),
-            position: $("#ov_pos").value || "top-right",
-            size_vmin: Number($("#ov_size").value || "12"),
-            opacity: Number($("#ov_opacity").value || "1"),
-            z_index: Number($("#ov_z").value || "10"),
-            offset_vw: Number($("#ov_off_vw").value || "2"),
-            offset_vh: Number($("#ov_off_vh").value || "2"),
-            visible_in: vis,
-            tint: {
-              // <- tint med
-              color: $("#ov_tint_color").value || "#000000",
-              opacity: Number($("#ov_tint_opacity").value || "0"),
-              blend: $("#ov_tint_blend").value || "multiply",
-            },
-          };
-        }
-
-        function commitOverlay() {
-          if (!overlaysLocal.length) return;
-          overlaysLocal[ovIdx()] = readOverlayFields();
-          pushPreviewDebounced();
-        }
-
-        function addOverlay() {
-          overlaysLocal.push(overlayDefaults());
-          renderOverlaysUI(overlaysLocal.length - 1); // <- velg ny
-          pushPreview();
-        }
-
-        function dupOverlay() {
-          const cur = currentOverlay();
-          if (!cur) return addOverlay();
-          overlaysLocal.push({ ...cur, id: `${cur.id}-copy` });
-          renderOverlaysUI(overlaysLocal.length - 1); // <- velg kopi
-          pushPreview();
-        }
-
-        function delOverlay() {
-          if (!overlaysLocal.length) return;
-          overlaysLocal.splice(ovIdx(), 1);
-          renderOverlaysUI(Math.min(ovIdx(), overlaysLocal.length - 1));
-          pushPreview();
-        }
-
-        async function saveAll() {
-          try {
-            const body = buildPatch();
-            const r = await fetch("/api/config", {
-              method: "POST",
-              headers: headers(),
-              body: JSON.stringify(body),
-            });
-            if (!r.ok) throw new Error(await r.text());
-            const js = await r.json();
-            apply(js.config, js.tick);
-
-            // ✔ suksess
-            showStatusToast("Lagret ✔", "ok", 1400);
-          } catch (e) {
-            // ✖ feil
-            showStatusToast("Feil ved lagring: " + (e?.message || e), "error", 4000);
-            throw e; // behold eksisterende feilflyt
-          }
-        }
-
-        function getPreviewWin() {
-          return document.getElementById("preview_frame")?.contentWindow || null;
-        }
-
-        function pushPreview() {
-          const win = getPreviewWin();
-          if (!win || !lastCfg) return;
-          const patch = buildPatch();
-          const simulated = deepMerge(lastCfg, patch);
-          win.postMessage({ type: "preview-config", config: simulated }, "*");
-        }
-
-        // Debounced preview på alle input/endringer
-        const pushPreviewDebounced = debounce(pushPreview, 300);
-        document.addEventListener("input", pushPreviewDebounced, {
-          passive: true,
-        });
-        document.addEventListener("change", pushPreviewDebounced, {
-          passive: true,
-        });
-
-        // Kjør én gang når admin åpner siden og første config er lastet
-        document.addEventListener("DOMContentLoaded", () => setTimeout(pushPreview, 50));
-
-        // Send en gang når preview-iframe er ferdig lastet
-        function hookPreviewLoad() {
-          const f = document.getElementById("preview_frame");
-          if (!f) return; // DOM ikke klart ennå (men DOMContentLoaded under fikser)
-          f.addEventListener("load", () => setTimeout(pushPreview, 50), {
-            once: true,
-          });
-        }
-        // Når hele DOM’en er klar: hook + første push
-        document.addEventListener("DOMContentLoaded", () => {
-          hookPreviewLoad();
-          setTimeout(pushPreview, 80);
-        });
-
-        async function patchMode(newMode) {
-          try {
-            const resp = await fetch("/api/config", {
-              method: "POST",
-              headers: headers(),
-              body: JSON.stringify({ mode: newMode }),
-            });
-            if (!resp.ok) throw new Error(await resp.text());
-            const js = await resp.json();
-            lastCfg = js.config || lastCfg;
-            $("#save_status").textContent = `Modus satt til ${newMode}`;
-            // push umiddelbart til preview
-            pushPreview();
-            // radio-knappen i "Modus"-kortet holdes i sync:
-            const radio = document.querySelector(`input[name=mode][value=${newMode}]`);
-            if (radio) radio.checked = true;
-          } catch (e) {
-            $("#save_status").textContent = `Feil: kunne ikke sette modus (${e})`;
-          } finally {
-            setTimeout(() => ($("#save_status").textContent = ""), 3000);
-          }
-        }
-
-        // -------- start/stopp varighet (uendret) --------
-        async function startDuration(argMinutes) {
-          const minutes = argMinutes != null ? Number(argMinutes) : parseInt(val("#start_minutes", "0"), 10);
-
-          if (!Number.isFinite(minutes) || minutes <= 0) {
-            alert("Ugyldig varighet");
-            return;
-          }
-          const r = await fetch("/api/start-duration", {
-            method: "POST",
-            headers: headers(),
-            body: JSON.stringify({ minutes }),
-          });
-          if (!r.ok) {
-            alert(await r.text());
-            return;
-          }
-          await loadAll();
-        }
-        // Stopp varighetsmodus (setter tilbake til daily på backend)
-        async function stopDuration() {
-          const r = await fetch("/api/stop", {
-            method: "POST",
-            headers: headers(),
-          });
-          if (!r.ok) {
-            alert(await r.text());
-            return;
-          }
-          await loadAll();
-        }
-
-        // -------- presets --------
-        function applyPreset() {
-          const p = val("#bg_preset", "none");
-          if (p === "dark-solid") {
-            ($(`input[name=bg_mode][value=solid]`) || {}).checked = true;
-            $("#bg_solid_color") && ($("#bg_solid_color").value = "#0b0f14");
-          } else if (p === "dark-grad") {
-            ($(`input[name=bg_mode][value=gradient]`) || {}).checked = true;
-            $("#bg_grad_from") && ($("#bg_grad_from").value = "#111827");
-            $("#bg_grad_to") && ($("#bg_grad_to").value = "#0b0f14");
-            $("#bg_grad_angle") && ($("#bg_grad_angle").value = 180);
-          } else if (p === "dynamic") {
-            // ← NY preset
-            ($(`input[name=bg_mode][value=dynamic]`) || {}).checked = true;
-            $("#bg_dyn_from") && ($("#bg_dyn_from").value = "#16233a");
-            $("#bg_dyn_to") && ($("#bg_dyn_to").value = "#0e1a2f");
-            $("#bg_dyn_rotate") && ($("#bg_dyn_rotate").value = 25);
-            $("#bg_dyn_blur") && ($("#bg_dyn_blur").value = 45);
-            $("#bg_dyn_opacity") && ($("#bg_dyn_opacity").value = 0.9);
-          } else if (p === "photo-tint") {
-            ($(`input[name=bg_mode][value=image]`) || {}).checked = true;
-            $("#bg_img_url") && ($("#bg_img_url").value = "https://picsum.photos/1600/900");
-            $("#bg_img_fit") && ($("#bg_img_fit").value = "cover");
-            $("#bg_img_op") && ($("#bg_img_op").value = 1);
-            $("#bg_img_tint") && ($("#bg_img_tint").value = "#000000");
-            $("#bg_img_tint_op") && ($("#bg_img_tint_op").value = 0.4);
-          } else if (p === "photo-HP") {
-            ($(`input[name=bg_mode][value=image]`) || {}).checked = true;
-            $("#bg_img_url") &&
-              ($("#bg_img_url").value =
-                "https://static.wixstatic.com/media/8ff0d1_1e540e760d3d4a77af3d5cd39e2be4f8~mv2.jpg");
-            $("#bg_img_fit") && ($("#bg_img_fit").value = "cover");
-            $("#bg_img_op") && ($("#bg_img_op").value = 1);
-            $("#bg_img_tint") && ($("#bg_img_tint").value = "#10408e");
-            $("#bg_img_tint_op") && ($("#bg_img_tint_op").value = 0.35);
-          }
-          lock();
-          updateDigitContrastHints();
-          updateMessageContrastHints();
-          pushPreview();
-        }
-
-        // -------- synk-pill --------
-        async function updateSyncPill() {
-          try {
-            const r = await fetch("/debug/view-heartbeat");
-            const js = await r.json();
-            const hb = js.heartbeat || {};
-            const age = hb.age_seconds ?? 9999;
-            const viewRev = hb.rev || 0;
-            const cfgRev = lastCfg && lastCfg._updated_at ? lastCfg._updated_at : 0;
-
-            let detailed = "",
-              cls = "off";
-            if (age > 30 || !hb.ts_iso) {
-              detailed = "Synk: visning offline";
-              cls = "off";
-            } else if (viewRev >= cfgRev) {
-              detailed = `Synk: OK (rev ${viewRev})`;
-              cls = "ok";
-            } else {
-              detailed = `Synk: venter (view ${viewRev} < cfg ${cfgRev})`;
-              cls = "warn";
-            }
-            if (pill) {
-              pill.className = `pill dot ${cls}`;
-              pill.title = detailed; // all info i tooltip
-              pill.textContent = ""; // ingen tekst → kompakt
-            }
-          } catch {
-            if (pill) {
-              pill.className = "pill dot off";
-              pill.title = "Synk: —";
-              pill.textContent = "";
-            }
-          }
-        }
-
-        // -------- events --------
-        $$("input[name=mode]").forEach((el) => el.addEventListener("change", lock));
-        $$("input[name=bg_mode]").forEach((el) =>
-          el.addEventListener("change", () => {
-            lock();
-            updateDigitContrastHints();
-            updateMessageContrastHints();
-          }),
-        );
-        ["color_normal", "color_warn", "color_alert", "color_over", "theme_p_color", "theme_s_color"].forEach((id) => {
-          const e = document.getElementById(id);
-          e &&
-            e.addEventListener("input", () => {
-              updateDigitContrastHints();
-              updateMessageContrastHints();
-            });
-        });
-        $$(".preset").forEach((b) =>
-          b.addEventListener("click", async () => {
-            const m = Number(b.dataset.min);
-            const e = $("#start_minutes");
-            if (e) e.value = String(m); // behold visuell verdi i feltet
-            await startDuration(m); // 👉 start umiddelbart
-          }),
-        );
-        $("#btn_apply_preset") && $("#btn_apply_preset").addEventListener("click", applyPreset);
-        $("#btn_save") && $("#btn_save").addEventListener("click", () => saveAll().catch((e) => alert(e.message)));
-        $("#btn_refresh") &&
-          $("#btn_refresh").addEventListener("click", () => loadAll().catch((e) => alert(e.message)));
-        $("#btn_reset_view") &&
-          $("#btn_reset_view").addEventListener("click", () =>
-            fetchDefaults().then((d) => {
-              const M = d.theme.messages,
-                B = d.theme.background,
-                D = d.theme.digits;
-              $("#digits_size_preset") && ($("#digits_size_preset").value = String(D.size_vw));
-              $("#theme_p_size_vmin") && ($("#theme_p_size_vmin").value = String(M.primary.size_vmin));
-              $("#theme_p_weight") && ($("#theme_p_weight").value = String(M.primary.weight));
-              $("#theme_p_color") && ($("#theme_p_color").value = M.primary.color);
-              $("#theme_s_size_vmin") && ($("#theme_s_size_vmin").value = String(M.secondary.size_vmin));
-              $("#theme_s_weight") && ($("#theme_s_weight").value = String(M.secondary.weight));
-              $("#theme_s_color") && ($("#theme_s_color").value = M.secondary.color);
-              ($(`input[name=bg_mode][value=${B.mode}]`) || {}).checked = true;
-              $("#bg_solid_color") && ($("#bg_solid_color").value = B.solid.color);
-              $("#bg_grad_from") && ($("#bg_grad_from").value = B.gradient.from);
-              $("#bg_grad_to") && ($("#bg_grad_to").value = B.gradient.to);
-              $("#bg_grad_angle") && ($("#bg_grad_angle").value = B.gradient.angle_deg);
-              $("#bg_img_url") && ($("#bg_img_url").value = B.image.url);
-              $("#bg_img_fit") && ($("#bg_img_fit").value = B.image.fit);
-              $("#bg_img_op") && ($("#bg_img_op").value = B.image.opacity);
-              $("#bg_img_tint") && ($("#bg_img_tint").value = B.image.tint.color);
-              $("#bg_img_tint_op") && ($("#bg_img_tint_op").value = B.image.tint.opacity);
-              lock();
-              updateDigitContrastHints();
-              updateMessageContrastHints();
-            }),
-          );
-        $("#btn_start") &&
-          $("#btn_start").addEventListener("click", () => startDuration().catch((e) => alert(e.message)));
-        $("#btn_stop") && $("#btn_stop").addEventListener("click", () => stopDuration().catch((e) => alert(e.message)));
-
-        const clkColorEl = document.getElementById("clk_color");
-        clkColorEl && clkColorEl.addEventListener("input", updateClockContrastHint);
-
-        // Når bakgrunnsmodus/farger endres -> oppdater klokke-kontrast
-        $$("input[name=bg_mode]").forEach((el) =>
-          el.addEventListener("change", () => {
-            lock();
-            updateDigitContrastHints();
-            updateMessageContrastHints();
-            updateClockContrastHint();
-          }),
-        );
-        ["#bg_solid_color", "#bg_grad_from", "#bg_grad_to", "#bg_img_tint", "#bg_img_tint_op"].forEach((sel) => {
-          const e = document.querySelector(sel);
-          e && e.addEventListener("input", updateClockContrastHint);
-        });
-
-        // Egen-tekst toggle
-        $("#clk_use_own_msgs") && $("#clk_use_own_msgs").addEventListener("change", lock);
-
-        // Mode-knapper (Daglig/Klokke) i toppbaren
-        $$(".mode-btn").forEach((b) => {
-          b.addEventListener("click", () => patchMode(b.dataset.mode));
-        });
-
-        // Preset-knapper (15/20 min) i toppbaren
-        $$(".mode-preset").forEach((b) => {
-          b.addEventListener("click", async () => {
-            const m = Number(b.dataset.min || "0");
-            if (!Number.isFinite(m) || m <= 0) return;
-            await startDuration(m); // start umiddelbart via /api/start-duration
-            $("#save_status").textContent = `Startet ${m} min`;
-            setTimeout(() => ($("#save_status").textContent = ""), 2000);
-          });
-        });
-
-        // -------- init --------
-        loadAll().catch(console.error);
-        setInterval(updateSyncPill, 3000);
-      })();
-    </script>
-
-    <!-- Fast forhåndsvisning på høyre side -->
+    <!-- Live forhåndsvisning -->
     <aside id="preview_dock" aria-label="Live forhåndsvisning">
       <iframe id="preview_frame" src="/?preview=1" title="Live preview" loading="eager"></iframe>
     </aside>
-   
   </body>
-  
 </html>
