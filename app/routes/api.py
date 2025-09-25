@@ -454,7 +454,9 @@ def api_reset_visual() -> Response:
             clock_texts=True,
             bg_mode=True, bg_solid=True, bg_gradient=True, bg_image=True, bg_picsum=True, bg_dynamic=True,
             bg_picsum_id=True,
-            behavior_settings=False,  # ikke rør nedtelling & atferd her
+            behavior_settings=True, 
+            reset_daily_time=True,
+
         ),
         "minimal": dict(
             phase_colors=True,
@@ -466,6 +468,7 @@ def api_reset_visual() -> Response:
             bg_mode=False, bg_solid=False, bg_gradient=False, bg_image=False, bg_picsum=False, bg_dynamic=False,
             bg_picsum_id=False,
             behavior_settings=False,
+            reset_daily_time=False,
         ),
         "background": dict(
             phase_colors=False,
@@ -477,6 +480,7 @@ def api_reset_visual() -> Response:
             bg_mode=True, bg_solid=True, bg_gradient=True, bg_image=True, bg_picsum=True, bg_dynamic=True,
             bg_picsum_id=False,
             behavior_settings=False,
+            reset_daily_time=False,
         ),
         # NY: Reset kun Nedtelling & atferd (”tidene” + atferdsflagg)
         "behavior": dict(  # engelsk nøkkel
