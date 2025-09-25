@@ -36,7 +36,16 @@
         <!-- Viktig: behold UNDERSCORE-id'en din -->
         <button id="btn_save" class="primary">Lagre</button>
         <button id="btn_refresh">Hent config</button>
-        <button id="btn_reset_view">Tilbakestill visning</button>
+        <button id="btn_reset_view">Tilbakestill:</button>
+        <label for="reset_profile"></label>
+<select id="reset_profile">
+  <option value="visual" selected>Visuell</option>
+  <option value="minimal">Tekstfarger</option>
+  <option value="background">Bakgrunn</option>
+  <option value="behavior">Nedtelling</option>
+
+</select>
+
         <span id="sync_pill" class="pill dot off" title="Synk: —" aria-label="Synkestatus"></span>
       </div>
     </div>
@@ -170,9 +179,9 @@
         </div>
       </section>
 
-      <!-- === Nedtelling & atferd === -->
+      <!-- === Nedtelling & adferd === -->
       <section class="card">
-        <h2>Nedtelling & atferd</h2>
+        <h2>Nedtelling & adferd</h2>
 
         <div class="row">
           <label

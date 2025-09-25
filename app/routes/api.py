@@ -14,6 +14,7 @@ from ..storage import (
     start_duration,
     clear_duration_and_switch_to_daily,
     get_defaults,
+    build_visual_reset_patch,
 )
 from ..countdown import compute_tick
 from ..auth import require_password
@@ -429,3 +430,79 @@ def sys_about_status():
         "kernel": kernel, "arch": arch, "model": model or "unknown",
         "services": svc_status, "ntp": ntp,
     }})
+
+@bp.post("/reset-visual")
+@require_password
+def api_reset_visual() -> Response:
+    """
+    Reset visuelle innstillinger basert på _DEFAULTS, uten å røre tider/varsler osv.
+    Body: {"profile": "visual"|"minimal"|"background"}
+    """
+    if not _is_json_request():
+        return _json_err("expected application/json", status=415, code="unsupported_media_type")
+    data = request.get_json(silent=True) or {}
+    profile = str(data.get("profile") or "visual").strip().lower()
+
+    # Profiler: OBS! "visual" blanker IKKE UI-tekster (etter ditt ønske).
+    presets = {
+        "visual": dict(
+            phase_colors=True,
+            ui_messages_text=True,
+            theme_messages=True,
+            digits=True,
+            clock_color=True,
+            clock_texts=True,
+            bg_mode=True, bg_solid=True, bg_gradient=True, bg_image=True, bg_picsum=True, bg_dynamic=True,
+            bg_picsum_id=True,
+            behavior_settings=False,  # ikke rør nedtelling & atferd her
+        ),
+        "minimal": dict(
+            phase_colors=True,
+            ui_messages_text=False,
+            theme_messages=True,
+            digits=False,
+            clock_color=True,
+            clock_texts=False,
+            bg_mode=False, bg_solid=False, bg_gradient=False, bg_image=False, bg_picsum=False, bg_dynamic=False,
+            bg_picsum_id=False,
+            behavior_settings=False,
+        ),
+        "background": dict(
+            phase_colors=False,
+            ui_messages_text=False,
+            theme_messages=False,
+            digits=False,
+            clock_color=False,
+            clock_texts=False,
+            bg_mode=True, bg_solid=True, bg_gradient=True, bg_image=True, bg_picsum=True, bg_dynamic=True,
+            bg_picsum_id=False,
+            behavior_settings=False,
+        ),
+        # NY: Reset kun Nedtelling & atferd (”tidene” + atferdsflagg)
+        "behavior": dict(  # engelsk nøkkel
+            phase_colors=False,
+            ui_messages_text=False,
+            theme_messages=False,
+            digits=False,
+            clock_color=False,
+            clock_texts=False,
+            bg_mode=False, bg_solid=False, bg_gradient=False, bg_image=False, bg_picsum=False, bg_dynamic=False,
+            bg_picsum_id=False,
+            behavior_settings=True,
+            reset_daily_time=True,
+        ),
+    }
+
+    opts = presets.get(profile, presets["visual"])
+
+    try:
+        defaults = get_defaults()
+        patch = build_visual_reset_patch(defaults, **opts)
+        cfg = save_config_patch(patch)
+        tick = compute_tick(cfg)
+        return _json_ok({"config": cfg, "tick": tick})
+    except ValueError as e:
+        return _json_err(str(e), status=400, code="validation_error")
+    except Exception:
+        current_app.logger.exception("POST /api/reset-visual failed")
+        return _json_err("internal error", status=500, code="internal_error")

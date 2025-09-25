@@ -24,12 +24,12 @@ _DEFAULTS: Dict[str, Any] = {
     "message_secondary": "Vi starter kl:",
     "show_message_primary": True,
     "show_message_secondary": True,
-    "warn_minutes": 5,
-    "alert_minutes": 3,
-    "blink_seconds": 10,
+    "warn_minutes": 4,
+    "alert_minutes": 2,
+    "blink_seconds": 20,
     "overrun_minutes": 20,
     "hms_threshold_minutes": 60,
-    "use_phase_colors": False,
+    "use_phase_colors": True,
     "use_blink": True,
     "color_normal": "#e6edf3",
     "color_warn": "#ffd166",
@@ -72,15 +72,18 @@ _DEFAULTS: Dict[str, Any] = {
                 }
             },
         },
+        # Brukes av admin for kuratering; var referert i JS men manglet i defaults
+        "picsum_catalog": [],
     },
     "clock": {
         "with_seconds": True,
         "color": "#e6edf3",
         "size_vmin": 15,
         "position": "center",
-        "messages_position": "center",
+        # "center" var inkonsistent med valideringen; default settes til "right"
+        "messages_position": "right",
         "messages_align": "center",
-        "use_clock_messages": False,
+        "use_clock_messages": True,
         "message_primary": "Velkommen!",
         "message_secondary": "",
     },
@@ -111,6 +114,106 @@ def _mark_compact_lists(obj):
         return [_mark_compact_lists(x) for x in obj]
     return obj
 
+# ── visual reset ──────────────────────────────────────────────────────────────
+# File: app/storage.py
+
+# app/storage.py
+
+def build_visual_reset_patch(
+    defaults: Dict[str, Any],
+    *,
+    # Visuelle grupper
+    phase_colors: bool = True,
+    ui_messages_text: bool = True,
+    theme_messages: bool = False,
+    digits: bool = True,
+    clock_color: bool = True,
+    clock_texts: bool = False,
+    bg_mode: bool = True,
+    bg_solid: bool = True,
+    bg_gradient: bool = True,
+    bg_image: bool = True,
+    bg_picsum: bool = True,
+    bg_dynamic: bool = True,
+    bg_picsum_id: bool = False,
+    # Nedtelling & adferd
+    behavior_settings: bool = False,
+    # NY: planlegging
+    reset_daily_time: bool = False,
+) -> Dict[str, Any]:
+    """
+    Bygger en minimal PATCH basert på _DEFAULTS.
+    """
+    d = json.loads(json.dumps(defaults))  # dyp kopi
+    patch: Dict[str, Any] = {}
+
+    # Top-level faser
+    if phase_colors:
+        for k in ("color_normal", "color_warn", "color_alert", "color_over"):
+            patch[k] = d[k]
+
+    # UI-meldinger (blank hvis ønsket)
+    if ui_messages_text:
+        patch["message_primary"] = ""
+        patch["message_secondary"] = ""
+
+    # Klokke
+    if clock_color or clock_texts:
+        patch["clock"] = {}
+        if clock_color:
+            patch["clock"]["color"] = d["clock"]["color"]
+        if clock_texts:
+            patch["clock"]["message_primary"] = ""
+            patch["clock"]["message_secondary"] = ""
+
+    # Theme
+    theme_patch: Dict[str, Any] = {}
+    if theme_messages:
+        theme_patch["messages"] = {
+            "primary": d["theme"]["messages"]["primary"],
+            "secondary": d["theme"]["messages"]["secondary"],
+        }
+    if digits:
+        theme_patch["digits"] = {"size_vmin": d["theme"]["digits"]["size_vmin"]}
+
+    # Background
+    if any([bg_mode, bg_solid, bg_gradient, bg_image, bg_picsum, bg_dynamic]):
+        b = d["theme"]["background"]
+        bgp: Dict[str, Any] = {}
+        if bg_mode:     bgp["mode"]     = b["mode"]
+        if bg_solid:    bgp["solid"]    = b["solid"]
+        if bg_gradient: bgp["gradient"] = b["gradient"]
+        if bg_image:    bgp["image"]    = b["image"]
+        if bg_picsum:
+            picsum = dict(b.get("picsum") or {})
+            if not bg_picsum_id:
+                picsum.pop("id", None)
+            bgp["picsum"] = picsum
+        if bg_dynamic:  bgp["dynamic"]  = b["dynamic"]
+        theme_patch["background"] = bgp
+
+    if theme_patch:
+        patch["theme"] = theme_patch
+
+    # Nedtelling & adferd
+    if behavior_settings:
+        patch["warn_minutes"] = d["warn_minutes"]
+        patch["alert_minutes"] = d["alert_minutes"]
+        patch["blink_seconds"] = d["blink_seconds"]
+        patch["overrun_minutes"] = d["overrun_minutes"]
+        patch["hms_threshold_minutes"] = d["hms_threshold_minutes"]
+        patch["show_target_time"] = d["show_target_time"]
+        patch["target_time_after"] = d["target_time_after"]
+        patch["messages_position"] = d["messages_position"]
+        patch["use_blink"] = d["use_blink"]
+        patch["use_phase_colors"] = d["use_phase_colors"]
+
+    # NY: planlegging (kun daily_time)
+    if reset_daily_time:
+        # Viktig: rør ikke mode/once_at/duration_* her.
+        patch["daily_time"] = d["daily_time"]
+
+    return patch
 
 # ── utils ─────────────────────────────────────────────────────────────────────
 def get_defaults() -> Dict[str, Any]:
@@ -124,30 +227,30 @@ def _order_like_defaults(defaults: Mapping[str, Any], data: Dict[str, Any]) -> "
     """
     ordered: "OrderedDict[str, Any]" = OrderedDict()
     # 1) nøkler definert i defaults – i samme rekkefølge
-    for k in defaults.keys():
-        if k in data:
-            dv = data[k]
-            dv_def = defaults[k]
-            if isinstance(dv_def, dict) and isinstance(dv, dict):
-                ordered[k] = _order_like_defaults(dv_def, dv)
+    for key in defaults.keys():
+        if key in data:
+            data_value = data[key]
+            def_value = defaults[key]
+            if isinstance(def_value, dict) and isinstance(data_value, dict):
+                ordered[key] = _order_like_defaults(def_value, data_value)
             else:
-                ordered[k] = dv
+                ordered[key] = data_value
     # 2) eventuelle ekstra nøkler i data som ikke finnes i defaults
-    for k, dv in data.items():
-        if k in ordered:
+    for key, data_value in data.items():
+        if key in ordered:
             continue
-        if isinstance(dv, dict) and isinstance(defaults.get(k), dict):
-            ordered[k] = _order_like_defaults(defaults[k], dv)  # type: ignore[index]
+        if isinstance(data_value, dict) and isinstance(defaults.get(key), dict):
+            ordered[key] = _order_like_defaults(defaults[key], data_value)  # type: ignore[index]
         else:
-            ordered[k] = dv
+            ordered[key] = data_value
     return ordered
 
 
 # --- robust, stabil JSON-dumper med støtte for _CompactList -------------------
 def _write_json_value(fp, value: Any, indent: int, level: int) -> None:
     """Skriver JSON-verdier deterministisk. Unngår private encoder-APIer."""
-    sp_cur = " " * (indent * level)
-    sp_inn = " " * (indent * (level + 1))
+    indent_current = " " * (indent * level)
+    indent_inner = " " * (indent * (level + 1))
 
     if isinstance(value, dict) or isinstance(value, OrderedDict):
         items = list(value.items())
@@ -156,13 +259,13 @@ def _write_json_value(fp, value: Any, indent: int, level: int) -> None:
             return
         fp.write("{\n")
         for i, (k, v) in enumerate(items):
-            fp.write(f"{sp_inn}{json.dumps(k, ensure_ascii=False)}: ")
+            fp.write(f"{indent_inner}{json.dumps(k, ensure_ascii=False)}: ")
             _write_json_value(fp, v, indent, level + 1)
             if i < len(items) - 1:
                 fp.write(",\n")
             else:
                 fp.write("\n")
-        fp.write(f"{sp_cur}}}")
+        fp.write(f"{indent_current}}}")
         return
 
     if isinstance(value, list):
@@ -172,13 +275,11 @@ def _write_json_value(fp, value: Any, indent: int, level: int) -> None:
                 fp.write("[]")
                 return
             fp.write("[\n")
-            # Bevisst enkel-objekt-encoding for elementene
             lines = []
-            for it in value:
-                # Viktig: enkeltobjekter kompakt, men fortsatt gyldig JSON
-                lines.append(f"{sp_inn}{json.dumps(it, ensure_ascii=False, separators=(',', ': '))}")
+            for item in value:
+                lines.append(f"{indent_inner}{json.dumps(item, ensure_ascii=False, separators=(',', ': '))}")
             fp.write(",\n".join(lines))
-            fp.write(f"\n{sp_cur}]")
+            fp.write(f"\n{indent_current}]")
             return
 
         # Vanlige lister: pent med indent
@@ -186,14 +287,14 @@ def _write_json_value(fp, value: Any, indent: int, level: int) -> None:
             fp.write("[]")
             return
         fp.write("[\n")
-        for i, it in enumerate(value):
-            fp.write(sp_inn)
-            _write_json_value(fp, it, indent, level + 1)
+        for i, item in enumerate(value):
+            fp.write(indent_inner)
+            _write_json_value(fp, item, indent, level + 1)
             if i < len(value) - 1:
                 fp.write(",\n")
             else:
                 fp.write("\n")
-        fp.write(f"{sp_cur}]")
+        fp.write(f"{indent_current}]")
         return
 
     # Skalarer
@@ -238,8 +339,6 @@ def _atomic_write(path: str, data: Dict[str, Any]) -> None:
             pass
 
 
-
-
 def _deep_merge(dst: Dict[str, Any], src: Dict[str, Any]) -> Dict[str, Any]:
     for k, v in (src or {}).items():
         if isinstance(v, dict) and isinstance(dst.get(k), dict):
@@ -249,21 +348,29 @@ def _deep_merge(dst: Dict[str, Any], src: Dict[str, Any]) -> Dict[str, Any]:
     return dst
 
 def _clamp01(x, d=1.0) -> float:
-    try: v = float(x)
-    except Exception: v = d
+    try:
+        v = float(x)
+    except Exception:
+        v = d
     return max(0.0, min(1.0, v))
 
 def _i(v, d=None):
-    if v in (None, ""): return d
-    try: return int(v)
-    except Exception: return d
+    if v in (None, ""):
+        return d
+    try:
+        return int(v)
+    except Exception:
+        return d
 
 def _b(v, d: bool) -> bool:
-    if isinstance(v, bool): return v
+    if isinstance(v, bool):
+        return v
     if isinstance(v, str):
         s = v.strip().lower()
-        if s in ("1","true","yes","y","on"): return True
-        if s in ("0","false","no","n","off"): return False
+        if s in ("1", "true", "yes", "y", "on"):
+            return True
+        if s in ("0", "false", "no", "n", "off"):
+            return False
     return d
 
 # ── coerce/validate/clean ─────────────────────────────────────────────────────
@@ -271,11 +378,13 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     # ints
     for k in ("warn_minutes","alert_minutes","blink_seconds","overrun_minutes",
               "duration_minutes","duration_started_ms","hms_threshold_minutes"):
-        if k in cfg: cfg[k] = _i(cfg[k], _DEFAULTS.get(k, 0))
+        if k in cfg:
+            cfg[k] = _i(cfg[k], _DEFAULTS.get(k, 0))
 
     # strings
     for k in ("message_primary","message_secondary","daily_time","once_at"):
-        if cfg.get(k) is None: cfg[k] = ""
+        if cfg.get(k) is None:
+            cfg[k] = ""
 
     # bools
     for k, d in (
@@ -288,17 +397,19 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         cfg[k] = _b(cfg.get(k, d), d)
 
     for k in ("target_time_after","messages_position","color_normal","color_warn","color_alert","color_over"):
-        if cfg.get(k) is None: cfg[k] = _DEFAULTS[k]
+        if cfg.get(k) is None:
+            cfg[k] = _DEFAULTS[k]
 
     # theme
     th = _deep_merge(get_defaults()["theme"], cfg.get("theme") or {})
 
     # digits: kun size_vmin
     dg = th.get("digits", {}) or {}
-    try: sz = float(dg.get("size_vmin", _DEFAULTS["theme"]["digits"]["size_vmin"]))
-    except Exception: sz = float(_DEFAULTS["theme"]["digits"]["size_vmin"])
+    try:
+        sz = float(dg.get("size_vmin", _DEFAULTS["theme"]["digits"]["size_vmin"]))
+    except Exception:
+        sz = float(_DEFAULTS["theme"]["digits"]["size_vmin"])
     dg["size_vmin"] = max(4.0, min(60.0, sz))
-    # sørg for at legacy-felter ikke finnes
     dg.pop("size_vw", None); dg.pop("size_vh", None)
     th["digits"] = dg
 
@@ -306,19 +417,22 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     msg = th.get("messages", {}) or {}
     for key in ("primary","secondary"):
         m = msg.get(key) or {}
-        try: m_sz = float(m.get("size_vmin", _DEFAULTS["theme"]["messages"][key]["size_vmin"]))
-        except Exception: m_sz = float(_DEFAULTS["theme"]["messages"][key]["size_vmin"])
+        try:
+            m_sz = float(m.get("size_vmin", _DEFAULTS["theme"]["messages"][key]["size_vmin"]))
+        except Exception:
+            m_sz = float(_DEFAULTS["theme"]["messages"][key]["size_vmin"])
         m["size_vmin"] = max(2.0, min(50.0, m_sz))
-        try: wt = int(m.get("weight", _DEFAULTS["theme"]["messages"][key]["weight"]))
-        except Exception: wt = _DEFAULTS["theme"]["messages"][key]["weight"]
-        m["weight"] = max(100, min(900, 100 * round(wt/100)))
+        try:
+            wt = int(m.get("weight", _DEFAULTS["theme"]["messages"][key]["weight"]))
+        except Exception:
+            wt = _DEFAULTS["theme"]["messages"][key]["weight"]
+        m["weight"] = max(100, min(900, 100 * round(wt / 100)))
         if not isinstance(m.get("color"), str) or not m.get("color"):
             m["color"] = _DEFAULTS["theme"]["messages"][key]["color"]
         msg[key] = m
     th["messages"] = msg
 
     # background
-    # --- background (ERSTATT hele eksisterende blokk med denne) ---
     bg = th.get("background") or {}
 
     mode = (bg.get("mode") or "solid").lower()
@@ -354,7 +468,7 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     dyn["rotate_s"] = max(5, min(600, _i(dyn.get("rotate_s"), _DEFAULTS["theme"]["background"]["dynamic"]["rotate_s"])))
     dyn["blur_px"] = max(0, min(60, _i(dyn.get("blur_px"), _DEFAULTS["theme"]["background"]["dynamic"]["blur_px"])))
     dyn["opacity"] = _clamp01(dyn.get("opacity", _DEFAULTS["theme"]["background"]["dynamic"]["opacity"]),
-                            _DEFAULTS["theme"]["background"]["dynamic"]["opacity"])
+                              _DEFAULTS["theme"]["background"]["dynamic"]["opacity"])
     bm = str(dyn.get("base_mode", "auto")).lower()
     if bm not in ("auto", "solid", "gradient", "image"):
         bm = "auto"
@@ -387,7 +501,6 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
 
     th["background"] = bg
     cfg["theme"] = th
-    # --- /background ---
 
     # clock
     clk = _deep_merge(get_defaults()["clock"], cfg.get("clock") or {})
@@ -395,18 +508,22 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     clk["use_clock_messages"] = bool(clk.get("use_clock_messages", False))
     if not isinstance(clk.get("color"), str) or not clk.get("color"):
         clk["color"] = "#e6edf3"
-    try: csz = int(clk.get("size_vmin", 12) or 12)
-    except Exception: csz = 12
+    try:
+        csz = int(clk.get("size_vmin", 12) or 12)
+    except Exception:
+        csz = 12
     clk["size_vmin"] = max(6, min(30, csz))
     pos = (clk.get("position") or "center").strip().lower()
     if pos not in ("center","top-left","top-right","bottom-left","bottom-right","top-center","bottom-center"):
         pos = "center"
     clk["position"] = pos
     mp = (clk.get("messages_position") or "right").strip().lower()
-    if mp not in ("right","left","above","below"): mp = "right"
+    if mp not in ("right","left","above","below"):
+        mp = "right"
     clk["messages_position"] = mp
     ma = (clk.get("messages_align") or "center").strip().lower()
-    if ma not in ("start","center","end"): ma = "center"
+    if ma not in ("start","center","end"):
+        ma = "center"
     for key in ("message_primary","message_secondary"):
         v = clk.get(key, "")
         clk[key] = v if isinstance(v, str) else ("" if v is None else str(v))
@@ -417,7 +534,8 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     cfg["hms_threshold_minutes"] = max(0, min(720, hm))
 
     # admin pw
-    if not cfg.get("admin_password"): cfg["admin_password"] = None
+    if not cfg.get("admin_password"):
+        cfg["admin_password"] = None
     return cfg
 
 def _validate(cfg: Dict[str, Any]) -> Tuple[bool, str]:
@@ -547,11 +665,14 @@ def load_config() -> Dict[str, Any]:
 def replace_config(new_cfg: Dict[str, Any]) -> Dict[str, Any]:
     cfg_in = _deep_merge(get_defaults(), new_cfg or {})
     if "overlays" in new_cfg:
-        try: cfg_in["overlays"] = _sanitize_overlays(new_cfg.get("overlays"))
-        except Exception: cfg_in["overlays"] = []
+        try:
+            cfg_in["overlays"] = _sanitize_overlays(new_cfg.get("overlays"))
+        except Exception:
+            cfg_in["overlays"] = []
     cfg = _coerce(cfg_in)
     ok, msg = _validate(cfg)
-    if not ok: raise ValueError(msg)
+    if not ok:
+        raise ValueError(msg)
     cfg["_updated_at"] = int(time.time())
     cfg = _clean_by_mode(cfg)
     _atomic_write(str(CONFIG_PATH), cfg)
@@ -588,12 +709,14 @@ def set_mode(
     cfg = load_config()
     cfg["mode"] = mode
     if mode == "daily":
-        if daily_time: cfg["daily_time"] = daily_time
+        if daily_time:
+            cfg["daily_time"] = daily_time
         cfg["duration_started_ms"] = 0; cfg["once_at"] = ""
     elif mode == "once":
         cfg["once_at"] = once_at or ""; cfg["duration_started_ms"] = 0
     elif mode == "duration":
-        if duration_minutes: cfg["duration_minutes"] = int(duration_minutes)
+        if duration_minutes:
+            cfg["duration_minutes"] = int(duration_minutes)
     elif mode == "clock":
         if clock:
             base = get_defaults()["clock"]
@@ -603,7 +726,8 @@ def set_mode(
     return replace_config(cfg)
 
 def start_duration(minutes: int) -> Dict[str, Any]:
-    if minutes <= 0: raise ValueError("minutes må være > 0")
+    if minutes <= 0:
+        raise ValueError("minutes må være > 0")
     now_ms = int(time.time() * 1000)
     cfg = load_config()
     cfg["mode"] = "duration"

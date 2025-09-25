@@ -5,6 +5,7 @@ MAX_LINES=4000
 ALLOW_BINARY=0
 
 INCLUDES='
+**/{storage}.{*}
 **/{admin}.{js}
 '
 
@@ -16,6 +17,8 @@ EXCLUDES='
 **/.pytest_cache/**
 **/.mypy_cache/**
 **/.DS_Store
+app/routes/._.DS_Store
+._.DS_Store
 .vscode/settings.json
 '
 
@@ -26,3 +29,4 @@ EXCLUDES='
 #app/**/*.py
 #tools/**/*.py
 #static/**/*.{js,css,html}
+#**/routes/{*}.{*}

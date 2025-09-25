@@ -25,7 +25,6 @@
       const hi = Math.max(L1, L2), lo = Math.min(L1, L2);
       return (hi + 0.05) / (lo + 0.05);
     },
-    // Viktig: gi tilbake struktur som brukes ellers i koden
     advise: (r) => (r >= 3
       ? { tone: "ok",   label: `${r.toFixed(2)} ✔` }
       : { tone: "warn", label: `${r.toFixed(2)} ⚠` }),
@@ -92,149 +91,30 @@
     defaultsCache = js.defaults || js;
     return defaultsCache;
   }
-  
-// 1) Velg hva som skal tilbakestilles her.
-// Slå PÅ/AV grupper for å styre hvilke felter som settes ved reset.
-const RESET_FLAGS = {
-  phaseColors: true,            // #color_* (normal/warn/alert/over)
-  uiMessagesText: true,         // #message_primary / #message_secondary
-  themeMessages: true,          // #theme_* (sizes/weights/colors for primary/secondary)
-  digits: true,                 // #digits_size_vmin
-  clockColor: true,             // #clk_color
-  clockTexts: false,            // #clk_msg_primary / #clk_msg_secondary
-  background: {
-    mode: true,                 // radio: input[name="bg_mode"]
-    solid: true,                // #bg_solid_*
-    gradient: true,             // #bg_grad_*
-    image: true,                // #bg_img_* (inkl. tint)
-    picsum: true,               // #bg_picsum_* (inkl. tint)
-    dynamic: true,              // #bg_dyn_*
-    picsumId: false             // om ID skal settes (ofte vil du beholde valgt ID)
+
+  // Bruk kun backend for reset – ingen frontend-profiler/JS-defaults her.
+  async function handleResetView(buttonEl) {
+    const btn = buttonEl;
+    const prev = btn.textContent;
+    btn.disabled = true; btn.textContent = "Tilbakestiller …";
+    try {
+      const profile = (document.getElementById("reset_profile")?.value || "visual").toLowerCase();
+      await postJSON("/api/reset-visual", { profile });
+      await loadAll();
+      lock();
+      updateDigitContrastHints();
+      updateMessageContrastHints();
+      updateClockContrastHint?.();
+      showStatusToast("Visning tilbakestilt ✔", "ok", 1400);
+      window.dispatchEvent(new CustomEvent("theme:reset", { detail: { profile } }));
+    } catch (e) {
+      console.error(e);
+      showStatusToast(`Kunne ikke tilbakestille: ${e.message}`, "error", 3500);
+      alert("Tilbakestill visning feilet:\n" + (e?.message || e));
+    } finally {
+      btn.disabled = false; btn.textContent = prev;
+    }
   }
-};
-
-// Små hjelpere
-const setIf = (sel, v) => { const el = document.querySelector(sel); if (el != null) el.value = String(v); };
-const checkIf = (sel, on) => { const el = document.querySelector(sel); if (el != null) el.checked = !!on; };
-
-async function handleResetView(buttonEl) {
-  const btn = buttonEl;
-  const prev = btn.textContent;
-  btn.disabled = true; btn.textContent = "Tilbakestiller …";
-  try {
-    // Hent defaults (kun tema) og lagre på server
-    const d = await fetchDefaults();
-    const T = d.theme || {};
-    await postJSON("/api/config", { theme: T });
-
-    // Pakk ut med trygge fallbacks
-    const M = T.messages  || {};
-    const D = T.digits    || {};
-    const B = T.background|| {};
-    const Mp = M.primary   || {};
-    const Ms = M.secondary || {};
-    const S  = B.solid     || {};
-    const G  = B.gradient  || {};
-    const I  = B.image     || {};
-    const DY = B.dynamic   || {};
-    const P  = B.picsum    || {};
-    const mode = B.mode || "solid";
-
-    // === Farger som styrer faser (visningstall) ===
-    if (RESET_FLAGS.phaseColors) {
-      setIf("#color_normal", "#e6edf3");
-      setIf("#color_warn",   "#ffd166");
-      setIf("#color_alert",  "#ff6b6b");
-      setIf("#color_over",   "#9ad0ff");
-    }
-
-    // === Overordnede meldinger i visning (tekstfelt) ===
-    if (RESET_FLAGS.uiMessagesText) {
-      setIf("#message_primary",   "");
-      setIf("#message_secondary", "");
-    }
-
-    // === Typografi/farge for meldinger (theme.*) ===
-    if (RESET_FLAGS.themeMessages) {
-      setIf("#theme_p_size_vmin", String(Mp.size_vmin ?? 10));
-      setIf("#theme_p_weight",    String(Mp.weight    ?? 700));
-      setIf("#theme_p_color",     Mp.color ?? "#9aa4b2");
-
-      setIf("#theme_s_size_vmin", String(Ms.size_vmin ?? 8));
-      setIf("#theme_s_weight",    String(Ms.weight    ?? 400));
-      setIf("#theme_s_color",     Ms.color ?? "#9aa4b2");
-    }
-
-    // === Sifferstørrelse ===
-    if (RESET_FLAGS.digits) {
-      const digitsVmin = (D.size_vmin != null) ? D.size_vmin : (D.size_vw != null ? D.size_vw : 14);
-      setIf("#digits_size_vmin", String(digitsVmin));
-    }
-
-    // === Klokke ===
-    if (RESET_FLAGS.clockColor) setIf("#clk_color", "#e6edf3");
-    if (RESET_FLAGS.clockTexts) {
-      setIf("#clk_msg_primary", "Velkommen!");
-      setIf("#clk_msg_secondary", "");
-    }
-
-    // === Bakgrunn ===
-    if (RESET_FLAGS.background.mode) {
-      const radio = document.querySelector(`input[name="bg_mode"][value="${mode}"]`);
-      if (radio) radio.checked = true;
-    }
-    if (RESET_FLAGS.background.solid) {
-      setIf("#bg_solid_color", S.color ?? "#0b0f14");
-    }
-    if (RESET_FLAGS.background.gradient) {
-      setIf("#bg_grad_from",  G.from ?? "#142033");
-      setIf("#bg_grad_to",    G.to   ?? "#0b0f14");
-      setIf("#bg_grad_angle", String(G.angle_deg ?? 160));
-    }
-    if (RESET_FLAGS.background.image) {
-      setIf("#bg_img_url",  I.url ?? "");
-      setIf("#bg_img_fit",  I.fit ?? "cover");
-      setIf("#bg_img_op",   String(I.opacity ?? 1));
-      setIf("#bg_img_tint", I.tint?.color ?? "#000000");
-      setIf("#bg_img_tint_op", String(I.tint?.opacity ?? 0));
-    }
-    if (RESET_FLAGS.background.picsum) {
-      setIf("#bg_picsum_fit",      P.fit ?? "cover");
-      setIf("#bg_picsum_blur",     String(P.blur ?? 0));
-      checkIf("#bg_picsum_gray",   !!P.grayscale);
-      checkIf("#bg_picsum_lock",   !!P.lock_seed);
-      setIf("#bg_picsum_seed",     P.seed ?? "");
-      setIf("#bg_picsum_tint",     P.tint?.color ?? "#000000");
-      setIf("#bg_picsum_tint_op",  String(P.tint?.opacity ?? 0));
-      if (RESET_FLAGS.background.picsumId) setIf("#bg_picsum_id", String(P.id ?? ""));
-    }
-    if (RESET_FLAGS.background.dynamic) {
-      setIf("#bg_dyn_base",    DY.base_mode ?? "auto");
-      setIf("#bg_dyn_from",    DY.from ?? "#16233a");
-      setIf("#bg_dyn_to",      DY.to   ?? "#0e1a2f");
-      setIf("#bg_dyn_rotate",  String(DY.rotate_s ?? 60));
-      setIf("#bg_dyn_blur",    String(DY.blur_px  ?? 18));
-      setIf("#bg_dyn_opacity", String(DY.opacity  ?? 0.9));
-      setIf("#bg_dyn_layer",   DY.layer ?? "under");
-    }
-
-    // Oppdater UI-tilstand og hints
-    lock();
-    updateDigitContrastHints();
-    updateMessageContrastHints();
-    updateClockContrastHint?.();
-
-    showStatusToast("Visning tilbakestilt ✔", "ok", 1400);
-    window.dispatchEvent(new CustomEvent("theme:reset", { detail: T }));
-  } catch (e) {
-    console.error(e);
-    showStatusToast(`Kunne ikke tilbakestille: ${e.message}`, "error", 3500);
-    alert("Tilbakestill visning feilet:\n" + (e?.message || e));
-  } finally {
-    btn.disabled = false; btn.textContent = prev;
-  }
-}
-
 
   // ==== BG & kontrast helpers ===============================================
   const selBgMode = () => $$(`input[name="bg_mode"]:checked`)[0]?.value || "solid";
@@ -276,39 +156,60 @@ async function handleResetView(buttonEl) {
     return "#0b0f14";
   }
 
-  function updateDigitContrastHints() {
-    const bg = currentPreviewBgColor();
-    const set = (id, color) => {
-      const el = $(id); if (!el) return;
-      const r = C.ratio(color, bg); const adv = C.advise(r);
-      el.textContent = `kontrast ${r.toFixed(2)}${adv.tone === "ok" ? " ✔" : " ⚠"}`;
-      el.style.color = adv.tone === "ok" ? "#69db7c" : "#ffd166";
-    };
-    set("#c_contrast_normal", val("#color_normal", "#e6edf3"));
-    set("#c_contrast_warn",   val("#color_warn",   "#ffd166"));
-    set("#c_contrast_alert",  val("#color_alert",  "#ff6b6b"));
-    set("#c_contrast_over",   val("#color_over",   "#9ad0ff"));
-  }
-  function updateMessageContrastHints() {
-    const bg = currentPreviewBgColor();
-    const set = (id, color) => {
-      const el = $(id); if (!el) return;
-      const r = C.ratio(color, bg); const adv = C.advise(r);
-      el.textContent = `${r.toFixed(2)}${adv.tone === "ok" ? " ✔" : " ⚠"}`;
-      el.style.color = adv.tone === "ok" ? "#69db7c" : "#ffd166";
-    };
-    $("#m_contrast_p") && set("#m_contrast_p", val("#theme_p_color", "#9aa4b2"));
-    $("#m_contrast_s") && set("#m_contrast_s", val("#theme_s_color", "#9aa4b2"));
-  }
-  function updateClockContrastHint() {
-    const bg = currentPreviewBgColor();
-    const color = val("#clk_color", "#e6edf3");
-    const el = $("#clk_contrast");
-    if (!el) return;
+  function getUiDefault(path, hardcoded) {
+  // path: f.eks. ["theme","messages","primary","color"] eller ["color_normal"]
+  // returnerer defaultsCache-verdi hvis tilgjengelig, ellers hardcoded.
+  try {
+    let cur = defaultsCache;
+    for (const k of path) { if (!cur || !(k in cur)) return hardcoded; cur = cur[k]; }
+    return (cur ?? hardcoded);
+  } catch { return hardcoded; }
+}
+
+function updateDigitContrastHints() {
+  const bg = currentPreviewBgColor();
+  const set = (id, color) => {
+    const el = $(id); if (!el) return;
     const r = C.ratio(color, bg); const adv = C.advise(r);
     el.textContent = `kontrast ${r.toFixed(2)}${adv.tone === "ok" ? " ✔" : " ⚠"}`;
     el.style.color = adv.tone === "ok" ? "#69db7c" : "#ffd166";
-  }
+  };
+  const defNormal = getUiDefault(["color_normal"], "#e6edf3");
+  const defWarn   = getUiDefault(["color_warn"],   "#ffd166");
+  const defAlert  = getUiDefault(["color_alert"],  "#ff6b6b");
+  const defOver   = getUiDefault(["color_over"],   "#9ad0ff");
+
+  set("#c_contrast_normal", val("#color_normal", defNormal));
+  set("#c_contrast_warn",   val("#color_warn",   defWarn));
+  set("#c_contrast_alert",  val("#color_alert",  defAlert));
+  set("#c_contrast_over",   val("#color_over",   defOver));
+}
+
+function updateMessageContrastHints() {
+  const bg = currentPreviewBgColor();
+  const set = (id, color) => {
+    const el = $(id); if (!el) return;
+    const r = C.ratio(color, bg); const adv = C.advise(r);
+    el.textContent = `${r.toFixed(2)}${adv.tone === "ok" ? " ✔" : " ⚠"}`;
+    el.style.color = adv.tone === "ok" ? "#69db7c" : "#ffd166";
+  };
+  const defP = getUiDefault(["theme","messages","primary","color"],   "#9aa4b2");
+  const defS = getUiDefault(["theme","messages","secondary","color"], "#9aa4b2");
+  $("#m_contrast_p") && set("#m_contrast_p", val("#theme_p_color", defP));
+  $("#m_contrast_s") && set("#m_contrast_s", val("#theme_s_color", defS));
+}
+
+function updateClockContrastHint() {
+  const bg = currentPreviewBgColor();
+  const defClk = getUiDefault(["clock","color"], "#e6edf3");
+  const color = val("#clk_color", defClk);
+  const el = $("#clk_contrast");
+  if (!el) return;
+  const r = C.ratio(color, bg); const adv = C.advise(r);
+  el.textContent = `kontrast ${r.toFixed(2)}${adv.tone === "ok" ? " ✔" : " ⚠"}`;
+  el.style.color = adv.tone === "ok" ? "#69db7c" : "#ffd166";
+}
+
 
   // ==== Lock / UI enabling ===================================================
   const selMode = () => $$(`input[name="mode"]:checked`)[0]?.value || "daily";
@@ -387,7 +288,6 @@ async function handleResetView(buttonEl) {
     fillOverlayFields(overlaysLocal[idx] || overlayDefaults());
   }
   function fillOverlayFields(o) {
-    $("#ov_id")?.setAttribute("value", o.id || "");
     $("#ov_id") && ($("#ov_id").value = o.id || "");
     $("#ov_type") && ($("#ov_type").value = o.type || "image");
     $("#ov_url") && ($("#ov_url").value = o.url || "");
@@ -553,8 +453,8 @@ async function handleResetView(buttonEl) {
   function apply(cfg, tick) {
     lastCfg = cfg;
 
-    document.querySelector(`input[name="mode"][value="${cfg.mode || "daily"}"]`)?.setAttribute("checked", "true");
-    document.querySelector(`input[name="mode"][value="${cfg.mode || "daily"}"]`) && (document.querySelector(`input[name="mode"][value="${cfg.mode || "daily"}"]`).checked = true);
+    const modeRadio = document.querySelector(`input[name="mode"][value="${cfg.mode || "daily"}"]`);
+    if (modeRadio) modeRadio.checked = true;
 
     $("#daily_time") && ($("#daily_time").value = cfg.daily_time || "");
     $("#once_at") && ($("#once_at").value = (cfg.once_at || "").replace("Z", ""));
@@ -595,7 +495,8 @@ async function handleResetView(buttonEl) {
     renderOverlaysUI();
 
     const bg = cfg?.theme?.background || {};
-    document.querySelector(`input[name="bg_mode"][value="${bg.mode || "solid"}"]`) && (document.querySelector(`input[name="bg_mode"][value="${bg.mode || "solid"}"]`).checked = true);
+    const bgRadio = document.querySelector(`input[name="bg_mode"][value="${bg.mode || "solid"}"]`);
+    if (bgRadio) bgRadio.checked = true;
     $("#bg_solid_color") && ($("#bg_solid_color").value = bg.solid?.color || "#0b0f14");
     $("#bg_grad_from") && ($("#bg_grad_from").value = bg.gradient?.from || "#142033");
     $("#bg_grad_to") && ($("#bg_grad_to").value = bg.gradient?.to || "#0b0f14");
