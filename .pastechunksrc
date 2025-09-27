@@ -5,7 +5,7 @@ MAX_LINES=3000
 ALLOW_BINARY=0
 
 INCLUDES='
-**/static/**/diag.js
+**/app/**/*.*
 '
 
 EXCLUDES='

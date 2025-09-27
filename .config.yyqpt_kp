@@ -1,0 +1,181 @@
+{
+  "mode": "clock",
+  "daily_time": "19:15",
+  "once_at": "",
+  "duration_minutes": 10,
+  "duration_started_ms": 0,
+  "show_target_time": true,
+  "target_time_after": "secondary",
+  "messages_position": "above",
+  "message_primary": "Velkommen!",
+  "message_secondary": "Vi starter kl:",
+  "show_message_primary": true,
+  "show_message_secondary": true,
+  "warn_minutes": 4,
+  "alert_minutes": 2,
+  "blink_seconds": 20,
+  "overrun_minutes": 20,
+  "hms_threshold_minutes": 60,
+  "use_phase_colors": true,
+  "use_blink": true,
+  "color_normal": "#e6edf3",
+  "color_warn": "#ffd166",
+  "color_alert": "#ff6b6b",
+  "color_over": "#9ad0ff",
+  "theme": {
+    "digits": {
+      "size_vmin": 14.0,
+      "font_weight": 800,
+      "letter_spacing_em": 0.06
+    },
+    "messages": {
+      "primary": {
+        "size_vmin": 6.0,
+        "weight": 600,
+        "color": "#9aa4b2",
+        "size_rem": 3
+      },
+      "secondary": {
+        "size_vmin": 4.0,
+        "weight": 400,
+        "color": "#9aa4b2",
+        "size_rem": 1
+      }
+    },
+    "background": {
+      "mode": "picsum",
+      "solid": {
+        "color": "#0b0f14"
+      },
+      "gradient": {
+        "from": "#111827",
+        "to": "#0b0f14",
+        "angle_deg": 160
+      },
+      "image": {
+        "url": "",
+        "fit": "cover",
+        "opacity": 1.0,
+        "tint": {
+          "color": "#a66f6f",
+          "opacity": 0.0
+        }
+      },
+      "dynamic": {
+        "from": "#16233a",
+        "to": "#0e1a2f",
+        "rotate_s": 40,
+        "blur_px": 25,
+        "opacity": 0.8,
+        "base_mode": "auto",
+        "layer": "under"
+      },
+      "picsum": {
+        "fit": "cover",
+        "grayscale": false,
+        "blur": 0,
+        "lock_seed": false,
+        "seed": "",
+        "tint": {
+          "color": "#000000",
+          "opacity": 0.0
+        },
+        "auto_rotate": {
+          "enabled": true,
+          "interval_seconds": 5,
+          "strategy": "sequential",
+          "last_switch_ms": 1758991896891,
+          "last_index": 2
+        },
+        "id": 70
+      }
+    },
+    "picsum_catalog": [
+      {"id": 16,"label": "Paul Jarvis"},
+      {"id": 62,"label": "Landskap"},
+      {"id": 70,"label": "Allé"},
+      {"id": 100,"label": "Strand"},
+      {"id": 102,"label": "Bringebær"},
+      {"id": 109,"label": "Sommer"},
+      {"id": 112,"label": "Strå"},
+      {"id": 186,"label": "Simon Pape"},
+      {"id": 206,"label": "Philipp Reiner"},
+      {"id": 235,"label": "Fjell"},
+      {"id": 335,"label": "Vei"},
+      {"id": 500,"label": "Himmel"},
+      {"id": 865,"label": "Hav"},
+      {"id": 866,"label": "Fjell med snø"},
+      {"id": 867,"label": "Brygge"},
+      {"id": 1000,"label": "Fjell - snø"}
+    ]
+  },
+  "clock": {
+    "with_seconds": true,
+    "color": "#e6edf3",
+    "size_vmin": 18,
+    "position": "center",
+    "messages_position": "above",
+    "messages_align": "center",
+    "use_clock_messages": true,
+    "message_primary": "",
+    "message_secondary": ""
+  },
+  "overlays": [
+    {
+      "id": "Apple_logo",
+      "type": "image",
+      "url": "https://freelogopng.com/images/all_img/1685901477apple-logo-transparent.png",
+      "position": "top-right",
+      "size_vmin": 49.0,
+      "opacity": 1.0,
+      "offset_vw": 2.0,
+      "offset_vh": 2.0,
+      "z_index": 10,
+      "visible_in": [],
+      "tint": {
+        "color": "#d27f7f",
+        "opacity": 0.0,
+        "blend": "normal"
+      }
+    },
+    {
+      "id": "HP_logo",
+      "type": "image",
+      "url": "https://static.wixstatic.com/media/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png/v1/fill/w_1202,h_194,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png",
+      "position": "bottom-right",
+      "size_vmin": 70.0,
+      "opacity": 1.0,
+      "offset_vw": 2.0,
+      "offset_vh": 2.0,
+      "z_index": 1,
+      "visible_in": [
+        "clock",
+        "countdown"
+      ],
+      "tint": {
+        "color": "#000000",
+        "opacity": 0.0,
+        "blend": "multiply"
+      }
+    },
+    {
+      "id": "HP_logo-2",
+      "type": "image",
+      "url": "https://static.wixstatic.com/media/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png/v1/fill/w_1202,h_194,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/8ff0d1_5805e731832c43bb9a99be67ae9e3df1~mv2.png",
+      "position": "top-left",
+      "size_vmin": 60.0,
+      "opacity": 1.0,
+      "offset_vw": 2.0,
+      "offset_vh": 2.0,
+      "z_index": 10,
+      "visible_in": [],
+      "tint": {
+        "color": "#000000",
+        "opacity": 0.0,
+        "blend": "multiply"
+      }
+    }
+  ],
+  "admin_password": null,
+  "_updated_at": 1758991896
+}
