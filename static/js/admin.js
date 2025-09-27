@@ -331,112 +331,136 @@ function updateClockContrastHint() {
   function delOverlay() { if (!overlaysLocal.length) return; const idx = ovIdx(); overlaysLocal.splice(idx, 1); renderOverlaysUI(Math.min(idx, overlaysLocal.length - 1)); pushPreview(); }
 
   // ==== Build patch & save ===================================================
-  function buildPatch() {
-    const m = selMode();
+function buildPatch() {
+  const m = selMode();
 
-    const clock = (() => {
-      const has = $("#clk_with_seconds") || $("#clk_color") || $("#clk_size_vmin") || $("#clk_position") ||
-                  $("#clk_msg_position") || $("#clk_msg_align") || $("#clk_use_own_msgs") ||
-                  $("#clk_msg_primary") || $("#clk_msg_secondary");
-      if (has) {
-        return {
-          with_seconds: !!$("#clk_with_seconds")?.checked,
-          color: normalizeHex6(val("#clk_color", "#e6edf3"), "#e6edf3"),
-          size_vmin: Number(val("#clk_size_vmin", "12")),
-          position: val("#clk_position", "center"),
-          messages_position: val("#clk_msg_position", "right"),
-          messages_align: val("#clk_msg_align", "center"),
-          use_clock_messages: !!$("#clk_use_own_msgs")?.checked,
-          message_primary: val("#clk_msg_primary", ""),
-          message_secondary: val("#clk_msg_secondary", ""),
-        };
-      }
-      return lastCfg?.clock || {};
-    })();
-
-    const out = {
-      mode: m,
-      daily_time: val("#daily_time"),
-      once_at: val("#once_at"),
-      overlays_mode: "replace",
-      overlays: overlaysLocal,
-      show_message_primary: !!$("#show_message_primary")?.checked,
-      show_message_secondary: !!$("#show_message_secondary")?.checked,
-      message_primary: val("#message_primary"),
-      message_secondary: val("#message_secondary"),
-      warn_minutes: Number(val("#warn_minutes", "4")),
-      alert_minutes: Number(val("#alert_minutes", "2")),
-      blink_seconds: Number(val("#blink_seconds", "10")),
-      overrun_minutes: Number(val("#overrun_minutes", "1")),
-      use_phase_colors: !!$("#use_phase_colors")?.checked,
-      use_blink: !!$("#use_blink")?.checked,
-      color_normal: normalizeHex6(val("#color_normal", "#e6edf3"), "#e6edf3"),
-      color_warn:   normalizeHex6(val("#color_warn",   "#ffd166"), "#ffd166"),
-      color_alert:  normalizeHex6(val("#color_alert",  "#ff6b6b"), "#ff6b6b"),
-      color_over:   normalizeHex6(val("#color_over",   "#9ad0ff"), "#9ad0ff"),
-      show_target_time: !!$("#show_target_time")?.checked,
-      target_time_after: val("#target_time_after", "secondary"),
-      messages_position: val("#messages_position", "below"),
-      hms_threshold_minutes: parseInt(val("#hms_threshold_minutes", "60"), 10),
-      theme: {
-        digits: { size_vmin: Number(val("#digits_size_vmin", "14")) },
-        messages: {
-          primary:   { size_vmin: Number(val("#theme_p_size_vmin", "6")), weight: Number(val("#theme_p_weight", "600")), color: normalizeHex6(val("#theme_p_color", "#9aa4b2"), "#9aa4b2") },
-          secondary: { size_vmin: Number(val("#theme_s_size_vmin", "4")), weight: Number(val("#theme_s_weight", "400")), color: normalizeHex6(val("#theme_s_color", "#9aa4b2"), "#9aa4b2") },
-        },
-        background: {
-          mode: selBgMode(),
-          solid:    { color: normalizeHex6(val("#bg_solid_color", "#0b0f14"), "#0b0f14") },
-          gradient: { from: normalizeHex6(val("#bg_grad_from", "#142033"), "#142033"), to: normalizeHex6(val("#bg_grad_to", "#0b0f14"), "#0b0f14"), angle_deg: Number(val("#bg_grad_angle", "180")) },
-          dynamic:  {
-            from: normalizeHex6(val("#bg_dyn_from", "#16233a"), "#16233a"),
-            to: normalizeHex6(val("#bg_dyn_to", "#0e1a2f"), "#0e1a2f"),
-            rotate_s: Number(val("#bg_dyn_rotate", "60")),
-            blur_px: Number(val("#bg_dyn_blur", "18")),
-            opacity: Number(val("#bg_dyn_opacity", "0.9")),
-            base_mode: val("#bg_dyn_base", "auto"),
-            layer: val("#bg_dyn_layer", "under"),
-          },
-          image: {
-            url: val("#bg_img_url", ""),
-            fit: val("#bg_img_fit", "cover"),
-            opacity: Number(val("#bg_img_op", "1")),
-            tint: { color: normalizeHex6(val("#bg_img_tint", "#000000"), "#000000"), opacity: Number(val("#bg_img_tint_op", "0")) },
-          },
-        },
-        picsum_catalog: picsumCatalogLocal.map(x => ({ id: Number(x.id), label: String(x.label || "") })),
-      },
-      clock,
-    };
-
-    if (out.theme.background.mode === "picsum") {
-      const idRaw = (val("#bg_picsum_id", "") || "").trim();
-      const parsedId = idRaw ? parseInt(idRaw, 10) : NaN;
-      out.theme.background.picsum = {
-        fit: val("#bg_picsum_fit", "cover"),
-        blur: Math.max(0, Math.min(10, Number(val("#bg_picsum_blur", "0")))),
-        grayscale: !!$("#bg_picsum_gray")?.checked,
-        lock_seed: !!$("#bg_picsum_lock")?.checked,
-        seed: (val("#bg_picsum_seed", "") || "").trim(),
-        tint: {
-          color: normalizeHex6(val("#bg_picsum_tint", "#000000"), "#000000"),
-          opacity: Math.max(0, Math.min(1, Number(val("#bg_picsum_tint_op", "0")))),
-        },
+  const clock = (() => {
+    const has = $("#clk_with_seconds") || $("#clk_color") || $("#clk_size_vmin") || $("#clk_position") ||
+                $("#clk_msg_position") || $("#clk_msg_align") || $("#clk_use_own_msgs") ||
+                $("#clk_msg_primary") || $("#clk_msg_secondary");
+    if (has) {
+      return {
+        with_seconds: !!$("#clk_with_seconds")?.checked,
+        color: normalizeHex6(val("#clk_color", "#e6edf3"), "#e6edf3"),
+        size_vmin: Number(val("#clk_size_vmin", "12")),
+        position: val("#clk_position", "center"),
+        messages_position: val("#clk_msg_position", "right"),
+        messages_align: val("#clk_msg_align", "center"),
+        use_clock_messages: !!$("#clk_use_own_msgs")?.checked,
+        message_primary: val("#clk_msg_primary", ""),
+        message_secondary: val("#clk_msg_secondary", ""),
       };
-      if (Number.isFinite(parsedId) && parsedId > 0) {
-        out.theme.background.picsum.id = parsedId;
-      }
     }
-    return out;
-  }
+    return lastCfg?.clock || {};
+  })();
 
-  async function saveAll() {
+  const out = {
+    mode: m,
+    daily_time: val("#daily_time"),
+    once_at: val("#once_at"),
+    overlays_mode: "replace",
+    overlays: overlaysLocal,
+    show_message_primary: !!$("#show_message_primary")?.checked,
+    show_message_secondary: !!$("#show_message_secondary")?.checked,
+    message_primary: val("#message_primary"),
+    message_secondary: val("#message_secondary"),
+    warn_minutes: Number(val("#warn_minutes", "4")),
+    alert_minutes: Number(val("#alert_minutes", "2")),
+    blink_seconds: Number(val("#blink_seconds", "10")),
+    overrun_minutes: Number(val("#overrun_minutes", "1")),
+    use_phase_colors: !!$("#use_phase_colors")?.checked,
+    use_blink: !!$("#use_blink")?.checked,
+    color_normal: normalizeHex6(val("#color_normal", "#e6edf3"), "#e6edf3"),
+    color_warn:   normalizeHex6(val("#color_warn",   "#ffd166"), "#ffd166"),
+    color_alert:  normalizeHex6(val("#color_alert",  "#ff6b6b"), "#ff6b6b"),
+    color_over:   normalizeHex6(val("#color_over",   "#9ad0ff"), "#9ad0ff"),
+    show_target_time: !!$("#show_target_time")?.checked,
+    target_time_after: val("#target_time_after", "secondary"),
+    messages_position: val("#messages_position", "above"),
+    hms_threshold_minutes: parseInt(val("#hms_threshold_minutes", "60"), 10),
+    theme: {
+      digits: { size_vmin: Number(val("#digits_size_vmin", "14")) },
+      messages: {
+        primary:   { size_vmin: Number(val("#theme_p_size_vmin", "6")), weight: Number(val("#theme_p_weight", "600")), color: normalizeHex6(val("#theme_p_color", "#9aa4b2"), "#9aa4b2") },
+        secondary: { size_vmin: Number(val("#theme_s_size_vmin", "4")), weight: Number(val("#theme_s_weight", "400")), color: normalizeHex6(val("#theme_s_color", "#9aa4b2"), "#9aa4b2") },
+      },
+      background: {
+        mode: selBgMode(),
+        solid:    { color: normalizeHex6(val("#bg_solid_color", "#0b0f14"), "#0b0f14") },
+        gradient: { from: normalizeHex6(val("#bg_grad_from", "#142033"), "#142033"), to: normalizeHex6(val("#bg_grad_to", "#0b0f14"), "#0b0f14"), angle_deg: Number(val("#bg_grad_angle", "180")) },
+        dynamic:  {
+          from: normalizeHex6(val("#bg_dyn_from", "#16233a"), "#16233a"),
+          to: normalizeHex6(val("#bg_dyn_to", "#0e1a2f"), "#0e1a2f"),
+          rotate_s: Number(val("#bg_dyn_rotate", "60")),
+          blur_px: Number(val("#bg_dyn_blur", "18")),
+          opacity: Number(val("#bg_dyn_opacity", "0.9")),
+          base_mode: val("#bg_dyn_base", "auto"),
+          layer: val("#bg_dyn_layer", "under"),
+        },
+        image: {
+          url: val("#bg_img_url", ""),
+          fit: val("#bg_img_fit", "cover"),
+          opacity: Number(val("#bg_img_op", "1")),
+          tint: { color: normalizeHex6(val("#bg_img_tint", "#000000"), "#000000"), opacity: Number(val("#bg_img_tint_op", "0")) },
+        },
+      },
+      // kuratert liste lagres på theme-nivå
+      picsum_catalog: picsumCatalogLocal.map(x => ({ id: Number(x.id), label: String(x.label || "") })),
+    },
+    clock,
+  };
+
+  // Picsum-innstillinger: ved tomt/ugyldig ID sender vi id: null for å CLEAR'e
+ if (out.theme.background.mode === "picsum") {
+  const idStr = (val("#bg_picsum_id", "") || "").trim();
+  const idNum = idStr ? parseInt(idStr, 10) : NaN;
+  const idVal = (Number.isFinite(idNum) && idNum > 0) ? idNum : null;
+
+  const arEnabled = !!$("#bg_picsum_auto_enabled")?.checked;
+  const rawVal = parseInt((val("#bg_picsum_auto_interval", "5") || "5"), 10);
+  const unit = (val("#bg_picsum_auto_unit", "m") || "m").toLowerCase();
+  let intervalSec = Number.isFinite(rawVal) ? rawVal : 5;
+  intervalSec = Math.max(5, Math.min(24*60*60, unit === "m" ? intervalSec * 60 : intervalSec));
+
+  out.theme.background.picsum = {
+    fit: val("#bg_picsum_fit", "cover"),
+    blur: Math.max(0, Math.min(10, Number(val("#bg_picsum_blur", "0")))),
+    grayscale: !!$("#bg_picsum_gray")?.checked,
+    lock_seed: !!$("#bg_picsum_lock")?.checked,
+    seed: (val("#bg_picsum_seed", "") || "").trim(),
+    tint: {
+      color: normalizeHex6(val("#bg_picsum_tint", "#000000"), "#000000"),
+      opacity: Math.max(0, Math.min(1, Number(val("#bg_picsum_tint_op", "0")))),
+    },
+    id: idVal, // inkluder null for å “clear’e”
+    auto_rotate: {
+      enabled: arEnabled,
+      interval_seconds: intervalSec,
+      strategy: (val("#bg_picsum_auto_strategy","shuffle") || "shuffle"),
+      // last_switch_ms & last_index styres av backend
+    }
+  };
+}
+
+
+  return out;
+}
+
+  // ==== Save config ==========================================================
+
+async function saveAll() {
+  try {
     const body = buildPatch();
     const js = await postJSON("/api/config", body);
     lastCfg = js.config || lastCfg;
     apply(js.config, js.tick);
     showStatusToast("Lagret ✔", "ok", 1400);
+  } catch (e) {
+    console.error(e);
+    showStatusToast(`Kunne ikke lagre: ${e.message}`, "error", 3500);
+    alert("Lagring feilet:\n" + (e?.message || e));
   }
+}
 
   // ==== Apply config to form =================================================
   function setVal(sel, value) {
@@ -475,7 +499,7 @@ function updateClockContrastHint() {
     $("#color_over") && ($("#color_over").value = cfg.color_over || "#9ad0ff");
     $("#show_target_time") && ($("#show_target_time").checked = !!cfg.show_target_time);
     $("#target_time_after") && ($("#target_time_after").value = cfg.target_time_after || "secondary");
-    $("#messages_position") && ($("#messages_position").value = cfg.messages_position || "below");
+    $("#messages_position") && ($("#messages_position").value = cfg.messages_position || "above");
     $("#hms_threshold_minutes") && ($("#hms_threshold_minutes").value = cfg.hms_threshold_minutes ?? 60);
 
     const p = cfg?.theme?.messages?.primary || {};
@@ -524,6 +548,25 @@ function updateClockContrastHint() {
     $("#bg_picsum_tint_op")  && ($("#bg_picsum_tint_op").value  = bg.picsum?.tint?.opacity ?? 0);
     $("#bg_picsum_id")       && ($("#bg_picsum_id").value       = (bg.picsum?.id ?? ""));
 
+    // Sync auto-rotate felter hvis UI finnes
+const ar = cfg?.theme?.background?.picsum?.auto_rotate || {};
+const arEnabledEl = document.getElementById("bg_picsum_auto_enabled");
+const arIntEl = document.getElementById("bg_picsum_auto_interval");
+const arUnitEl = document.getElementById("bg_picsum_auto_unit");
+const arStratEl = document.getElementById("bg_picsum_auto_strategy");
+if (arEnabledEl && arIntEl && arUnitEl && arStratEl) {
+  arEnabledEl.checked = !!ar.enabled;
+  const secs = Number(ar.interval_seconds ?? 300);
+  if (secs % 60 === 0) {
+    arUnitEl.value = "m";
+    arIntEl.value = String(secs / 60);
+  } else {
+    arUnitEl.value = "s";
+    arIntEl.value = String(secs);
+  }
+  arStratEl.value = ar.strategy || "shuffle";
+}
+
     const clk = cfg?.clock || {};
     $("#clk_with_seconds") && ($("#clk_with_seconds").checked = !!clk.with_seconds);
     $("#clk_color") && ($("#clk_color").value = clk.color || "#e6edf3");
@@ -555,6 +598,63 @@ function updateClockContrastHint() {
 
     updateClockContrastHint(); lock(); updateDigitContrastHints(); updateMessageContrastHints();
   }
+// --- Auto-rotate UI (opprett én gang) ---
+(function ensurePicsumAutoRotateUI() {
+  const host = document.getElementById("bg_picsum_cfg");
+  if (!host || host._autoRotateBound) return;
+
+  const wrap = document.createElement("div");
+  wrap.id = "picsum_auto_rotate_ui";
+  wrap.style.marginTop = "8px";
+  wrap.innerHTML = `
+    <div class="row">
+      <label style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="bg_picsum_auto_enabled">
+        <span>Bytt bilde automatisk</span>
+      </label>
+    </div>
+    <div class="row" style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+      <label>Intervall</label>
+      <input type="number" id="bg_picsum_auto_interval" min="5" max="${24*60*60}" step="1" value="300" style="width:110px">
+      <select id="bg_picsum_auto_unit">
+        <option value="s">sekunder</option>
+        <option value="m" selected>minutter</option>
+      </select>
+      <label>Strategi</label>
+      <select id="bg_picsum_auto_strategy">
+        <option value="shuffle">Tilfeldig</option>
+        <option value="sequential">Sekvensielt</option>
+      </select>
+    </div>
+    <p style="opacity:.8;margin:6px 0 0;">Kilde: «Kuratert Picsum-liste». Når aktivt, kan visningen kalle <code>/api/picsum/next</code> periodisk.</p>
+  `;
+  host.appendChild(wrap);
+
+  const syncFromCfg = () => {
+    const ar = (lastCfg?.theme?.background?.picsum?.auto_rotate) || {};
+    $("#bg_picsum_auto_enabled").checked = !!ar.enabled;
+    const secs = Number(ar.interval_seconds ?? 300);
+    if (secs % 60 === 0) {
+      $("#bg_picsum_auto_unit").value = "m";
+      $("#bg_picsum_auto_interval").value = String(secs / 60);
+    } else {
+      $("#bg_picsum_auto_unit").value = "s";
+      $("#bg_picsum_auto_interval").value = String(secs);
+    }
+    $("#bg_picsum_auto_strategy").value = (ar.strategy || "shuffle");
+  };
+
+  ["#bg_picsum_auto_enabled","#bg_picsum_auto_interval","#bg_picsum_auto_unit","#bg_picsum_auto_strategy"].forEach((s) => {
+    const el = $(s); if (!el) return;
+    el.addEventListener("input",  pushPreviewDebounced);
+    el.addEventListener("change", pushPreviewDebounced);
+  });
+
+  syncFromCfg();
+  host._autoRotateBound = true;
+})();
+
+
 
   function renderPicsumList(selectedIndex) {
     const sel = document.getElementById("bg_picsum_list");
@@ -629,6 +729,226 @@ function updateClockContrastHint() {
 
     bindPicsumListOnce._bound = true;
   }
+// === PICSUM GALLERI (modal + henting + kuratering) ==========================
+const PICSUM_API = "https://picsum.photos/v2/list";
+const PICSUM_THUMB_W = 240;       // thumbnail-bredde (høyde tilpasses av Picsum)
+const PICSUM_THUMB_H = 160;
+
+const picsumPicker = {
+  open: false,
+  page: 1,
+  perPage: 24,
+  items: [],
+  selected: new Set(),
+  loading: false,
+};
+
+function ensurePicsumBrowseButton() {
+  // Legg inn en knapp i Picsum-seksjonen om den ikke finnes
+  if (document.getElementById("btn_picsum_browse")) return;
+  const host =
+    document.getElementById("bg_picsum_cfg") ||
+    document.getElementById("bg_picsum_list")?.parentElement ||
+    document.body;
+
+  const bar = document.createElement("div");
+  bar.style.margin = "8px 0 6px 0";
+  const btn = document.createElement("button");
+  btn.id = "btn_picsum_browse";
+  btn.type = "button";
+  btn.textContent = "Åpne Picsum-galleri…";
+  btn.addEventListener("click", openPicsumPicker);
+  bar.appendChild(btn);
+  host.appendChild(bar);
+}
+
+function ensurePicsumModal() {
+  if (document.getElementById("picsum_modal")) return;
+
+  // Enkel, intern stil for modalen
+  const css = `
+#picsum_modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;}
+#picsum_modal .box{
+  background:#0f1622;color:#e6edf3;
+  min-width:70vw;max-width:92vw;
+  height:88vh;                 /* <- fast høyde gir scrollbar i grid */
+  border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.4);
+  display:flex;flex-direction:column;overflow:hidden
+}
+#picsum_modal header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+#picsum_modal header .left{display:flex;gap:10px;align-items:center}
+#picsum_modal header .right{display:flex;gap:8px;align-items:center}
+#picsum_modal header input[type=number]{width:72px}
+#picsum_modal .grid{
+  padding:12px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
+  gap:12px;
+  overflow:auto;               /* <- aktiver scrolling */
+  flex:1;                      /* <- fyll resthøyde mellom header/footer */
+  min-height:0;                /* <- kritisk for at overflow skal fungere i flex-kolonne */
+}
+#picsum_modal .tile{position:relative;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.07);cursor:pointer}
+#picsum_modal .tile img{display:block;width:100%;height:140px;object-fit:cover}
+#picsum_modal .tile .meta{position:absolute;left:0;right:0;bottom:0;font-size:12px;background:linear-gradient(transparent, rgba(0,0,0,.65));padding:28px 8px 6px 8px}
+#picsum_modal .tile .meta strong{opacity:.95}
+#picsum_modal .tile .check{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.55);border-radius:999px;padding:4px 6px;font-size:12px}
+#picsum_modal .tile.selected{outline:3px solid #4dabf7}
+#picsum_modal footer{display:flex;gap:8px;justify-content:flex-end;padding:10px 14px;border-top:1px solid rgba(255,255,255,.08)}
+#picsum_modal button{cursor:pointer}
+`;
+
+  const style = document.createElement("style"); style.textContent = css; document.head.appendChild(style);
+
+  const modal = document.createElement("div"); modal.id = "picsum_modal"; modal.style.display = "none";
+  modal.innerHTML = `
+    <div class="box" role="dialog" aria-modal="true" aria-label="Picsum-galleri">
+      <header>
+        <div class="left">
+          <strong style="font-size:14px">Picsum-galleri</strong>
+          <label>Sidenr <input id="pg_page" type="number" min="1" step="1" value="1"></label>
+          <label>Pr. side
+            <select id="pg_per_page">
+  <option>12</option><option selected>24</option><option>36</option><option>60</option>
+</select>
+
+          </label>
+          <button id="pg_prev" type="button">◀ Forrige</button>
+          <button id="pg_next" type="button">Neste ▶</button>
+        </div>
+        <div class="right">
+          <span id="pg_status" style="opacity:.8;font-size:12px"></span>
+          <button id="pg_close" type="button">Lukk</button>
+        </div>
+      </header>
+      <div id="pg_grid" class="grid" aria-live="polite"></div>
+      <footer>
+        <button id="pg_add_use" type="button">Legg til & bruk første</button>
+        <button id="pg_add" type="button">Legg til valgte</button>
+      </footer>
+    </div>`;
+  document.body.appendChild(modal);
+
+  // Bind-knapper
+  modal.addEventListener("click", (ev) => {
+    if (ev.target === modal) closePicsumPicker();  // klikk utenfor boksen
+  });
+  document.getElementById("pg_close").addEventListener("click", closePicsumPicker);
+  document.getElementById("pg_prev").addEventListener("click", () => { if (picsumPicker.page > 1) { picsumPicker.page--; fetchPicsumPage(); }});
+  document.getElementById("pg_next").addEventListener("click", () => { picsumPicker.page++; fetchPicsumPage(); });
+  document.getElementById("pg_page").addEventListener("change", () => {
+    const p = parseInt(document.getElementById("pg_page").value || "1", 10);
+    picsumPicker.page = Math.max(1, isFinite(p) ? p : 1); fetchPicsumPage();
+  });
+  document.getElementById("pg_per_page").addEventListener("change", () => {
+    picsumPicker.perPage = parseInt(document.getElementById("pg_per_page").value, 10) || 30;
+    fetchPicsumPage();
+  });
+  document.getElementById("pg_add").addEventListener("click", () => addSelectedToCurated(false));
+  document.getElementById("pg_add_use").addEventListener("click", () => addSelectedToCurated(true));
+
+  // ESC for å lukke
+  window.addEventListener("keydown", (e) => { if (e.key === "Escape" && picsumPicker.open) closePicsumPicker(); });
+}
+
+function openPicsumPicker() {
+  ensurePicsumModal();
+  const modal = document.getElementById("picsum_modal");
+  picsumPicker.open = true;
+  picsumPicker.selected = new Set();
+  modal.style.display = "flex";
+  // sync UI
+  document.getElementById("pg_page").value = String(picsumPicker.page);
+  document.getElementById("pg_per_page").value = String(picsumPicker.perPage);
+  fetchPicsumPage();
+}
+
+function closePicsumPicker() {
+  picsumPicker.open = false;
+  const modal = document.getElementById("picsum_modal");
+  if (modal) modal.style.display = "none";
+}
+
+async function fetchPicsumPage() {
+  if (!picsumPicker.open) return;
+  picsumPicker.loading = true;
+  renderPicsumGrid();
+  const url = `${PICSUM_API}?page=${picsumPicker.page}&limit=${picsumPicker.perPage}`;
+  try {
+    const r = await fetch(url, { cache: "no-store" });
+    const arr = await r.json();
+    picsumPicker.items = Array.isArray(arr) ? arr : [];
+    picsumPicker.loading = false;
+    renderPicsumGrid();
+  } catch (e) {
+    picsumPicker.items = [];
+    picsumPicker.loading = false;
+    const s = document.getElementById("pg_status");
+    if (s) s.textContent = "Kunne ikke hente fra picsum.photos";
+  }
+}
+
+function renderPicsumGrid() {
+  const grid = document.getElementById("pg_grid");
+  const s = document.getElementById("pg_status");
+  if (!grid) return;
+  grid.innerHTML = "";
+  if (s) s.textContent = picsumPicker.loading ? "Laster…" : `Side ${picsumPicker.page} · ${picsumPicker.items.length} bilder`;
+
+  picsumPicker.items.forEach((it) => {
+    const id = Number(it.id);
+    const author = String(it.author || "").trim();
+    const url = `https://picsum.photos/id/${id}/${PICSUM_THUMB_W}/${PICSUM_THUMB_H}`;
+
+    const tile = document.createElement("div");
+    tile.className = "tile";
+    tile.innerHTML = `
+      <img src="${url}" alt="Picsum #${id}">
+      <div class="check">#${id}</div>
+      <div class="meta"><strong>${author || "Ukjent"}</strong></div>
+    `;
+    const mark = () => {
+      if (picsumPicker.selected.has(id)) {
+        picsumPicker.selected.delete(id);
+        tile.classList.remove("selected");
+      } else {
+        picsumPicker.selected.add(id);
+        tile.classList.add("selected");
+      }
+    };
+    tile.addEventListener("click", mark);
+    grid.appendChild(tile);
+  });
+}
+
+function addSelectedToCurated(useFirst) {
+  if (!picsumPicker.selected.size) {
+    alert("Ingen bilder valgt.");
+    return;
+  }
+  const picked = Array.from(picsumPicker.selected.values());
+  // legg inn valgte med label = author (om tilgjengelig)
+  const byId = new Map(picsumCatalogLocal.map(x => [Number(x.id), x]));
+  picsumPicker.items.forEach((it) => {
+    const id = Number(it.id);
+    if (picsumPicker.selected.has(id)) {
+      byId.set(id, { id, label: String(it.author || "") });
+    }
+  });
+  picsumCatalogLocal = Array.from(byId.values()).sort((a,b) => Number(a.id) - Number(b.id));
+  renderPicsumList();
+  pushPreviewDebounced();
+  showStatusToast(`${picked.length} bilde(r) lagt i kuratert liste`, "ok", 1800);
+
+  if (useFirst) {
+    const first = picked[0];
+    const idField = document.getElementById("bg_picsum_id");
+    if (idField) idField.value = String(first);
+    const radio = document.querySelector(`input[name="bg_mode"][value="picsum"]`);
+    if (radio) { radio.checked = true; lock(); }
+    pushPreviewDebounced();
+  }
+  closePicsumPicker();
+}
 
   // ==== Loading / sync =======================================================
   async function loadAll() {
@@ -748,6 +1068,6 @@ function updateClockContrastHint() {
   }
 
   // ==== Init =================================================================
-  async function init() { bindEvents(); await loadAll().catch(console.error); setInterval(updateSyncPill, 3000); }
+  async function init() { bindEvents(); ensurePicsumBrowseButton(); ensurePicsumModal(); await loadAll().catch(console.error); setInterval(updateSyncPill, 3000); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true }); else init();
 })();

@@ -1,12 +1,11 @@
 # .pastechunksrc
 ROOT_DIR=/home/reidar/countdown
 OUT_DIR=/home/reidar/countdown/paste_out
-MAX_LINES=4000
+MAX_LINES=3000
 ALLOW_BINARY=0
 
 INCLUDES='
-**/{storage}.{*}
-**/{admin}.{js}
+**/static/**/*.*
 '
 
 EXCLUDES='
@@ -30,3 +29,6 @@ app/routes/._.DS_Store
 #tools/**/*.py
 #static/**/*.{js,css,html}
 #**/routes/{*}.{*}
+#**/{api}.{py}
+#**/{storage}.{py}
+

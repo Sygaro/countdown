@@ -66,19 +66,24 @@ _DEFAULTS: Dict[str, Any] = {
                 "blur": 0,                # 0..10 (Picsum støtter 1..10; 0 = av)
                 "lock_seed": False,       # hvis True → bruk 'seed' stabilt
                 "seed": "",               # valgfri seed (brukes kun hvis lock_seed=True)
-                "tint": {                 # samme struktur som image.tint
-                    "color": "#000000",
-                    "opacity": 0.0
+                "tint": { "color": "#000000", "opacity": 0.0 },  # samme struktur som image.tint
+            "auto_rotate": {
+                "enabled": False,
+                "interval_seconds": 300,   # 5 min
+                "strategy": "shuffle",     # "shuffle" | "sequential"
+                "last_switch_ms": 0,       # internt tidsstempel (ms)
+                "last_index": None         # internt - for 'sequential'
                 }
             },
         },
+
         # Brukes av admin for kuratering; var referert i JS men manglet i defaults
         "picsum_catalog": [],
     },
     "clock": {
         "with_seconds": True,
         "color": "#e6edf3",
-        "size_vmin": 15,
+        "size_vmin": 20,
         "position": "center",
         # "center" var inkonsistent med valideringen; default settes til "right"
         "messages_position": "right",
@@ -88,6 +93,7 @@ _DEFAULTS: Dict[str, Any] = {
         "message_secondary": "",
     },
     "overlays": [],
+    
     "admin_password": None,
 }
 
@@ -128,14 +134,14 @@ def build_visual_reset_patch(
     theme_messages: bool = False,
     digits: bool = True,
     clock_color: bool = True,
-    clock_texts: bool = False,
+    clock_texts: bool = True,
     bg_mode: bool = True,
     bg_solid: bool = True,
     bg_gradient: bool = True,
     bg_image: bool = True,
     bg_picsum: bool = True,
     bg_dynamic: bool = True,
-    bg_picsum_id: bool = False,
+    bg_picsum_id: bool = True,
     # Nedtelling & adferd
     behavior_settings: bool = False,
     # NY: planlegging
@@ -186,9 +192,14 @@ def build_visual_reset_patch(
         if bg_image:    bgp["image"]    = b["image"]
         if bg_picsum:
             picsum = dict(b.get("picsum") or {})
-            if not bg_picsum_id:
+            # VIKTIG: Nullstill id eksplisitt når flagget er True
+            if bg_picsum_id:
+                picsum["id"] = None   # -> _coerce() fjerner den
+            else:
+                # Ekskluder id i patch for å BEHOLDE eksisterende id
                 picsum.pop("id", None)
             bgp["picsum"] = picsum
+
         if bg_dynamic:  bgp["dynamic"]  = b["dynamic"]
         theme_patch["background"] = bgp
 
@@ -374,17 +385,16 @@ def _b(v, d: bool) -> bool:
     return d
 
 # ── coerce/validate/clean ─────────────────────────────────────────────────────
+# === REPLACE ENTIRE _coerce FUNCTION ===
 def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     # ints
     for k in ("warn_minutes","alert_minutes","blink_seconds","overrun_minutes",
               "duration_minutes","duration_started_ms","hms_threshold_minutes"):
-        if k in cfg:
-            cfg[k] = _i(cfg[k], _DEFAULTS.get(k, 0))
+        if k in cfg: cfg[k] = _i(cfg[k], _DEFAULTS.get(k, 0))
 
     # strings
     for k in ("message_primary","message_secondary","daily_time","once_at"):
-        if cfg.get(k) is None:
-            cfg[k] = ""
+        if cfg.get(k) is None: cfg[k] = ""
 
     # bools
     for k, d in (
@@ -397,18 +407,15 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         cfg[k] = _b(cfg.get(k, d), d)
 
     for k in ("target_time_after","messages_position","color_normal","color_warn","color_alert","color_over"):
-        if cfg.get(k) is None:
-            cfg[k] = _DEFAULTS[k]
+        if cfg.get(k) is None: cfg[k] = _DEFAULTS[k]
 
     # theme
     th = _deep_merge(get_defaults()["theme"], cfg.get("theme") or {})
 
     # digits: kun size_vmin
     dg = th.get("digits", {}) or {}
-    try:
-        sz = float(dg.get("size_vmin", _DEFAULTS["theme"]["digits"]["size_vmin"]))
-    except Exception:
-        sz = float(_DEFAULTS["theme"]["digits"]["size_vmin"])
+    try: sz = float(dg.get("size_vmin", _DEFAULTS["theme"]["digits"]["size_vmin"]))
+    except Exception: sz = float(_DEFAULTS["theme"]["digits"]["size_vmin"])
     dg["size_vmin"] = max(4.0, min(60.0, sz))
     dg.pop("size_vw", None); dg.pop("size_vh", None)
     th["digits"] = dg
@@ -417,16 +424,12 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     msg = th.get("messages", {}) or {}
     for key in ("primary","secondary"):
         m = msg.get(key) or {}
-        try:
-            m_sz = float(m.get("size_vmin", _DEFAULTS["theme"]["messages"][key]["size_vmin"]))
-        except Exception:
-            m_sz = float(_DEFAULTS["theme"]["messages"][key]["size_vmin"])
+        try: m_sz = float(m.get("size_vmin", _DEFAULTS["theme"]["messages"][key]["size_vmin"]))
+        except Exception: m_sz = float(_DEFAULTS["theme"]["messages"][key]["size_vmin"])
         m["size_vmin"] = max(2.0, min(50.0, m_sz))
-        try:
-            wt = int(m.get("weight", _DEFAULTS["theme"]["messages"][key]["weight"]))
-        except Exception:
-            wt = _DEFAULTS["theme"]["messages"][key]["weight"]
-        m["weight"] = max(100, min(900, 100 * round(wt / 100)))
+        try: wt = int(m.get("weight", _DEFAULTS["theme"]["messages"][key]["weight"]))
+        except Exception: wt = _DEFAULTS["theme"]["messages"][key]["weight"]
+        m["weight"] = max(100, min(900, 100 * round(wt/100)))
         if not isinstance(m.get("color"), str) or not m.get("color"):
             m["color"] = _DEFAULTS["theme"]["messages"][key]["color"]
         msg[key] = m
@@ -468,7 +471,7 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     dyn["rotate_s"] = max(5, min(600, _i(dyn.get("rotate_s"), _DEFAULTS["theme"]["background"]["dynamic"]["rotate_s"])))
     dyn["blur_px"] = max(0, min(60, _i(dyn.get("blur_px"), _DEFAULTS["theme"]["background"]["dynamic"]["blur_px"])))
     dyn["opacity"] = _clamp01(dyn.get("opacity", _DEFAULTS["theme"]["background"]["dynamic"]["opacity"]),
-                              _DEFAULTS["theme"]["background"]["dynamic"]["opacity"])
+                            _DEFAULTS["theme"]["background"]["dynamic"]["opacity"])
     bm = str(dyn.get("base_mode", "auto")).lower()
     if bm not in ("auto", "solid", "gradient", "image"):
         bm = "auto"
@@ -497,6 +500,50 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         "color": str(tint.get("color") or "#000000"),
         "opacity": max(0.0, min(1.0, float(tint.get("opacity") or 0.0))),
     }
+    # --- auto-rotate ---
+    ar = pc.get("auto_rotate") or {}
+    ar_enabled = bool(ar.get("enabled", False))
+    try:
+        ar_interval = int(ar.get("interval_seconds", _DEFAULTS["theme"]["background"]["picsum"]["auto_rotate"]["interval_seconds"]))
+    except Exception:
+        ar_interval = _DEFAULTS["theme"]["background"]["picsum"]["auto_rotate"]["interval_seconds"]
+
+    # clamp 5s .. 24h
+    ar_interval = max(5, min(24*60*60, ar_interval))
+
+    strategy = str(ar.get("strategy", "shuffle")).lower()
+    if strategy not in ("shuffle", "sequential"):
+        strategy = "shuffle"
+
+    # interne felter (tillate None for last_index)
+    try:
+        last_switch_ms = int(ar.get("last_switch_ms") or 0)
+    except Exception:
+        last_switch_ms = 0
+    try:
+        last_index = int(ar.get("last_index")) if ar.get("last_index") is not None else None
+    except Exception:
+        last_index = None
+
+    pc["auto_rotate"] = {
+        "enabled": ar_enabled,
+        "interval_seconds": ar_interval,
+        "strategy": strategy,
+        "last_switch_ms": max(0, last_switch_ms),
+        "last_index": last_index,
+    }
+
+    # NEW: sanitize id – keep only positive ints, otherwise drop
+    if "id" in pc:
+        try:
+            _id = int(pc.get("id") or 0)
+            if _id > 0:
+                pc["id"] = _id
+            else:
+                pc.pop("id", None)
+        except Exception:
+            pc.pop("id", None)
+
     bg["picsum"] = pc
 
     th["background"] = bg
@@ -508,22 +555,18 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     clk["use_clock_messages"] = bool(clk.get("use_clock_messages", False))
     if not isinstance(clk.get("color"), str) or not clk.get("color"):
         clk["color"] = "#e6edf3"
-    try:
-        csz = int(clk.get("size_vmin", 12) or 12)
-    except Exception:
-        csz = 12
+    try: csz = int(clk.get("size_vmin", 12) or 12)
+    except Exception: csz = 12
     clk["size_vmin"] = max(6, min(30, csz))
     pos = (clk.get("position") or "center").strip().lower()
     if pos not in ("center","top-left","top-right","bottom-left","bottom-right","top-center","bottom-center"):
         pos = "center"
     clk["position"] = pos
     mp = (clk.get("messages_position") or "right").strip().lower()
-    if mp not in ("right","left","above","below"):
-        mp = "right"
+    if mp not in ("right","left","above","below"): mp = "right"
     clk["messages_position"] = mp
     ma = (clk.get("messages_align") or "center").strip().lower()
-    if ma not in ("start","center","end"):
-        ma = "center"
+    if ma not in ("start","center","end"): ma = "center"
     for key in ("message_primary","message_secondary"):
         v = clk.get(key, "")
         clk[key] = v if isinstance(v, str) else ("" if v is None else str(v))
@@ -534,9 +577,9 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     cfg["hms_threshold_minutes"] = max(0, min(720, hm))
 
     # admin pw
-    if not cfg.get("admin_password"):
-        cfg["admin_password"] = None
+    if not cfg.get("admin_password"): cfg["admin_password"] = None
     return cfg
+
 
 def _validate(cfg: Dict[str, Any]) -> Tuple[bool, str]:
     m = cfg.get("mode")

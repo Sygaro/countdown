@@ -3,6 +3,7 @@ from __future__ import annotations
 import os, re, subprocess, time
 from datetime import datetime
 from typing import Any, Dict, Tuple
+import random
 
 from flask import Blueprint, request, jsonify, Response, current_app
 
@@ -130,6 +131,46 @@ def api_post_config() -> Response:
     except Exception:
         current_app.logger.exception("POST /api/config failed")
         return _json_err("internal error", status=500, code="internal_error")
+def _pick_next_picsum_id(cfg: Dict[str, Any]) -> tuple[int | None, int | None]:
+    """
+    Returner (next_id, next_index) gitt config, eller (None, None) hvis ikke mulig.
+    Bruker strategy: 'shuffle' eller 'sequential'. Unngår å returnere samme id hvis mulig.
+    """
+    theme = (cfg or {}).get("theme") or {}
+    catalog = theme.get("picsum_catalog") or []
+    bg = (theme.get("background") or {}).get("picsum") or {}
+    cur_id = (bg.get("id") if isinstance(bg.get("id"), int) else None)
+    if not catalog:
+        return None, None
+    ids = [int(x.get("id")) for x in catalog if isinstance(x, dict) and isinstance(x.get("id"), (int, float)) and int(x.get("id")) > 0]
+    ids = [i for i in ids if i > 0]
+    if not ids:
+        return None, None
+
+    ar = (bg.get("auto_rotate") or {})
+    strategy = str(ar.get("strategy", "shuffle")).lower()
+    last_index = ar.get("last_index") if isinstance(ar.get("last_index"), int) else None
+
+    if strategy == "sequential":
+        if last_index is None:
+            # start fra 0, men hvis samme som cur_id – hopp til neste
+            idx = 0
+        else:
+            idx = (last_index + 1) % len(ids)
+        nxt = ids[idx]
+        # unngå no-op hvis eneste element = cur_id
+        if len(ids) > 1 and nxt == cur_id:
+            idx = (idx + 1) % len(ids)
+            nxt = ids[idx]
+        return nxt, idx
+
+    # shuffle
+    if len(ids) == 1:
+        return (ids[0] if ids[0] != cur_id else ids[0]), None
+    # velg tilfeldig annet enn cur_id
+    pool = [i for i in ids if i != cur_id] or ids
+    return random.choice(pool), None
+
 
 # ── duration ───────────────────────────────────────────────────────────────────
 @bp.post("/start-duration")
@@ -191,19 +232,6 @@ def _svc_map() -> dict:
 
 def _run_user_systemctl(cmd: list[str], timeout: int = 8) -> Tuple[bool, str, str, int]:
     return _run_cmd_direct(["systemctl","--user", *cmd], timeout=timeout)
-
-def _extract_action_name() -> tuple[str, str]:
-    """
-    Bakoverkompatibel: les fra query/form først (request.values),
-    deretter JSON hvis satt.
-    """
-    action = (request.values.get("action") or "").strip().lower()
-    name   = (request.values.get("name")   or "").strip().lower()
-    if (not action or not name) and _is_json_request():
-        data_json = request.get_json(silent=True) or {}
-        action = action or str(data_json.get("action") or "").strip().lower()
-        name   = name   or str(data_json.get("name")   or "").strip().lower()
-    return action, name
 
 # ── sys/service ────────────────────────────────────────────────────────────────
 @bp.post("/sys/service")
@@ -418,7 +446,7 @@ def sys_about_status():
             "since": info.get("ActiveEnterTimestamp"),
             "exec_main_start": info.get("ExecMainStartTimestamp"),
             "description": info.get("Description"),
-            "raw": (out_is or err_is or err_show),
+            "raw": (out_is or err_is or out_show or err_show),
         }
 
     ntp = _compute_ntp_payload()
@@ -445,57 +473,55 @@ def api_reset_visual() -> Response:
 
     # Profiler: OBS! "visual" blanker IKKE UI-tekster (etter ditt ønske).
     presets = {
-        "visual": dict(
-            phase_colors=True,
-            ui_messages_text=True,
-            theme_messages=True,
-            digits=True,
-            clock_color=True,
-            clock_texts=True,
-            bg_mode=True, bg_solid=True, bg_gradient=True, bg_image=True, bg_picsum=True, bg_dynamic=True,
-            bg_picsum_id=True,
-            behavior_settings=True, 
-            reset_daily_time=True,
-
-        ),
-        "minimal": dict(
-            phase_colors=True,
-            ui_messages_text=False,
-            theme_messages=True,
-            digits=False,
-            clock_color=True,
-            clock_texts=False,
-            bg_mode=False, bg_solid=False, bg_gradient=False, bg_image=False, bg_picsum=False, bg_dynamic=False,
-            bg_picsum_id=False,
-            behavior_settings=False,
-            reset_daily_time=False,
-        ),
-        "background": dict(
-            phase_colors=False,
-            ui_messages_text=False,
-            theme_messages=False,
-            digits=False,
-            clock_color=False,
-            clock_texts=False,
-            bg_mode=True, bg_solid=True, bg_gradient=True, bg_image=True, bg_picsum=True, bg_dynamic=True,
-            bg_picsum_id=False,
-            behavior_settings=False,
-            reset_daily_time=False,
-        ),
-        # NY: Reset kun Nedtelling & atferd (”tidene” + atferdsflagg)
-        "behavior": dict(  # engelsk nøkkel
-            phase_colors=False,
-            ui_messages_text=False,
-            theme_messages=False,
-            digits=False,
-            clock_color=False,
-            clock_texts=False,
-            bg_mode=False, bg_solid=False, bg_gradient=False, bg_image=False, bg_picsum=False, bg_dynamic=False,
-            bg_picsum_id=False,
-            behavior_settings=True,
-            reset_daily_time=True,
-        ),
-    }
+    "visual": dict(
+        phase_colors=True,
+        ui_messages_text=False,
+        theme_messages=True,
+        digits=True,
+        clock_color=True,
+        clock_texts=True,
+        bg_mode=True, bg_solid=True, bg_gradient=True, bg_image=True, bg_picsum=True, bg_dynamic=True,
+        bg_picsum_id=True,
+        behavior_settings=False,   # ← ikke rør atferd
+        reset_daily_time=False,    # ← ikke rør tider
+    ),
+    "minimal": dict(
+        phase_colors=True,
+        ui_messages_text=False,
+        theme_messages=True,
+        digits=False,
+        clock_color=True,
+        clock_texts=False,
+        bg_mode=False, bg_solid=False, bg_gradient=False, bg_image=False, bg_picsum=False, bg_dynamic=False,
+        bg_picsum_id=False,
+        behavior_settings=False,
+        reset_daily_time=False,
+    ),
+    "background": dict(
+        phase_colors=False,
+        ui_messages_text=False,
+        theme_messages=False,
+        digits=False,
+        clock_color=False,
+        clock_texts=False,
+        bg_mode=True, bg_solid=True, bg_gradient=True, bg_image=True, bg_picsum=True, bg_dynamic=True,
+        bg_picsum_id=True,
+        behavior_settings=False,
+        reset_daily_time=False,
+    ),
+    "behavior": dict(  # “Nedtelling & atferd”
+        phase_colors=False,
+        ui_messages_text=False,
+        theme_messages=False,
+        digits=False,
+        clock_color=False,
+        clock_texts=False,
+        bg_mode=False, bg_solid=False, bg_gradient=False, bg_image=False, bg_picsum=False, bg_dynamic=False,
+        bg_picsum_id=False,
+        behavior_settings=True,   # ← rør atferd
+        reset_daily_time=True,    # ← og tider
+    ),
+}
 
     opts = presets.get(profile, presets["visual"])
 
@@ -509,4 +535,82 @@ def api_reset_visual() -> Response:
         return _json_err(str(e), status=400, code="validation_error")
     except Exception:
         current_app.logger.exception("POST /api/reset-visual failed")
+        return _json_err("internal error", status=500, code="internal_error")
+
+@bp.get("/picsum/next")
+def api_picsum_next() -> Response:
+    """
+    Returnerer (og ev. oppdaterer) neste Picsum-ID basert på auto_rotate.
+    - Endrer kun config hvis:
+        * theme.background.mode == 'picsum'
+        * auto_rotate.enabled == True
+        * intervallet er passert
+        * det finnes en kuratert liste
+    Respons: { ok, id, enabled, interval_seconds, next_in_seconds, updated }
+    """
+    try:
+        cfg = load_config()
+        theme = cfg.get("theme") or {}
+        bg_all = theme.get("background") or {}
+        bg = bg_all.get("picsum") or {}
+        ar = bg.get("auto_rotate") or {}
+        enabled = bool(ar.get("enabled", False))
+        interval = int(ar.get("interval_seconds") or 300)
+        last_switch_ms = int(ar.get("last_switch_ms") or 0)
+        now_ms = int(time.time() * 1000)
+        mode = (bg_all.get("mode") or "").lower()
+        cur_id = (bg.get("id") if isinstance(bg.get("id"), int) else None)
+
+        # standard svar dersom vi ikke skal endre noe
+        payload = {
+            "id": cur_id,
+            "enabled": enabled,
+            "interval_seconds": interval,
+            "updated": False,
+            "next_in_seconds": None,
+        }
+
+        if (mode != "picsum") or (not enabled):
+            # beregn 'next_in' likevel for klienter som viser nedtelling
+            if enabled and interval > 0:
+                elapsed = max(0, now_ms - last_switch_ms)
+                payload["next_in_seconds"] = max(0, interval - elapsed // 1000)
+            return _json_ok(payload)
+
+        elapsed_ms = now_ms - last_switch_ms
+        if elapsed_ms < interval * 1000:
+            payload["next_in_seconds"] = max(0, interval - elapsed_ms // 1000)
+            return _json_ok(payload)
+
+        # finn neste id
+        nxt_id, nxt_index = _pick_next_picsum_id(cfg)
+        if nxt_id is None:
+            # Ingen kuratert liste – ikke gjør endringer
+            payload["next_in_seconds"] = max(0, interval - elapsed_ms // 1000)
+            return _json_ok(payload)
+
+        # Oppdater config (patch) – sett ny id og auto_rotate.last_switch_ms (+ ev. last_index)
+        patch = {
+            "theme": {
+                "background": {
+                    "picsum": {
+                        "id": int(nxt_id),
+                        "auto_rotate": {
+                            "enabled": True,
+                            "interval_seconds": int(interval),
+                            "strategy": str(ar.get("strategy","shuffle")).lower(),
+                            "last_switch_ms": now_ms,
+                            "last_index": (int(nxt_index) if nxt_index is not None else None),
+                        }
+                    }
+                }
+            }
+        }
+        cfg2 = save_config_patch(patch)
+        payload["id"] = int(nxt_id)
+        payload["updated"] = True
+        payload["next_in_seconds"] = int(interval)
+        return _json_ok(payload)
+    except Exception:
+        current_app.logger.exception("GET /api/picsum/next failed")
         return _json_err("internal error", status=500, code="internal_error")
