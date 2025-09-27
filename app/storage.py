@@ -44,7 +44,7 @@ _DEFAULTS: Dict[str, Any] = {
         "background": {
             "mode": "solid",
             "solid": {"color": "#0b0f14"},
-            "gradient": {"from": "#142033", "to": "#0b0f14", "angle_deg": 160},
+            "gradient": {"from": "#274779", "to": "#031831", "angle_deg": 160},
             "image": {
                 "url": "",
                 "fit": "cover",

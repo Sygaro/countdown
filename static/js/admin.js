@@ -754,58 +754,69 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
 }
 
 
-  // static/js/admin.js (bytt hele ensurePicsumModal)
+ // static/js/admin.js — REPLACE function ensurePicsumModal()
 function ensurePicsumModal() {
-  const modal = document.getElementById("picsum_modal");
-  if (!modal || modal._bound) return;
+  if (document.getElementById("picsum_modal")) return;
 
-  const close = () => { try { modal.close(); } catch {} modal.open = false; };
-  const open  = () => { try { modal.showModal(); } catch {} modal.open = true; };
+  // Bygg DOM uten å injisere CSS (stiler ligger i static/css/admin.css)
+  const modal = document.createElement("div");
+  modal.id = "picsum_modal";
+  modal.className = "pm-backdrop";
+  modal.style.display = "none";
+  modal.innerHTML = `
+    <div class="pm-box" role="dialog" aria-modal="true" aria-label="Picsum-galleri">
+      <header class="pm-header">
+        <div class="left">
+          <strong class="pm-title">Picsum-galleri</strong>
+          <label>Sidenr <input id="pg_page" class="pm-input-number" type="number" min="1" step="1" value="1"></label>
+          <label>Pr. side
+            <select id="pg_per_page" class="pm-select">
+              <option>12</option><option selected>24</option><option>36</option><option>60</option>
+            </select>
+          </label>
+          <button id="pg_prev" type="button">◀ Forrige</button>
+          <button id="pg_next" type="button">Neste ▶</button>
+        </div>
+        <div class="right">
+          <span id="pg_status" class="pm-status"></span>
+          <button id="pg_close" type="button">Lukk</button>
+        </div>
+      </header>
+      <div id="pg_grid" class="pm-grid" aria-live="polite"></div>
+      <footer class="pm-footer">
+        <button id="pg_add_use" type="button" class="primary">Legg til & bruk første</button>
+        <button id="pg_add" type="button">Legg til valgte</button>
+      </footer>
+    </div>`;
 
-  // Lukk når man klikker “bakdrop” (dialog støtter ikke automatisk i alle motorer)
+  document.body.appendChild(modal);
+
+  // Interaksjon
   modal.addEventListener("click", (ev) => {
-    if (ev.target === modal) close();
+    if (ev.target === modal) closePicsumPicker();
   });
-
-  const q = (s) => modal.querySelector(s);
-  q("#pg_close")?.addEventListener("click", close);
-  q("#pg_prev")?.addEventListener("click", () => {
+  document.getElementById("pg_close").addEventListener("click", closePicsumPicker);
+  document.getElementById("pg_prev").addEventListener("click", () => {
     if (picsumPicker.page > 1) { picsumPicker.page--; fetchPicsumPage(); }
   });
-  q("#pg_next")?.addEventListener("click", () => { picsumPicker.page++; fetchPicsumPage(); });
-  q("#pg_page")?.addEventListener("change", () => {
-    const p = parseInt(q("#pg_page").value || "1", 10);
-    picsumPicker.page = Math.max(1, Number.isFinite(p) ? p : 1);
+  document.getElementById("pg_next").addEventListener("click", () => { picsumPicker.page++; fetchPicsumPage(); });
+  document.getElementById("pg_page").addEventListener("change", () => {
+    const p = parseInt(document.getElementById("pg_page").value || "1", 10);
+    picsumPicker.page = Math.max(1, isFinite(p) ? p : 1); fetchPicsumPage();
+  });
+  document.getElementById("pg_per_page").addEventListener("change", () => {
+    picsumPicker.perPage = parseInt(document.getElementById("pg_per_page").value, 10) || 30;
     fetchPicsumPage();
   });
-  q("#pg_per_page")?.addEventListener("change", () => {
-    picsumPicker.perPage = parseInt(q("#pg_per_page").value, 10) || 24;
-    fetchPicsumPage();
-  });
-  q("#pg_add")?.addEventListener("click", () => addSelectedToCurated(false));
-  q("#pg_add_use")?.addEventListener("click", () => addSelectedToCurated(true));
-
-  // Eksponer åpner/lukker så eksisterende kall fungerer
-  window.openPicsumPicker = function openPicsumPicker() {
-    const pageEl = q("#pg_page");
-    const perEl  = q("#pg_per_page");
-    if (pageEl) pageEl.value = String(picsumPicker.page);
-    if (perEl)  perEl.value  = String(picsumPicker.perPage);
-    open();
-    picsumPicker.open = true;
-    picsumPicker.selected = new Set();
-    fetchPicsumPage();
-  };
-  window.closePicsumPicker = function closePicsumPicker() {
-    picsumPicker.open = false;
-    close();
-  };
+  document.getElementById("pg_add").addEventListener("click", () => addSelectedToCurated(false));
+  document.getElementById("pg_add_use").addEventListener("click", () => addSelectedToCurated(true));
 
   // ESC for å lukke
-  window.addEventListener("keydown", (e) => { if (e.key === "Escape" && picsumPicker.open) window.closePicsumPicker(); });
-
-  modal._bound = true;
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && picsumPicker.open) closePicsumPicker();
+  });
 }
+
 
   function openPicsumPicker() {
     ensurePicsumModal();
@@ -855,24 +866,26 @@ function ensurePicsumModal() {
       const author = String(it.author || "").trim();
       const url = `https://picsum.photos/id/${id}/${PICSUM_THUMB_W}/${PICSUM_THUMB_H}`;
 
-      const tile = document.createElement("div");
-      tile.className = "tile";
-      tile.innerHTML = `
-        <img src="${url}" alt="Picsum #${id}">
-        <div class="check">#${id}</div>
-        <div class="meta"><strong>${author || "Ukjent"}</strong></div>
-      `;
-      const mark = () => {
-        if (picsumPicker.selected.has(id)) {
-          picsumPicker.selected.delete(id);
-          tile.classList.remove("selected");
-        } else {
-          picsumPicker.selected.add(id);
-          tile.classList.add("selected");
-        }
-      };
-      tile.addEventListener("click", mark);
-      grid.appendChild(tile);
+      // static/js/admin.js — REPLACE tile building inside renderPicsumGrid()
+const tile = document.createElement("div");
+tile.className = "pm-tile";
+tile.innerHTML = `
+  <img src="${url}" alt="Picsum #${id}">
+  <div class="pm-check">#${id}</div>
+  <div class="pm-meta"><strong>${author || "Ukjent"}</strong></div>
+`;
+const mark = () => {
+  if (picsumPicker.selected.has(id)) {
+    picsumPicker.selected.delete(id);
+    tile.classList.remove("pm-selected");
+  } else {
+    picsumPicker.selected.add(id);
+    tile.classList.add("pm-selected");
+  }
+};
+tile.addEventListener("click", mark);
+grid.appendChild(tile);
+
     });
   }
 
@@ -956,7 +969,7 @@ function ensurePicsumModal() {
       $("#bg_solid_color") && ($("#bg_solid_color").value = "#0b0f14");
     } else if (p === "dark-grad") {
       (document.querySelector(`input[name="bg_mode"][value="gradient"]`) || {}).checked = true;
-      $("#bg_grad_from") && ($("#bg_grad_from").value = "#111827");
+      $("#bg_grad_from") && ($("#bg_grad_from").value = "#274779");
       $("#bg_grad_to") && ($("#bg_grad_to").value = "#0b0f14");
       $("#bg_grad_angle") && ($("#bg_grad_angle").value = 160);
     } else if (p === "dynamic") {

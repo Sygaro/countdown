@@ -17,40 +17,22 @@
   const LAYER_ID = "bg-picsum-layer";
   const TINT_ID  = "bg-picsum-tint";
 
-  function ensureLayers() {
-    let layer = document.getElementById(LAYER_ID);
-    if (!layer) {
-      layer = document.createElement("div");
-      layer.id = LAYER_ID;
-      Object.assign(layer.style, {
-        position: "fixed",
-        inset: "0",
-        zIndex: "-1",            // under alt innhold; justér ved behov
-        pointerEvents: "none",
-        backgroundRepeat: "no-repeat",
-        backgroundPosition: "center center",
-        backgroundSize: "cover",
-        transition: "background-image .25s ease, opacity .25s ease",
-      });
-      document.body.appendChild(layer);
-    }
-
-    let tint = document.getElementById(TINT_ID);
-    if (!tint) {
-      tint = document.createElement("div");
-      tint.id = TINT_ID;
-      Object.assign(tint.style, {
-        position: "fixed",
-        inset: "0",
-        zIndex: "0",             // over bildet, under øvrig UI om du har annen layout
-        pointerEvents: "none",
-        backgroundColor: "transparent",
-        transition: "background-color .25s ease, opacity .25s ease",
-      });
-      document.body.appendChild(tint);
-    }
-    return { layer, tint };
+function ensureLayers() {
+  let layer = document.getElementById(LAYER_ID);
+  if (!layer) {
+    layer = document.createElement("div");
+    layer.id = LAYER_ID;
+    document.body.appendChild(layer);
   }
+  let tint = document.getElementById(TINT_ID);
+  if (!tint) {
+    tint = document.createElement("div");
+    tint.id = TINT_ID;
+    document.body.appendChild(tint);
+  }
+  return { layer, tint };
+}
+
 
   // --- Utils ----------------------------------------------------------------
   function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
