@@ -7,7 +7,7 @@
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 
   // Prøv å hente kontrastmodul (global fra contrast.js). Fallback om mangler.
-  const C = (window.Contrast || {
+  const C = window.Contrast || {
     ratio: (fg, bg) => {
       const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i;
       const toRGB = (h) => {
@@ -21,30 +21,36 @@
         });
         return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
       };
-      const L1 = lum(toRGB(fg)), L2 = lum(toRGB(bg));
-      const hi = Math.max(L1, L2), lo = Math.min(L1, L2);
+      const L1 = lum(toRGB(fg)),
+        L2 = lum(toRGB(bg));
+      const hi = Math.max(L1, L2),
+        lo = Math.min(L1, L2);
       return (hi + 0.05) / (lo + 0.05);
     },
-    advise: (r) => (r >= 3
-      ? { tone: "ok",   label: `${r.toFixed(2)} ✔` }
-      : { tone: "warn", label: `${r.toFixed(2)} ⚠` }),
-  });
+    advise: (r) =>
+      r >= 3 ? { tone: "ok", label: `${r.toFixed(2)} ✔` } : { tone: "warn", label: `${r.toFixed(2)} ⚠` },
+  };
 
   // ==== Toast/status =========================================================
-function showStatusToast(msg, tone = "info", ms = 2500) {
-  const el = document.getElementById("status_toast");
-  if (!el) return; // sikker, men vi forventer at admin.html har elementet
-  el.className = ""; // reset
-  el.textContent = String(msg || "");
-  el.classList.add(tone || "info", "show");
-  el.hidden = false;
-  clearTimeout(el._hideTimer);
-  el._hideTimer = setTimeout(() => el.classList.remove("show"), Math.max(600, Number(ms) || 1600));
-}
-
+  function showStatusToast(msg, tone = "info", ms = 2500) {
+    const el = document.getElementById("status_toast");
+    if (!el) return; // sikker, men vi forventer at admin.html har elementet
+    el.className = ""; // reset
+    el.textContent = String(msg || "");
+    el.classList.add(tone || "info", "show");
+    el.hidden = false;
+    clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(() => el.classList.remove("show"), Math.max(600, Number(ms) || 1600));
+  }
 
   // ==== Helpers ==============================================================
-  const debounce = (fn, ms = 600) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+  const debounce = (fn, ms = 600) => {
+    let t;
+    return (...a) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn(...a), ms);
+    };
+  };
   const val = (sel, d = "") => $(sel)?.value ?? d;
   const checked = (sel) => !!$(sel)?.checked;
 
@@ -66,14 +72,22 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
   }
 
   async function getJSON(url) {
-    try { if (window.ui?.get) return await window.ui.get(url); } catch { /* fallback */ }
+    try {
+      if (window.ui?.get) return await window.ui.get(url);
+    } catch {
+      /* fallback */
+    }
     const r = await fetch(url, { cache: "no-store" });
     const js = await r.json().catch(() => ({}));
     if (!r.ok || js.ok === false) throw new Error(js.error || `HTTP ${r.status}`);
     return js;
   }
   async function postJSON(url, body) {
-    try { if (window.ui?.post) return await window.ui.post(url, body); } catch { /* fallback */ }
+    try {
+      if (window.ui?.post) return await window.ui.post(url, body);
+    } catch {
+      /* fallback */
+    }
     const r = await fetch(url, { method: "POST", headers: headers(), body: JSON.stringify(body || {}) });
     const js = await r.json().catch(() => ({}));
     if (!r.ok || js.ok === false) throw new Error(js.error || `HTTP ${r.status}`);
@@ -98,7 +112,8 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
   async function handleResetView(buttonEl) {
     const btn = buttonEl;
     const prev = btn.textContent;
-    btn.disabled = true; btn.textContent = "Tilbakestiller …";
+    btn.disabled = true;
+    btn.textContent = "Tilbakestiller …";
     try {
       const profile = (document.getElementById("reset_profile")?.value || "visual").toLowerCase();
       await postJSON("/api/reset-visual", { profile });
@@ -114,7 +129,8 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
       showStatusToast(`Kunne ikke tilbakestille: ${e.message}`, "error", 3500);
       alert("Tilbakestill visning feilet:\n" + (e?.message || e));
     } finally {
-      btn.disabled = false; btn.textContent = prev;
+      btn.disabled = false;
+      btn.textContent = prev;
     }
   }
 
@@ -140,13 +156,13 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
     }
     if (bg === "dynamic") {
       const base = val("#bg_dyn_base", "auto");
-      if (base === "solid")    return val("#bg_solid_color", "#0b0f14");
+      if (base === "solid") return val("#bg_solid_color", "#0b0f14");
       if (base === "gradient") return val("#bg_grad_to", "#0b0f14");
       if (base === "image") {
         const op = Number(val("#bg_img_tint_op", "0"));
         return op > 0 ? val("#bg_img_tint", "#000000") : "#0b0f14";
       }
-      const hasImg = (val("#bg_img_url", "").trim().length > 0);
+      const hasImg = val("#bg_img_url", "").trim().length > 0;
       if (hasImg) {
         const op = Number(val("#bg_img_tint_op", "0"));
         return op > 0 ? val("#bg_img_tint", "#000000") : "#0b0f14";
@@ -161,51 +177,61 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
   function getUiDefault(path, hardcoded) {
     try {
       let cur = defaultsCache;
-      for (const k of path) { if (!cur || !(k in cur)) return hardcoded; cur = cur[k]; }
-      return (cur ?? hardcoded);
-    } catch { return hardcoded; }
+      for (const k of path) {
+        if (!cur || !(k in cur)) return hardcoded;
+        cur = cur[k];
+      }
+      return cur ?? hardcoded;
+    } catch {
+      return hardcoded;
+    }
   }
 
   function updateDigitContrastHints() {
     const bg = currentPreviewBgColor();
     const set = (id, color) => {
-      const el = $(id); if (!el) return;
-      const r = C.ratio(color, bg); const adv = C.advise(r);
+      const el = $(id);
+      if (!el) return;
+      const r = C.ratio(color, bg);
+      const adv = C.advise(r);
       el.textContent = `kontrast ${r.toFixed(2)}${adv.tone === "ok" ? " ✔" : " ⚠"}`;
       el.style.color = adv.tone === "ok" ? "#69db7c" : "#ffd166";
     };
     const defNormal = getUiDefault(["color_normal"], "#e6edf3");
-    const defWarn   = getUiDefault(["color_warn"],   "#ffd166");
-    const defAlert  = getUiDefault(["color_alert"],  "#ff6b6b");
-    const defOver   = getUiDefault(["color_over"],   "#9ad0ff");
+    const defWarn = getUiDefault(["color_warn"], "#ffd166");
+    const defAlert = getUiDefault(["color_alert"], "#ff6b6b");
+    const defOver = getUiDefault(["color_over"], "#9ad0ff");
 
     set("#c_contrast_normal", val("#color_normal", defNormal));
-    set("#c_contrast_warn",   val("#color_warn",   defWarn));
-    set("#c_contrast_alert",  val("#color_alert",  defAlert));
-    set("#c_contrast_over",   val("#color_over",   defOver));
+    set("#c_contrast_warn", val("#color_warn", defWarn));
+    set("#c_contrast_alert", val("#color_alert", defAlert));
+    set("#c_contrast_over", val("#color_over", defOver));
   }
 
   function updateMessageContrastHints() {
     const bg = currentPreviewBgColor();
     const set = (id, color) => {
-      const el = $(id); if (!el) return;
-      const r = C.ratio(color, bg); const adv = C.advise(r);
+      const el = $(id);
+      if (!el) return;
+      const r = C.ratio(color, bg);
+      const adv = C.advise(r);
       el.textContent = `${r.toFixed(2)}${adv.tone === "ok" ? " ✔" : " ⚠"}`;
       el.style.color = adv.tone === "ok" ? "#69db7c" : "#ffd166";
     };
-    const defP = getUiDefault(["theme","messages","primary","color"],   "#9aa4b2");
-    const defS = getUiDefault(["theme","messages","secondary","color"], "#9aa4b2");
+    const defP = getUiDefault(["theme", "messages", "primary", "color"], "#9aa4b2");
+    const defS = getUiDefault(["theme", "messages", "secondary", "color"], "#9aa4b2");
     $("#m_contrast_p") && set("#m_contrast_p", val("#theme_p_color", defP));
     $("#m_contrast_s") && set("#m_contrast_s", val("#theme_s_color", defS));
   }
 
   function updateClockContrastHint() {
     const bg = currentPreviewBgColor();
-    const defClk = getUiDefault(["clock","color"], "#e6edf3");
+    const defClk = getUiDefault(["clock", "color"], "#e6edf3");
     const color = val("#clk_color", defClk);
     const el = $("#clk_contrast");
     if (!el) return;
-    const r = C.ratio(color, bg); const adv = C.advise(r);
+    const r = C.ratio(color, bg);
+    const adv = C.advise(r);
     el.textContent = `kontrast ${r.toFixed(2)}${adv.tone === "ok" ? " ✔" : " ⚠"}`;
     el.style.color = adv.tone === "ok" ? "#69db7c" : "#ffd166";
   }
@@ -216,31 +242,33 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
     const bg = selBgMode();
     const onceAt = $("#once_at");
     if (onceAt) onceAt.disabled = selMode() !== "once";
-    $("#bg_solid_cfg")  && ($("#bg_solid_cfg").style.display  = bg === "solid"   ? "block" : "none");
-    $("#bg_grad_cfg")   && ($("#bg_grad_cfg").style.display   = bg === "gradient"? "block" : "none");
-    $("#bg_img_cfg")    && ($("#bg_img_cfg").style.display    = bg === "image"   ? "block" : "none");
-    $("#bg_picsum_cfg") && ($("#bg_picsum_cfg").style.display = bg === "picsum"  ? "block" : "none");
-    $("#bg_dyn_cfg")    && ($("#bg_dyn_cfg").style.display    = bg === "dynamic" ? "block" : "none");
+    $("#bg_solid_cfg") && ($("#bg_solid_cfg").style.display = bg === "solid" ? "block" : "none");
+    $("#bg_grad_cfg") && ($("#bg_grad_cfg").style.display = bg === "gradient" ? "block" : "none");
+    $("#bg_img_cfg") && ($("#bg_img_cfg").style.display = bg === "image" ? "block" : "none");
+    $("#bg_picsum_cfg") && ($("#bg_picsum_cfg").style.display = bg === "picsum" ? "block" : "none");
+    $("#bg_dyn_cfg") && ($("#bg_dyn_cfg").style.display = bg === "dynamic" ? "block" : "none");
     const own = !!$("#clk_use_own_msgs")?.checked;
     $("#clk_with_seconds") && ($("#clk_with_seconds").disabled = false);
-    $("#clk_color")        && ($("#clk_color").disabled = false);
-    $("#clk_size_vmin")    && ($("#clk_size_vmin").disabled = false);
-    $("#clk_position")     && ($("#clk_position").disabled = false);
+    $("#clk_color") && ($("#clk_color").disabled = false);
+    $("#clk_size_vmin") && ($("#clk_size_vmin").disabled = false);
+    $("#clk_position") && ($("#clk_position").disabled = false);
     $("#clk_msg_position") && ($("#clk_msg_position").disabled = false);
-    $("#clk_msg_align")    && ($("#clk_msg_align").disabled = false);
+    $("#clk_msg_align") && ($("#clk_msg_align").disabled = false);
     $("#clk_use_own_msgs") && ($("#clk_use_own_msgs").disabled = false);
-    $("#clk_msg_primary")  && ($("#clk_msg_primary").disabled = !own);
-    $("#clk_msg_secondary")&& ($("#clk_msg_secondary").disabled = !own);
+    $("#clk_msg_primary") && ($("#clk_msg_primary").disabled = !own);
+    $("#clk_msg_secondary") && ($("#clk_msg_secondary").disabled = !own);
   }
 
   // ==== Preview ==============================================================
   const debouncePreview = (fn) => debounce(fn, 300);
-  function getPreviewWin() { return $("#preview_frame")?.contentWindow || null; }
+  function getPreviewWin() {
+    return $("#preview_frame")?.contentWindow || null;
+  }
   function deepMerge(base, patch) {
     if (patch == null || typeof patch !== "object") return base;
     const out = Array.isArray(base) ? [...base] : { ...base };
     for (const [k, v] of Object.entries(patch)) {
-      out[k] = (v && typeof v === "object" && !Array.isArray(v)) ? deepMerge(out[k] ?? {}, v) : v;
+      out[k] = v && typeof v === "object" && !Array.isArray(v) ? deepMerge(out[k] ?? {}, v) : v;
     }
     return out;
   }
@@ -269,17 +297,24 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
       tint: { color: "#000000", opacity: 0.0, blend: "multiply" },
     };
   }
-  function ovSel() { return $("#ov_select"); }
-  function ovIdx() { return Math.max(0, (ovSel()?.selectedIndex ?? 0)); }
-  function currentOverlay() { return overlaysLocal[ovIdx()] || null; }
+  function ovSel() {
+    return $("#ov_select");
+  }
+  function ovIdx() {
+    return Math.max(0, ovSel()?.selectedIndex ?? 0);
+  }
+  function currentOverlay() {
+    return overlaysLocal[ovIdx()] || null;
+  }
   function renderOverlaysUI(desiredIndex) {
-    const sel = ovSel(); if (!sel) return;
+    const sel = ovSel();
+    if (!sel) return;
     const prev = Number.isInteger(desiredIndex) ? desiredIndex : sel.selectedIndex;
     sel.innerHTML = "";
     overlaysLocal.forEach((o, i) => {
       const opt = document.createElement("option");
       opt.value = String(i);
-      opt.textContent = o.id || (`overlay ${i + 1}`);
+      opt.textContent = o.id || `overlay ${i + 1}`;
       sel.appendChild(opt);
     });
     const idx = Math.max(0, Math.min(sel.options.length - 1, prev >= 0 ? prev : 0));
@@ -324,19 +359,46 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
       },
     };
   }
-  function commitOverlay() { if (!overlaysLocal.length) return; overlaysLocal[ovIdx()] = readOverlayFields(); pushPreviewDebounced(); }
-  function addOverlay() { overlaysLocal.push(overlayDefaults()); renderOverlaysUI(overlaysLocal.length - 1); pushPreview(); }
-  function dupOverlay() { const cur = currentOverlay(); if (!cur) return addOverlay(); overlaysLocal.push({ ...cur, id: `${cur.id}-copy` }); renderOverlaysUI(overlaysLocal.length - 1); pushPreview(); }
-  function delOverlay() { if (!overlaysLocal.length) return; const idx = ovIdx(); overlaysLocal.splice(idx, 1); renderOverlaysUI(Math.min(idx, overlaysLocal.length - 1)); pushPreview(); }
+  function commitOverlay() {
+    if (!overlaysLocal.length) return;
+    overlaysLocal[ovIdx()] = readOverlayFields();
+    pushPreviewDebounced();
+  }
+  function addOverlay() {
+    overlaysLocal.push(overlayDefaults());
+    renderOverlaysUI(overlaysLocal.length - 1);
+    pushPreview();
+  }
+  function dupOverlay() {
+    const cur = currentOverlay();
+    if (!cur) return addOverlay();
+    overlaysLocal.push({ ...cur, id: `${cur.id}-copy` });
+    renderOverlaysUI(overlaysLocal.length - 1);
+    pushPreview();
+  }
+  function delOverlay() {
+    if (!overlaysLocal.length) return;
+    const idx = ovIdx();
+    overlaysLocal.splice(idx, 1);
+    renderOverlaysUI(Math.min(idx, overlaysLocal.length - 1));
+    pushPreview();
+  }
 
   // ==== Build patch & save ===================================================
   function buildPatch() {
     const m = selMode();
 
     const clock = (() => {
-      const has = $("#clk_with_seconds") || $("#clk_color") || $("#clk_size_vmin") || $("#clk_position") ||
-                  $("#clk_msg_position") || $("#clk_msg_align") || $("#clk_use_own_msgs") ||
-                  $("#clk_msg_primary") || $("#clk_msg_secondary");
+      const has =
+        $("#clk_with_seconds") ||
+        $("#clk_color") ||
+        $("#clk_size_vmin") ||
+        $("#clk_position") ||
+        $("#clk_msg_position") ||
+        $("#clk_msg_align") ||
+        $("#clk_use_own_msgs") ||
+        $("#clk_msg_primary") ||
+        $("#clk_msg_secondary");
       if (has) {
         return {
           with_seconds: !!$("#clk_with_seconds")?.checked,
@@ -370,9 +432,9 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
       use_phase_colors: !!$("#use_phase_colors")?.checked,
       use_blink: !!$("#use_blink")?.checked,
       color_normal: normalizeHex6(val("#color_normal", "#e6edf3"), "#e6edf3"),
-      color_warn:   normalizeHex6(val("#color_warn",   "#ffd166"), "#ffd166"),
-      color_alert:  normalizeHex6(val("#color_alert",  "#ff6b6b"), "#ff6b6b"),
-      color_over:   normalizeHex6(val("#color_over",   "#9ad0ff"), "#9ad0ff"),
+      color_warn: normalizeHex6(val("#color_warn", "#ffd166"), "#ffd166"),
+      color_alert: normalizeHex6(val("#color_alert", "#ff6b6b"), "#ff6b6b"),
+      color_over: normalizeHex6(val("#color_over", "#9ad0ff"), "#9ad0ff"),
       show_target_time: !!$("#show_target_time")?.checked,
       target_time_after: val("#target_time_after", "secondary"),
       messages_position: val("#messages_position", "above"),
@@ -380,14 +442,26 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
       theme: {
         digits: { size_vmin: Number(val("#digits_size_vmin", "14")) },
         messages: {
-          primary:   { size_vmin: Number(val("#theme_p_size_vmin", "6")), weight: Number(val("#theme_p_weight", "600")), color: normalizeHex6(val("#theme_p_color", "#9aa4b2"), "#9aa4b2") },
-          secondary: { size_vmin: Number(val("#theme_s_size_vmin", "4")), weight: Number(val("#theme_s_weight", "400")), color: normalizeHex6(val("#theme_s_color", "#9aa4b2"), "#9aa4b2") },
+          primary: {
+            size_vmin: Number(val("#theme_p_size_vmin", "6")),
+            weight: Number(val("#theme_p_weight", "600")),
+            color: normalizeHex6(val("#theme_p_color", "#9aa4b2"), "#9aa4b2"),
+          },
+          secondary: {
+            size_vmin: Number(val("#theme_s_size_vmin", "4")),
+            weight: Number(val("#theme_s_weight", "400")),
+            color: normalizeHex6(val("#theme_s_color", "#9aa4b2"), "#9aa4b2"),
+          },
         },
         background: {
           mode: selBgMode(),
-          solid:    { color: normalizeHex6(val("#bg_solid_color", "#0b0f14"), "#0b0f14") },
-          gradient: { from: normalizeHex6(val("#bg_grad_from", "#142033"), "#142033"), to: normalizeHex6(val("#bg_grad_to", "#0b0f14"), "#0b0f14"), angle_deg: Number(val("#bg_grad_angle", "180")) },
-          dynamic:  {
+          solid: { color: normalizeHex6(val("#bg_solid_color", "#0b0f14"), "#0b0f14") },
+          gradient: {
+            from: normalizeHex6(val("#bg_grad_from", "#142033"), "#142033"),
+            to: normalizeHex6(val("#bg_grad_to", "#0b0f14"), "#0b0f14"),
+            angle_deg: Number(val("#bg_grad_angle", "180")),
+          },
+          dynamic: {
             from: normalizeHex6(val("#bg_dyn_from", "#16233a"), "#16233a"),
             to: normalizeHex6(val("#bg_dyn_to", "#0e1a2f"), "#0e1a2f"),
             rotate_s: Number(val("#bg_dyn_rotate", "60")),
@@ -400,11 +474,14 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
             url: val("#bg_img_url", ""),
             fit: val("#bg_img_fit", "cover"),
             opacity: Number(val("#bg_img_op", "1")),
-            tint: { color: normalizeHex6(val("#bg_img_tint", "#000000"), "#000000"), opacity: Number(val("#bg_img_tint_op", "0")) },
+            tint: {
+              color: normalizeHex6(val("#bg_img_tint", "#000000"), "#000000"),
+              opacity: Number(val("#bg_img_tint_op", "0")),
+            },
           },
         },
         // kuratert liste lagres på theme-nivå
-        picsum_catalog: picsumCatalogLocal.map(x => ({ id: Number(x.id), label: String(x.label || "") })),
+        picsum_catalog: picsumCatalogLocal.map((x) => ({ id: Number(x.id), label: String(x.label || "") })),
       },
       clock,
     };
@@ -413,13 +490,13 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
     if (out.theme.background.mode === "picsum") {
       const idStr = (val("#bg_picsum_id", "") || "").trim();
       const idNum = idStr ? parseInt(idStr, 10) : NaN;
-      const idVal = (Number.isFinite(idNum) && idNum > 0) ? idNum : null;
+      const idVal = Number.isFinite(idNum) && idNum > 0 ? idNum : null;
 
       const arEnabled = !!$("#bg_picsum_auto_enabled")?.checked;
-      const rawVal = parseInt((val("#bg_picsum_auto_interval", "5") || "5"), 10);
+      const rawVal = parseInt(val("#bg_picsum_auto_interval", "5") || "5", 10);
       const unit = (val("#bg_picsum_auto_unit", "m") || "m").toLowerCase();
       let intervalSec = Number.isFinite(rawVal) ? rawVal : 5;
-      intervalSec = Math.max(5, Math.min(24*60*60, unit === "m" ? intervalSec * 60 : intervalSec));
+      intervalSec = Math.max(5, Math.min(24 * 60 * 60, unit === "m" ? intervalSec * 60 : intervalSec));
 
       out.theme.background.picsum = {
         fit: val("#bg_picsum_fit", "cover"),
@@ -435,8 +512,8 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
         auto_rotate: {
           enabled: arEnabled,
           interval_seconds: intervalSec,
-          strategy: (val("#bg_picsum_auto_strategy","shuffle") || "shuffle"),
-        }
+          strategy: val("#bg_picsum_auto_strategy", "shuffle") || "shuffle",
+        },
       };
     }
 
@@ -478,7 +555,8 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
 
     $("#daily_time") && ($("#daily_time").value = cfg.daily_time || "");
     $("#once_at") && ($("#once_at").value = (cfg.once_at || "").replace("Z", ""));
-    $("#active_mode") && ($("#active_mode").textContent = `Aktiv modus: ${cfg.mode} · Fase: ${tick?.mode || "—"} (${tick?.state || "—"})`);
+    $("#active_mode") &&
+      ($("#active_mode").textContent = `Aktiv modus: ${cfg.mode} · Fase: ${tick?.mode || "—"} (${tick?.state || "—"})`);
     $("#show_message_primary") && ($("#show_message_primary").checked = !!cfg.show_message_primary);
     $("#show_message_secondary") && ($("#show_message_secondary").checked = !!cfg.show_message_secondary);
     $("#message_primary") && ($("#message_primary").value = cfg.message_primary || "");
@@ -535,14 +613,14 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
     $("#bg_dyn_layer") && ($("#bg_dyn_layer").value = bg.dynamic?.layer || "under");
 
     // Picsum
-    $("#bg_picsum_fit")      && ($("#bg_picsum_fit").value      = bg.picsum?.fit || "cover");
-    $("#bg_picsum_blur")     && ($("#bg_picsum_blur").value     = bg.picsum?.blur ?? 0);
-    $("#bg_picsum_gray")     && ($("#bg_picsum_gray").checked   = !!bg.picsum?.grayscale);
-    $("#bg_picsum_lock")     && ($("#bg_picsum_lock").checked   = !!bg.picsum?.lock_seed);
-    $("#bg_picsum_seed")     && ($("#bg_picsum_seed").value     = bg.picsum?.seed || "");
-    $("#bg_picsum_tint")     && ($("#bg_picsum_tint").value     = bg.picsum?.tint?.color || "#000000");
-    $("#bg_picsum_tint_op")  && ($("#bg_picsum_tint_op").value  = bg.picsum?.tint?.opacity ?? 0);
-    $("#bg_picsum_id")       && ($("#bg_picsum_id").value       = (bg.picsum?.id ?? ""));
+    $("#bg_picsum_fit") && ($("#bg_picsum_fit").value = bg.picsum?.fit || "cover");
+    $("#bg_picsum_blur") && ($("#bg_picsum_blur").value = bg.picsum?.blur ?? 0);
+    $("#bg_picsum_gray") && ($("#bg_picsum_gray").checked = !!bg.picsum?.grayscale);
+    $("#bg_picsum_lock") && ($("#bg_picsum_lock").checked = !!bg.picsum?.lock_seed);
+    $("#bg_picsum_seed") && ($("#bg_picsum_seed").value = bg.picsum?.seed || "");
+    $("#bg_picsum_tint") && ($("#bg_picsum_tint").value = bg.picsum?.tint?.color || "#000000");
+    $("#bg_picsum_tint_op") && ($("#bg_picsum_tint_op").value = bg.picsum?.tint?.opacity ?? 0);
+    $("#bg_picsum_id") && ($("#bg_picsum_id").value = bg.picsum?.id ?? "");
 
     // Auto-rotate (om UI finnes)
     const ar = cfg?.theme?.background?.picsum?.auto_rotate || {};
@@ -576,9 +654,28 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
 
     const sel = ovSel();
     if (sel && !sel._bound) {
-      sel.addEventListener("change", () => { const cur = currentOverlay(); if (cur) fillOverlayFields(cur); });
-      ["#ov_id","#ov_type","#ov_url","#ov_pos","#ov_size","#ov_opacity","#ov_z","#ov_off_vw","#ov_off_vh","#ov_in_clock","#ov_in_countdown","#ov_tint_color","#ov_tint_opacity","#ov_tint_blend"].forEach((s) => {
-        const el = $(s); if (!el) return;
+      sel.addEventListener("change", () => {
+        const cur = currentOverlay();
+        if (cur) fillOverlayFields(cur);
+      });
+      [
+        "#ov_id",
+        "#ov_type",
+        "#ov_url",
+        "#ov_pos",
+        "#ov_size",
+        "#ov_opacity",
+        "#ov_z",
+        "#ov_off_vw",
+        "#ov_off_vh",
+        "#ov_in_clock",
+        "#ov_in_countdown",
+        "#ov_tint_color",
+        "#ov_tint_opacity",
+        "#ov_tint_blend",
+      ].forEach((s) => {
+        const el = $(s);
+        if (!el) return;
         el.addEventListener("input", commitOverlay);
         el.addEventListener("change", commitOverlay);
       });
@@ -592,7 +689,10 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
     renderPicsumList();
     bindPicsumListOnce();
 
-    updateClockContrastHint(); lock(); updateDigitContrastHints(); updateMessageContrastHints();
+    updateClockContrastHint();
+    lock();
+    updateDigitContrastHints();
+    updateMessageContrastHints();
   }
 
   // --- Auto-rotate UI (opprett én gang) ---
@@ -612,7 +712,7 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
       </div>
       <div class="row" style="display:flex;gap:8px;align-items:center;margin-top:6px;">
         <label>Intervall</label>
-        <input type="number" id="bg_picsum_auto_interval" min="5" max="${24*60*60}" step="1" value="300" style="width:110px">
+        <input type="number" id="bg_picsum_auto_interval" min="5" max="${24 * 60 * 60}" step="1" value="300" style="width:110px">
         <select id="bg_picsum_auto_unit">
           <option value="s">sekunder</option>
           <option value="m" selected>minutter</option>
@@ -628,7 +728,7 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
     host.appendChild(wrap);
 
     const syncFromCfg = () => {
-      const ar = (lastCfg?.theme?.background?.picsum?.auto_rotate) || {};
+      const ar = lastCfg?.theme?.background?.picsum?.auto_rotate || {};
       $("#bg_picsum_auto_enabled").checked = !!ar.enabled;
       const secs = Number(ar.interval_seconds ?? 300);
       if (secs % 60 === 0) {
@@ -638,14 +738,17 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
         $("#bg_picsum_auto_unit").value = "s";
         $("#bg_picsum_auto_interval").value = String(secs);
       }
-      $("#bg_picsum_auto_strategy").value = (ar.strategy || "shuffle");
+      $("#bg_picsum_auto_strategy").value = ar.strategy || "shuffle";
     };
 
-    ["#bg_picsum_auto_enabled","#bg_picsum_auto_interval","#bg_picsum_auto_unit","#bg_picsum_auto_strategy"].forEach((s) => {
-      const el = $(s); if (!el) return;
-      el.addEventListener("input",  pushPreviewDebounced);
-      el.addEventListener("change", pushPreviewDebounced);
-    });
+    ["#bg_picsum_auto_enabled", "#bg_picsum_auto_interval", "#bg_picsum_auto_unit", "#bg_picsum_auto_strategy"].forEach(
+      (s) => {
+        const el = $(s);
+        if (!el) return;
+        el.addEventListener("input", pushPreviewDebounced);
+        el.addEventListener("change", pushPreviewDebounced);
+      },
+    );
 
     syncFromCfg();
     host._autoRotateBound = true;
@@ -670,7 +773,7 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
 
   function bindPicsumListOnce() {
     if (bindPicsumListOnce._bound) return;
-    const sel  = document.getElementById("bg_picsum_list");
+    const sel = document.getElementById("bg_picsum_list");
     const inId = document.getElementById("bg_picsum_item_id");
     const inLb = document.getElementById("bg_picsum_item_label");
     const btnAdd = document.getElementById("bg_picsum_add");
@@ -687,40 +790,49 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
       inLb.value = item.label ?? "";
     });
 
-    btnAdd && btnAdd.addEventListener("click", () => {
-      const id = parseInt((inId.value || "").trim(), 10);
-      if (!Number.isFinite(id) || id <= 0) { alert("Ugyldig ID"); return; }
-      const label = (inLb.value || "").trim();
+    btnAdd &&
+      btnAdd.addEventListener("click", () => {
+        const id = parseInt((inId.value || "").trim(), 10);
+        if (!Number.isFinite(id) || id <= 0) {
+          alert("Ugyldig ID");
+          return;
+        }
+        const label = (inLb.value || "").trim();
 
-      const idx = picsumCatalogLocal.findIndex((x) => Number(x.id) === id);
-      if (idx >= 0) picsumCatalogLocal[idx] = { id, label };
-      else picsumCatalogLocal.push({ id, label });
+        const idx = picsumCatalogLocal.findIndex((x) => Number(x.id) === id);
+        if (idx >= 0) picsumCatalogLocal[idx] = { id, label };
+        else picsumCatalogLocal.push({ id, label });
 
-      picsumCatalogLocal.sort((a, b) => Number(a.id) - Number(b.id));
+        picsumCatalogLocal.sort((a, b) => Number(a.id) - Number(b.id));
 
-      renderPicsumList();
-      pushPreviewDebounced();
-    });
+        renderPicsumList();
+        pushPreviewDebounced();
+      });
 
-    btnDel && btnDel.addEventListener("click", () => {
-      const i = sel.selectedIndex;
-      if (i < 0) return;
-      picsumCatalogLocal.splice(i, 1);
-      renderPicsumList(i);
-      pushPreviewDebounced();
-    });
+    btnDel &&
+      btnDel.addEventListener("click", () => {
+        const i = sel.selectedIndex;
+        if (i < 0) return;
+        picsumCatalogLocal.splice(i, 1);
+        renderPicsumList(i);
+        pushPreviewDebounced();
+      });
 
-    btnUse && btnUse.addEventListener("click", () => {
-      const i = sel.selectedIndex;
-      const item = picsumCatalogLocal[i];
-      if (!item) return;
-      const id = Number(item.id);
-      const idField = document.getElementById("bg_picsum_id");
-      if (idField) idField.value = String(id);
-      const radio = document.querySelector(`input[name="bg_mode"][value="picsum"]`);
-      if (radio) { radio.checked = true; lock(); }
-      pushPreviewDebounced();
-    });
+    btnUse &&
+      btnUse.addEventListener("click", () => {
+        const i = sel.selectedIndex;
+        const item = picsumCatalogLocal[i];
+        if (!item) return;
+        const id = Number(item.id);
+        const idField = document.getElementById("bg_picsum_id");
+        if (idField) idField.value = String(id);
+        const radio = document.querySelector(`input[name="bg_mode"][value="picsum"]`);
+        if (radio) {
+          radio.checked = true;
+          lock();
+        }
+        pushPreviewDebounced();
+      });
 
     bindPicsumListOnce._bound = true;
   }
@@ -740,30 +852,29 @@ function showStatusToast(msg, tone = "info", ms = 2500) {
   };
 
   function ensurePicsumBrowseButton() {
-  if (document.getElementById("btn_picsum_browse")) return;
-  const host = document.getElementById("bg_picsum_cfg") || document.body;
-  const bar = document.createElement("div");
-  bar.style.margin = "8px 0 6px 0";
-  const btn = document.createElement("button");
-  btn.id = "btn_picsum_browse";
-  btn.type = "button";
-  btn.textContent = "Åpne Picsum-galleri…";
-  btn.addEventListener("click", () => (window.openPicsumPicker ? window.openPicsumPicker() : null));
-  bar.appendChild(btn);
-  host.appendChild(bar);
-}
+    if (document.getElementById("btn_picsum_browse")) return;
+    const host = document.getElementById("bg_picsum_cfg") || document.body;
+    const bar = document.createElement("div");
+    bar.style.margin = "8px 0 6px 0";
+    const btn = document.createElement("button");
+    btn.id = "btn_picsum_browse";
+    btn.type = "button";
+    btn.textContent = "Åpne Picsum-galleri…";
+    btn.addEventListener("click", () => (window.openPicsumPicker ? window.openPicsumPicker() : null));
+    bar.appendChild(btn);
+    host.appendChild(bar);
+  }
 
+  // static/js/admin.js — REPLACE function ensurePicsumModal()
+  function ensurePicsumModal() {
+    if (document.getElementById("picsum_modal")) return;
 
- // static/js/admin.js — REPLACE function ensurePicsumModal()
-function ensurePicsumModal() {
-  if (document.getElementById("picsum_modal")) return;
-
-  // Bygg DOM uten å injisere CSS (stiler ligger i static/css/admin.css)
-  const modal = document.createElement("div");
-  modal.id = "picsum_modal";
-  modal.className = "pm-backdrop";
-  modal.style.display = "none";
-  modal.innerHTML = `
+    // Bygg DOM uten å injisere CSS (stiler ligger i static/css/admin.css)
+    const modal = document.createElement("div");
+    modal.id = "picsum_modal";
+    modal.className = "pm-backdrop";
+    modal.style.display = "none";
+    modal.innerHTML = `
     <div class="pm-box" role="dialog" aria-modal="true" aria-label="Picsum-galleri">
       <header class="pm-header">
         <div class="left">
@@ -789,34 +900,40 @@ function ensurePicsumModal() {
       </footer>
     </div>`;
 
-  document.body.appendChild(modal);
+    document.body.appendChild(modal);
 
-  // Interaksjon
-  modal.addEventListener("click", (ev) => {
-    if (ev.target === modal) closePicsumPicker();
-  });
-  document.getElementById("pg_close").addEventListener("click", closePicsumPicker);
-  document.getElementById("pg_prev").addEventListener("click", () => {
-    if (picsumPicker.page > 1) { picsumPicker.page--; fetchPicsumPage(); }
-  });
-  document.getElementById("pg_next").addEventListener("click", () => { picsumPicker.page++; fetchPicsumPage(); });
-  document.getElementById("pg_page").addEventListener("change", () => {
-    const p = parseInt(document.getElementById("pg_page").value || "1", 10);
-    picsumPicker.page = Math.max(1, isFinite(p) ? p : 1); fetchPicsumPage();
-  });
-  document.getElementById("pg_per_page").addEventListener("change", () => {
-    picsumPicker.perPage = parseInt(document.getElementById("pg_per_page").value, 10) || 30;
-    fetchPicsumPage();
-  });
-  document.getElementById("pg_add").addEventListener("click", () => addSelectedToCurated(false));
-  document.getElementById("pg_add_use").addEventListener("click", () => addSelectedToCurated(true));
+    // Interaksjon
+    modal.addEventListener("click", (ev) => {
+      if (ev.target === modal) closePicsumPicker();
+    });
+    document.getElementById("pg_close").addEventListener("click", closePicsumPicker);
+    document.getElementById("pg_prev").addEventListener("click", () => {
+      if (picsumPicker.page > 1) {
+        picsumPicker.page--;
+        fetchPicsumPage();
+      }
+    });
+    document.getElementById("pg_next").addEventListener("click", () => {
+      picsumPicker.page++;
+      fetchPicsumPage();
+    });
+    document.getElementById("pg_page").addEventListener("change", () => {
+      const p = parseInt(document.getElementById("pg_page").value || "1", 10);
+      picsumPicker.page = Math.max(1, isFinite(p) ? p : 1);
+      fetchPicsumPage();
+    });
+    document.getElementById("pg_per_page").addEventListener("change", () => {
+      picsumPicker.perPage = parseInt(document.getElementById("pg_per_page").value, 10) || 30;
+      fetchPicsumPage();
+    });
+    document.getElementById("pg_add").addEventListener("click", () => addSelectedToCurated(false));
+    document.getElementById("pg_add_use").addEventListener("click", () => addSelectedToCurated(true));
 
-  // ESC for å lukke
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && picsumPicker.open) closePicsumPicker();
-  });
-}
-
+    // ESC for å lukke
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && picsumPicker.open) closePicsumPicker();
+    });
+  }
 
   function openPicsumPicker() {
     ensurePicsumModal();
@@ -859,7 +976,10 @@ function ensurePicsumModal() {
     const s = document.getElementById("pg_status");
     if (!grid) return;
     grid.innerHTML = "";
-    if (s) s.textContent = picsumPicker.loading ? "Laster…" : `Side ${picsumPicker.page} · ${picsumPicker.items.length} bilder`;
+    if (s)
+      s.textContent = picsumPicker.loading
+        ? "Laster…"
+        : `Side ${picsumPicker.page} · ${picsumPicker.items.length} bilder`;
 
     picsumPicker.items.forEach((it) => {
       const id = Number(it.id);
@@ -867,25 +987,24 @@ function ensurePicsumModal() {
       const url = `https://picsum.photos/id/${id}/${PICSUM_THUMB_W}/${PICSUM_THUMB_H}`;
 
       // static/js/admin.js — REPLACE tile building inside renderPicsumGrid()
-const tile = document.createElement("div");
-tile.className = "pm-tile";
-tile.innerHTML = `
+      const tile = document.createElement("div");
+      tile.className = "pm-tile";
+      tile.innerHTML = `
   <img src="${url}" alt="Picsum #${id}">
   <div class="pm-check">#${id}</div>
   <div class="pm-meta"><strong>${author || "Ukjent"}</strong></div>
 `;
-const mark = () => {
-  if (picsumPicker.selected.has(id)) {
-    picsumPicker.selected.delete(id);
-    tile.classList.remove("pm-selected");
-  } else {
-    picsumPicker.selected.add(id);
-    tile.classList.add("pm-selected");
-  }
-};
-tile.addEventListener("click", mark);
-grid.appendChild(tile);
-
+      const mark = () => {
+        if (picsumPicker.selected.has(id)) {
+          picsumPicker.selected.delete(id);
+          tile.classList.remove("pm-selected");
+        } else {
+          picsumPicker.selected.add(id);
+          tile.classList.add("pm-selected");
+        }
+      };
+      tile.addEventListener("click", mark);
+      grid.appendChild(tile);
     });
   }
 
@@ -895,14 +1014,14 @@ grid.appendChild(tile);
       return;
     }
     const picked = Array.from(picsumPicker.selected.values());
-    const byId = new Map(picsumCatalogLocal.map(x => [Number(x.id), x]));
+    const byId = new Map(picsumCatalogLocal.map((x) => [Number(x.id), x]));
     picsumPicker.items.forEach((it) => {
       const id = Number(it.id);
       if (picsumPicker.selected.has(id)) {
         byId.set(id, { id, label: String(it.author || "") });
       }
     });
-    picsumCatalogLocal = Array.from(byId.values()).sort((a,b) => Number(a.id) - Number(b.id));
+    picsumCatalogLocal = Array.from(byId.values()).sort((a, b) => Number(a.id) - Number(b.id));
     renderPicsumList();
     pushPreviewDebounced();
     showStatusToast(`${picked.length} bilde(r) lagt i kuratert liste`, "ok", 1800);
@@ -912,7 +1031,10 @@ grid.appendChild(tile);
       const idField = document.getElementById("bg_picsum_id");
       if (idField) idField.value = String(first);
       const radio = document.querySelector(`input[name="bg_mode"][value="picsum"]`);
-      if (radio) { radio.checked = true; lock(); }
+      if (radio) {
+        radio.checked = true;
+        lock();
+      }
       pushPreviewDebounced();
     }
     closePicsumPicker();
@@ -927,20 +1049,33 @@ grid.appendChild(tile);
     showStatusToast("Status oppdatert", "info", 1200);
   }
   async function updateSyncPill() {
-    const pill = $("#sync_pill"); if (!pill) return;
+    const pill = $("#sync_pill");
+    if (!pill) return;
     try {
       const js = await getJSON("/debug/view-heartbeat");
       const hb = js.heartbeat || {};
       const age = hb.age_seconds ?? 9999;
       const viewRev = hb.rev || 0;
       const cfgRev = lastCfg && lastCfg._updated_at ? lastCfg._updated_at : 0;
-      let detailed = "", cls = "off";
-      if (age > 30 || !hb.ts_iso) { detailed = "Synk: visning offline"; cls = "off"; }
-      else if (viewRev >= cfgRev) { detailed = `Synk: OK (rev ${viewRev})`; cls = "ok"; }
-      else { detailed = `Synk: venter (view ${viewRev} < cfg ${cfgRev})`; cls = "warn"; }
-      pill.className = `pill dot ${cls}`; pill.title = detailed; pill.textContent = "";
+      let detailed = "",
+        cls = "off";
+      if (age > 30 || !hb.ts_iso) {
+        detailed = "Synk: visning offline";
+        cls = "off";
+      } else if (viewRev >= cfgRev) {
+        detailed = `Synk: OK (rev ${viewRev})`;
+        cls = "ok";
+      } else {
+        detailed = `Synk: venter (view ${viewRev} < cfg ${cfgRev})`;
+        cls = "warn";
+      }
+      pill.className = `pill dot ${cls}`;
+      pill.title = detailed;
+      pill.textContent = "";
     } catch {
-      pill.className = "pill dot off"; pill.title = "Synk: —"; pill.textContent = "";
+      pill.className = "pill dot off";
+      pill.title = "Synk: —";
+      pill.textContent = "";
     }
   }
 
@@ -953,12 +1088,19 @@ grid.appendChild(tile);
   }
   async function startDuration(argMinutes) {
     const m = argMinutes != null ? Number(argMinutes) : parseInt(val("#start_minutes", "0"), 10);
-    if (!Number.isFinite(m) || m <= 0) { alert("Ugyldig varighet"); return; }
-    await postJSON("/api/start-duration", { minutes: m }); await loadAll();
+    if (!Number.isFinite(m) || m <= 0) {
+      alert("Ugyldig varighet");
+      return;
+    }
+    await postJSON("/api/start-duration", { minutes: m });
+    await loadAll();
   }
-  async function stopDuration() { await postJSON("/api/stop", {}); await loadAll(); }
+  async function stopDuration() {
+    await postJSON("/api/stop", {});
+    await loadAll();
+  }
 
-  // ==== Presets ============================================================== 
+  // ==== Presets ==============================================================
   function applyPreset() {
     const p = (document.querySelector("#bg_preset")?.value || "none").trim();
 
@@ -989,7 +1131,8 @@ grid.appendChild(tile);
       $("#bg_img_tint_op") && ($("#bg_img_tint_op").value = 0.4);
     } else if (p === "photo-HP") {
       (document.querySelector(`input[name="bg_mode"][value="image"]`) || {}).checked = true;
-      $("#bg_img_url") && ($("#bg_img_url").value = "https://static.wixstatic.com/media/8ff0d1_1e540e760d3d4a77af3d5cd39e2be4f8~mv2.jpg");
+      $("#bg_img_url") &&
+        ($("#bg_img_url").value = "https://static.wixstatic.com/media/8ff0d1_1e540e760d3d4a77af3d5cd39e2be4f8~mv2.jpg");
       $("#bg_img_fit") && ($("#bg_img_fit").value = "cover");
       $("#bg_img_op") && ($("#bg_img_op").value = 1);
       $("#bg_img_tint") && ($("#bg_img_tint").value = "#0d4082");
@@ -1007,35 +1150,60 @@ grid.appendChild(tile);
   function bindEvents() {
     $$(`input[name="mode"]`).forEach((el) => el.addEventListener("change", lock));
     $$(`input[name="bg_mode"]`).forEach((el) =>
-      el.addEventListener("change", () => { lock(); updateDigitContrastHints(); updateMessageContrastHints(); updateClockContrastHint(); }),
+      el.addEventListener("change", () => {
+        lock();
+        updateDigitContrastHints();
+        updateMessageContrastHints();
+        updateClockContrastHint();
+      }),
     );
-    ["color_normal","color_warn","color_alert","color_over","theme_p_color","theme_s_color"].forEach((id) => {
+    ["color_normal", "color_warn", "color_alert", "color_over", "theme_p_color", "theme_s_color"].forEach((id) => {
       const e = document.getElementById(id);
-      e && e.addEventListener("input", () => { updateDigitContrastHints(); updateMessageContrastHints(); });
+      e &&
+        e.addEventListener("input", () => {
+          updateDigitContrastHints();
+          updateMessageContrastHints();
+        });
     });
-    $$(".preset").forEach((b) => b.addEventListener("click", async () => {
-      const m = Number(b.dataset.min);
-      const e = $("#start_minutes"); if (e) e.value = String(m);
-      await startDuration(m);
-    }));
+    $$(".preset").forEach((b) =>
+      b.addEventListener("click", async () => {
+        const m = Number(b.dataset.min);
+        const e = $("#start_minutes");
+        if (e) e.value = String(m);
+        await startDuration(m);
+      }),
+    );
     $("#btn_apply_preset") && $("#btn_apply_preset").addEventListener("click", applyPreset);
-    $("#btn_save")    && $("#btn_save").addEventListener("click", () => saveAll().catch((e) => alert(e.message)));
+    $("#btn_save") && $("#btn_save").addEventListener("click", () => saveAll().catch((e) => alert(e.message)));
     $("#btn_refresh") && $("#btn_refresh").addEventListener("click", () => loadAll().catch((e) => alert(e.message)));
     $("#btn_reset_view") && $("#btn_reset_view").addEventListener("click", (ev) => handleResetView(ev.currentTarget));
     $("#btn_start") && $("#btn_start").addEventListener("click", () => startDuration().catch((e) => alert(e.message)));
-    $("#btn_stop")  && $("#btn_stop").addEventListener("click",  () => stopDuration().catch((e) => alert(e.message)));
-    const clkColorEl = $("#clk_color"); clkColorEl && clkColorEl.addEventListener("input", updateClockContrastHint);
-    document.addEventListener("input",  pushPreviewDebounced, { passive: true });
+    $("#btn_stop") && $("#btn_stop").addEventListener("click", () => stopDuration().catch((e) => alert(e.message)));
+    const clkColorEl = $("#clk_color");
+    clkColorEl && clkColorEl.addEventListener("input", updateClockContrastHint);
+    document.addEventListener("input", pushPreviewDebounced, { passive: true });
     document.addEventListener("change", pushPreviewDebounced, { passive: true });
     $$(".mode-btn").forEach((b) => b.addEventListener("click", () => patchMode(b.dataset.mode)));
-    $$(".mode-preset").forEach((b) => b.addEventListener("click", async () => {
-      const m = Number(b.dataset.min || "0"); if (!Number.isFinite(m) || m <= 0) return; await startDuration(m);
-    }));
-    const f = $("#preview_frame"); if (f) f.addEventListener("load", () => setTimeout(pushPreview, 50), { once: true });
+    $$(".mode-preset").forEach((b) =>
+      b.addEventListener("click", async () => {
+        const m = Number(b.dataset.min || "0");
+        if (!Number.isFinite(m) || m <= 0) return;
+        await startDuration(m);
+      }),
+    );
+    const f = $("#preview_frame");
+    if (f) f.addEventListener("load", () => setTimeout(pushPreview, 50), { once: true });
     setTimeout(pushPreview, 80);
   }
 
   // ==== Init =================================================================
-  async function init() { bindEvents(); ensurePicsumBrowseButton(); ensurePicsumModal(); await loadAll().catch(console.error); setInterval(updateSyncPill, 3000); }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true }); else init();
+  async function init() {
+    bindEvents();
+    ensurePicsumBrowseButton();
+    ensurePicsumModal();
+    await loadAll().catch(console.error);
+    setInterval(updateSyncPill, 3000);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
+  else init();
 })();

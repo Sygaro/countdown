@@ -6,7 +6,7 @@
   const API_URL = "/api/picsum/next";
   const POLL_FAST_MS = 1000; // poll hvert sekund (backend avgjør når bytte skjer)
   const POLL_SLOW_MS = 5000; // tregere når auto-rotate er av/slått av i cfg
-  const MAX_DIM = 4000;      // unngå ekstremt store bilder
+  const MAX_DIM = 4000; // unngå ekstremt store bilder
 
   // --- State ---------------------------------------------------------------
   let currentId = null;
@@ -15,27 +15,28 @@
 
   // --- DOM: bakgrunnslag + tint --------------------------------------------
   const LAYER_ID = "bg-picsum-layer";
-  const TINT_ID  = "bg-picsum-tint";
+  const TINT_ID = "bg-picsum-tint";
 
-function ensureLayers() {
-  let layer = document.getElementById(LAYER_ID);
-  if (!layer) {
-    layer = document.createElement("div");
-    layer.id = LAYER_ID;
-    document.body.appendChild(layer);
+  function ensureLayers() {
+    let layer = document.getElementById(LAYER_ID);
+    if (!layer) {
+      layer = document.createElement("div");
+      layer.id = LAYER_ID;
+      document.body.appendChild(layer);
+    }
+    let tint = document.getElementById(TINT_ID);
+    if (!tint) {
+      tint = document.createElement("div");
+      tint.id = TINT_ID;
+      document.body.appendChild(tint);
+    }
+    return { layer, tint };
   }
-  let tint = document.getElementById(TINT_ID);
-  if (!tint) {
-    tint = document.createElement("div");
-    tint.id = TINT_ID;
-    document.body.appendChild(tint);
-  }
-  return { layer, tint };
-}
-
 
   // --- Utils ----------------------------------------------------------------
-  function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+  function clamp(n, lo, hi) {
+    return Math.max(lo, Math.min(hi, n));
+  }
 
   function hexToRGBA(hex, alpha) {
     // #RRGGBB -> rgba(r,g,b,alpha)
@@ -43,7 +44,9 @@ function ensureLayers() {
     const m = /^#?([0-9a-f]{6})$/i.exec(s);
     if (!m) return `rgba(0,0,0,${clamp(Number(alpha) || 0, 0, 1)})`;
     const i = parseInt(m[1], 16);
-    const r = (i >> 16) & 255, g = (i >> 8) & 255, b = i & 255;
+    const r = (i >> 16) & 255,
+      g = (i >> 8) & 255,
+      b = i & 255;
     return `rgba(${r}, ${g}, ${b}, ${clamp(Number(alpha) || 0, 0, 1)})`;
   }
 
@@ -72,7 +75,7 @@ function ensureLayers() {
       const r = await fetch("/api/config", { cache: "no-store" });
       const js = await r.json();
       const picsum = js?.config?.theme?.background?.picsum || {};
-      const fit = (picsum.fit === "contain") ? "contain" : "cover";
+      const fit = picsum.fit === "contain" ? "contain" : "cover";
       const grayscale = !!picsum.grayscale;
       const blur = clamp(parseInt(picsum.blur || 0, 10) || 0, 0, 10);
       const tint = picsum.tint || { color: "#000000", opacity: 0 };

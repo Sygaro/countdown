@@ -12,21 +12,17 @@ from .settings import TZ
 _MONO0_NS = _t.monotonic_ns()
 _WALL0_MS = int(_t.time() * 1000)
 
-
 def _now_ms() -> int:
     return _WALL0_MS + (_t.monotonic_ns() - _MONO0_NS) // 1_000_000
-
 
 def _parse_hhmm(hhmm: str) -> dtime:
     hh, mm = hhmm.strip().split(":", 1)
     return dtime(hour=int(hh), minute=int(mm), tzinfo=TZ)
 
-
 def _ms_from_dt(dt: datetime) -> int:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=TZ)
     return int(dt.astimezone(TZ).timestamp() * 1000)
-
 
 def _next_daily_target_with_overrun(
     hhmm: str, now_dt: datetime, overrun_ms: int
@@ -38,7 +34,6 @@ def _next_daily_target_with_overrun(
     if (now_dt - today) <= timedelta(milliseconds=overrun_ms):
         return _ms_from_dt(today)
     return _ms_from_dt(today + timedelta(days=1))
-
 
 def compute_target_ms(cfg: Dict[str, Any], *, now_ms: Optional[int] = None) -> int:
     now_ms = now_ms if now_ms is not None else _now_ms()
@@ -74,7 +69,6 @@ def compute_target_ms(cfg: Dict[str, Any], *, now_ms: Optional[int] = None) -> i
         return start_ms + mins * 60_000
 
     return 0
-
 
 def compute_tick(cfg: Dict[str, Any]) -> Dict[str, Any]:
     now_ms = _now_ms()

@@ -5,7 +5,6 @@ from functools import wraps
 from flask import request, jsonify
 from .storage import load_config
 
-
 def require_password(fn):
     """
     Krever X-Admin-Password header KUN hvis det finnes et passord i config

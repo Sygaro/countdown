@@ -1,21 +1,29 @@
 # app/routes/pages.py
 """
 Sider + kompat-endepunkter + debug/selftest + view-heartbeat.
+Bevisst lettvekts—API-ansvar ligger i routes/api.py.
 """
 from __future__ import annotations
+
 from datetime import datetime, timedelta, timezone
-from flask import Blueprint, send_from_directory, jsonify, request
+from flask import Blueprint, send_from_directory, jsonify, request, Response
+
 from ..settings import PROJECT_ROOT, TZ
 from ..storage import load_config, clear_duration_and_switch_to_daily, replace_config
 from ..countdown import compute_tick, compute_target_ms
 
 bp = Blueprint("pages", __name__)
-
 _STATIC = (PROJECT_ROOT / "static").resolve()
 
-# --- Enkelt in-memory heartbeat fra visningen (for Admin-synk) ---
+# Enkel in-memory heartbeat fra visningen (for Admin-synk)
 _LAST_VIEW_HEARTBEAT = {"rev": 0, "ts": None, "page": "view"}  # ts = aware datetime
 
+def _json_nostore(payload, status: int = 200) -> Response:
+    """Hvorfor: status-/debug-svar skal ikke caches av klient/proxy."""
+    resp = jsonify(payload)
+    resp.status_code = status
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 @bp.post("/debug/view-heartbeat")
 def view_hb_post():
@@ -29,8 +37,7 @@ def view_hb_post():
     _LAST_VIEW_HEARTBEAT["rev"] = rev
     _LAST_VIEW_HEARTBEAT["page"] = page
     _LAST_VIEW_HEARTBEAT["ts"] = datetime.now(timezone.utc)
-    return jsonify({"ok": True})
-
+    return _json_nostore({"ok": True})
 
 @bp.get("/debug/view-heartbeat")
 def view_hb_get():
@@ -40,33 +47,27 @@ def view_hb_get():
     hb["age_seconds"] = (
         (datetime.now(timezone.utc) - ts).total_seconds() if ts else None
     )
-    return jsonify({"ok": True, "heartbeat": hb})
-
+    return _json_nostore({"ok": True, "heartbeat": hb})
 
 @bp.get("/")
 def index():
     return send_from_directory(_STATIC, "index.html")
 
-
 @bp.get("/admin")
 def admin():
     return send_from_directory(_STATIC, "admin.html")
-
 
 @bp.get("/diag")
 def diag():
     return send_from_directory(_STATIC, "diag.html")
 
-
 @bp.get("/about")
 def about():
     return send_from_directory(_STATIC, "about.html")
 
-
 @bp.get("/health")
 def health():
-    return {"ok": True}
-
+    return _json_nostore({"ok": True})
 
 @bp.get("/tick")
 def tick():
@@ -75,42 +76,33 @@ def tick():
     if t["state"] == "ended" and cfg.get("mode") == "duration":
         clear_duration_and_switch_to_daily()
     t["cfg_rev"] = int(cfg.get("_updated_at", 0))
-    return jsonify(t), 200
-
+    return _json_nostore(t)
 
 @bp.get("/state")
 def state_snapshot():
     cfg = load_config()
     t = compute_tick(cfg)
-    return (
-        jsonify(
-            {
-                "now_ms": t["now_ms"],
-                "target_ms": t["target_ms"],
-                "display_ms": t["display_ms"],
-                "signed_display_ms": t["signed_display_ms"],
-                "state": t["state"],
-                "mode": t["mode"],
-            }
-        ),
-        200,
+    return _json_nostore(
+        {
+            "now_ms": t["now_ms"],
+            "target_ms": t["target_ms"],
+            "display_ms": t["display_ms"],
+            "signed_display_ms": t["signed_display_ms"],
+            "state": t["state"],
+            "mode": t["mode"],
+        }
     )
-
 
 @bp.get("/debug/whoami")
 def dbg_whoami():
-    return (
-        jsonify(
-            {
-                "cwd": str(PROJECT_ROOT),
-                "static": str(_STATIC),
-                "config_path": str((PROJECT_ROOT / "config.json").resolve()),
-                "server_time": datetime.now(TZ).isoformat(),
-            }
-        ),
-        200,
+    return _json_nostore(
+        {
+            "cwd": str(PROJECT_ROOT),
+            "static": str(_STATIC),
+            "config_path": str((PROJECT_ROOT / "config.json").resolve()),
+            "server_time": datetime.now(TZ).isoformat(),
+        }
     )
-
 
 @bp.get("/debug/config")
 def dbg_config():
@@ -131,8 +123,7 @@ def dbg_config():
             result["write_test_ok"] = False
             result["error"] = str(e)
     result["config"] = cfg
-    return jsonify(result), 200
-
+    return _json_nostore(result)
 
 @bp.get("/debug/selftest")
 def dbg_selftest():
@@ -162,4 +153,4 @@ def dbg_selftest():
     target3 = compute_target_ms(cfg3, now_ms=start_ms)
     add("duration_10min", target3 == start_ms + 10 * 60_000)
 
-    return jsonify({"ok": ok_all, "tests": tests}), 200
+    return _json_nostore({"ok": ok_all, "tests": tests})

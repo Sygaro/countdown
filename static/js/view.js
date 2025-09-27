@@ -18,17 +18,25 @@
   const fmtMMSS = (ms) => {
     const neg = ms < 0 ? "-" : "";
     ms = Math.abs(ms);
-    const t = Math.floor(ms / 1000), m = Math.floor(t / 60), s = t % 60;
+    const t = Math.floor(ms / 1000),
+      m = Math.floor(t / 60),
+      s = t % 60;
     return `${neg}${m}:${String(s).padStart(2, "0")}`;
   };
   const fmtHMS = (ms) => {
     const neg = ms < 0 ? "-" : "";
     ms = Math.abs(ms);
-    const t = Math.floor(ms / 1000), h = Math.floor(t / 3600), r = t % 3600, m = Math.floor(r / 60), s = r % 60;
+    const t = Math.floor(ms / 1000),
+      h = Math.floor(t / 3600),
+      r = t % 3600,
+      m = Math.floor(r / 60),
+      s = r % 60;
     const pad = (n) => String(n).padStart(2, "0");
     return `${neg}${h}:${pad(m)}:${pad(s)}`;
   };
-  const setText = (el, text) => { if (el) el.textContent = text; };
+  const setText = (el, text) => {
+    if (el) el.textContent = text;
+  };
 
   function applyDigitsSize() {
     const vmin = Number(state.cfg?.theme?.digits?.size_vmin ?? 14);
@@ -39,7 +47,8 @@
     const p = state.cfg?.theme?.messages?.primary || {};
     const s = state.cfg?.theme?.messages?.secondary || {};
     const applyTo = (sel, m) => {
-      const el = $(sel); if (!el) return;
+      const el = $(sel);
+      if (!el) return;
       el.style.fontSize = `${Number(m.size_vmin ?? 6)}vmin`;
       el.style.fontWeight = String(Number(m.weight ?? 400));
       el.style.color = String(m.color ?? "#9aa4b2");
@@ -56,7 +65,10 @@
 
     window.ViewBg.applyBackground(document.body, state.cfg?.theme?.background);
 
-    if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
+    if (state.clockTimer) {
+      clearInterval(state.clockTimer);
+      state.clockTimer = null;
+    }
     $("#clock_time") && ($("#clock_time").style.display = "none");
 
     applyDigitsSize();
@@ -84,21 +96,25 @@
       digits.classList.toggle("blink", !!(c.use_blink && t.blink));
     }
 
-    const targetPrim = c.show_target_time && c.show_message_primary && c.target_time_after === "primary" && t.target_hhmm
-      ? ` ${t.target_hhmm}` : "";
-    const targetSec = c.show_target_time && c.show_message_secondary && c.target_time_after === "secondary" && t.target_hhmm
-      ? ` ${t.target_hhmm}` : "";
+    const targetPrim =
+      c.show_target_time && c.show_message_primary && c.target_time_after === "primary" && t.target_hhmm
+        ? ` ${t.target_hhmm}`
+        : "";
+    const targetSec =
+      c.show_target_time && c.show_message_secondary && c.target_time_after === "secondary" && t.target_hhmm
+        ? ` ${t.target_hhmm}`
+        : "";
 
     const prim = c.show_message_primary ? (c.message_primary || "") + targetPrim : "";
-    const sec  = c.show_message_secondary ? (c.message_secondary || "") + targetSec : "";
+    const sec = c.show_message_secondary ? (c.message_secondary || "") + targetSec : "";
 
     const above = c.messages_position === "above";
     $("#msgs_above").style.display = above ? "block" : "none";
     $("#msgs_below").style.display = above ? "none" : "block";
-    setText($("#msg_primary_above"),  above ? prim : "");
-    setText($("#msg_secondary_above"),above ? sec  : "");
+    setText($("#msg_primary_above"), above ? prim : "");
+    setText($("#msg_secondary_above"), above ? sec : "");
     setText($("#msg_primary_below"), !above ? prim : "");
-    setText($("#msg_secondary_below"),!above ? sec  : "");
+    setText($("#msg_secondary_below"), !above ? sec : "");
 
     window.ViewOverlays.applyOverlays(state.cfg);
   }
@@ -121,7 +137,12 @@
 
     const clk = state.cfg?.clock || {};
     const sizeVmin = clamp(Number(clk.size_vmin ?? 12), 6, 30);
-    Object.assign(clkEl.style, { fontSize: `${sizeVmin}vmin`, fontWeight: "800", display: "block", color: clk.color || "#e6edf3" });
+    Object.assign(clkEl.style, {
+      fontSize: `${sizeVmin}vmin`,
+      fontWeight: "800",
+      display: "block",
+      color: clk.color || "#e6edf3",
+    });
 
     const useOwn = !!clk.use_clock_messages;
     if (!useOwn) {
@@ -130,7 +151,8 @@
     } else {
       const msgP = (clk.message_primary || "").trim();
       const msgS = (clk.message_secondary || "").trim();
-      const showP = !!msgP, showS = !!msgS;
+      const showP = !!msgP,
+        showS = !!msgS;
 
       const msgPos = (clk.messages_position || "right").toLowerCase();
       const msgAlign = (clk.messages_align || "center").toLowerCase();
@@ -157,7 +179,8 @@
       wrap.style.textAlign = { start: "left", center: "center", end: "right" }[msgAlign] || "center";
       wrap.style.gap = "0.25rem";
 
-      setText(elP, msgP); setText(elS, msgS);
+      setText(elP, msgP);
+      setText(elS, msgS);
       elP.style.display = showP ? "block" : "none";
       elS.style.display = showS ? "block" : "none";
 
@@ -188,7 +211,10 @@
     root.style.alignItems = m.ai;
     root.style.justifyContent = m.jc;
 
-    if (state.clockTimer) { clearInterval(state.clockTimer); state.clockTimer = null; }
+    if (state.clockTimer) {
+      clearInterval(state.clockTimer);
+      state.clockTimer = null;
+    }
     const update = () => {
       const d = new Date();
       const HH = String(d.getHours()).padStart(2, "0");
@@ -242,7 +268,9 @@
         state.lastCfgRev = rev;
         render();
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   // Heartbeat
@@ -252,7 +280,11 @@
       const blob = new Blob([payload], { type: "application/json" });
       navigator.sendBeacon("/debug/view-heartbeat", blob);
     } else {
-      fetch("/debug/view-heartbeat", { method: "POST", headers: { "Content-Type": "application/json" }, body: payload }).catch(() => {});
+      fetch("/debug/view-heartbeat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      }).catch(() => {});
     }
   }
   setInterval(sendHeartbeat, 10000);
@@ -273,7 +305,7 @@
     const on = !!document.fullscreenElement;
     document.documentElement.classList.toggle("is-fullscreen", on);
     if (!fsBtn) return;
-    fsBtn.style.display = on ? "none" : (document.fullscreenEnabled ? "inline-block" : "none");
+    fsBtn.style.display = on ? "none" : document.fullscreenEnabled ? "inline-block" : "none";
     if (!on) fsBtn.style.opacity = "1";
   });
   function bumpActivity() {

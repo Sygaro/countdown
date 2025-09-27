@@ -66,7 +66,9 @@
   function startClock() {
     const el = qs("#sb_clock");
     if (!el) return; // ← ikke på denne siden
-    const tick = () => { el.textContent = fmtClock(new Date()); };
+    const tick = () => {
+      el.textContent = fmtClock(new Date());
+    };
     tick();
     setInterval(tick, 1000);
   }

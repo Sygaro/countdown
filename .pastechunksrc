@@ -5,7 +5,12 @@ MAX_LINES=3000
 ALLOW_BINARY=0
 
 INCLUDES='
-**/app/**/*.*
+.pastechunksrc
+tools/get_raw_links.sh
+tools/make_paste_chunks.py
+tools/run_paste_chunks.sh
+tools/rydd_kode.sh
+
 '
 
 EXCLUDES='

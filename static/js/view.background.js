@@ -8,7 +8,9 @@
   function hexToRgba(hex, opacity) {
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || "").trim());
     if (!m) return `rgba(0,0,0,${Number(opacity || 0)})`;
-    const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16);
+    const r = parseInt(m[1], 16),
+      g = parseInt(m[2], 16),
+      b = parseInt(m[3], 16);
     const a = clamp(Number(opacity || 0), 0, 1);
     return `rgba(${r},${g},${b},${a})`;
   }
@@ -19,7 +21,8 @@
     let vh = Math.max(1, Math.round((window.innerHeight || 720) * dpr));
     if ((fit || "cover") === "contain") {
       const side = Math.max(vw, vh);
-      vw = side; vh = side;
+      vw = side;
+      vh = side;
     }
     return { vw, vh };
   }
@@ -32,7 +35,9 @@
     st.textContent = `@keyframes dynbg-rotate{0%{transform:rotate(0deg) scale(1.02)}100%{transform:rotate(360deg) scale(1.02)}}`;
     document.head.appendChild(st);
   }
-  function getDynLayer() { return document.getElementById("dyn_bg_layer"); }
+  function getDynLayer() {
+    return document.getElementById("dyn_bg_layer");
+  }
   function ensureDynLayer() {
     let el = getDynLayer();
     if (!el) {
@@ -87,7 +92,10 @@
   }
   function applyBgImage(el, bg) {
     const url = (bg?.image?.url || "").trim();
-    if (!url) { el.style.backgroundColor = "#0b0f14"; return; }
+    if (!url) {
+      el.style.backgroundColor = "#0b0f14";
+      return;
+    }
     const fit = (bg?.image?.fit || "cover").toLowerCase();
     applyBaseImageLayers(el, fit, url, bg?.image?.tint);
   }
@@ -158,12 +166,18 @@
 
     const mode = (bg?.mode || "solid").toLowerCase();
     switch (mode) {
-      case "solid":    return applyBgSolid(rootEl, bg);
-      case "gradient": return applyBgGradient(rootEl, bg);
-      case "image":    return applyBgImage(rootEl, bg);
-      case "picsum":   return applyBgPicsum(rootEl, bg);
-      case "dynamic":  return applyBgDynamic(rootEl, bg);
-      default:         rootEl.style.backgroundColor = "#0b0f14";
+      case "solid":
+        return applyBgSolid(rootEl, bg);
+      case "gradient":
+        return applyBgGradient(rootEl, bg);
+      case "image":
+        return applyBgImage(rootEl, bg);
+      case "picsum":
+        return applyBgPicsum(rootEl, bg);
+      case "dynamic":
+        return applyBgDynamic(rootEl, bg);
+      default:
+        rootEl.style.backgroundColor = "#0b0f14";
     }
   }
 

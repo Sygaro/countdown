@@ -1,7 +1,6 @@
 <!doctype html>
 <!--
 # File: static/admin.html · # Purpose: Admin-GUI for Countdown (full funksjon, ingen size_vw/vh legacy)
-# Replaces: static/admin.html
 # Notes: Bruker kun size_vmin i alle relevante felter (digits/messages/clock). Støtter theme.background.dynamic.layer.
 -->
 <html lang="no">
@@ -36,16 +35,15 @@
         <!-- Viktig: behold UNDERSCORE-id'en din -->
         <button id="btn_save" class="primary">Lagre</button>
         <button id="btn_refresh">Hent config</button>
-       <!-- erstatt disse linjene i actions-raden -->
-<button id="btn_reset_view">Tilbakestill:</button>
-<label for="reset_profile">Profil</label>
-<select id="reset_profile">
-  <option value="visual" selected>Alt</option>
-  <option value="minimal">Tekstfarger</option>
-  <option value="background">Bakgrunn</option>
-  <option value="behavior">Nedtelling</option>
-</select>
 
+        <button id="btn_reset_view">Tilbakestill:</button>
+        <label for="reset_profile">Profil</label>
+        <select id="reset_profile">
+          <option value="visual" selected>Alt</option>
+          <option value="minimal">Tekstfarger</option>
+          <option value="background">Bakgrunn</option>
+          <option value="behavior">Nedtelling</option>
+        </select>
 
         <span id="sync_pill" class="pill dot off" title="Synk: —" aria-label="Synkestatus"></span>
       </div>
@@ -275,7 +273,6 @@
               <option value="dark-grad">Mørk gradient</option>
               <option value="dynamic">Dynamisk bakgrunn</option>
               <option value="photo-tint">Foto m/tint</option>
-              
               <option value="photo-HP">Skole m/tint</option>
             </select>
           </label>
@@ -345,63 +342,65 @@
           /></label>
         </div>
         <div id="bg_picsum_cfg">
-  <label>Fit
-    <select id="bg_picsum_fit">
-      <option>cover</option>
-      <option>contain</option>
-    </select>
-  </label>
-  <label>Blur (1–10)
-    <input id="bg_picsum_blur" type="number" min="0" max="10" step="1" value="0" />
-  </label>
-  <label><input id="bg_picsum_gray" type="checkbox" /> Grayscale</label>
-  <label><input id="bg_picsum_lock" type="checkbox" /> Lås på seed</label>
-  <label>Seed
-    <input id="bg_picsum_seed" type="text" placeholder="f.eks. skole-foaje" />
+          <label
+            >Fit
+            <select id="bg_picsum_fit">
+              <option>cover</option>
+              <option>contain</option>
+            </select>
+          </label>
+          <label
+            >Blur (1–10)
+            <input id="bg_picsum_blur" type="number" min="0" max="10" step="1" value="0" />
+          </label>
+          <label><input id="bg_picsum_gray" type="checkbox" /> Grayscale</label>
+          <label><input id="bg_picsum_lock" type="checkbox" /> Lås på seed</label>
+          <label
+            >Seed
+            <input id="bg_picsum_seed" type="text" placeholder="f.eks. skole-foaje" />
+          </label>
+          <label
+            >Bildets ID
+            <input id="bg_picsum_id" type="number" min="1" step="1" placeholder="f.eks. 237" />
+          </label>
 
-  </label>
-   <label>Bildets ID
-    <input id="bg_picsum_id" type="number" min="1" step="1" placeholder="f.eks. 237" />
-  </label>
+          <small class="hint">Hvis ID er satt, brukes den i stedet for seed.</small>
 
-  <small class="hint">Hvis ID er satt, brukes den i stedet for seed.</small>
+          <label
+            >Tint-farge
+            <input id="bg_picsum_tint" type="color" value="#000000" />
+          </label>
+          <label
+            >Tint-opacity (0–1)
+            <input id="bg_picsum_tint_op" type="number" min="0" max="1" step="0.05" value="0" />
+          </label>
+        </div>
 
-  <label>Tint-farge
-    <input id="bg_picsum_tint" type="color" value="#000000" />
-  </label>
-  <label>Tint-opacity (0–1)
-    <input id="bg_picsum_tint_op" type="number" min="0" max="1" step="0.05" value="0" />
-  </label>
-</div>
-
-<fieldset style="margin-top: .75rem">
-  <legend>Kuratert Picsum-liste</legend>
-  <div class="row" style="align-items:flex-start; gap: 12px">
-    <select id="bg_picsum_list" size="5" style="min-width: 280px"></select>
-    <div>
-      <label>Bildets ID
-        <input id="bg_picsum_item_id" type="number" min="1" step="1" placeholder="f.eks. 237" />
-      </label>
-      <label>Beskrivelse
-        <input id="bg_picsum_item_label" type="text" placeholder="valgfri tekst" />
-      </label>
-      <div class="row" style="gap: 8px; margin-top: 6px">
-        <button id="bg_picsum_add">Legg til / Oppdater</button>
-        <button id="bg_picsum_delete">Slett</button>
-        <button id="bg_picsum_use" class="primary">Bruk som bakgrunn</button>
-      </div>
-      <small class="hint">Tips: “Bruk som bakgrunn” setter feltet <em>Bildets ID</em> over (overstyrer seed/lock).</small>
-    </div>
-  </div>
-</fieldset>
-
-</div>
+        <fieldset style="margin-top: 0.75rem">
+          <legend>Kuratert Picsum-liste</legend>
+          <div class="row" style="align-items: flex-start; gap: 12px">
+            <select id="bg_picsum_list" size="5" style="min-width: 280px"></select>
+            <div>
+              <label
+                >Bildets ID
+                <input id="bg_picsum_item_id" type="number" min="1" step="1" placeholder="f.eks. 237" />
+              </label>
+              <label
+                >Beskrivelse
+                <input id="bg_picsum_item_label" type="text" placeholder="valgfri tekst" />
+              </label>
+              <div class="row" style="gap: 8px; margin-top: 6px">
+                <button id="bg_picsum_add">Legg til / Oppdater</button>
+                <button id="bg_picsum_delete">Slett</button>
+                <button id="bg_picsum_use" class="primary">Bruk som bakgrunn</button>
+              </div>
+              <small class="hint"
+                >Tips: “Bruk som bakgrunn” setter feltet <em>Bildets ID</em> over (overstyrer seed/lock).</small
+              >
+            </div>
+          </div>
+        </fieldset>
       </section>
-
-
-
-
-
 
       <!-- === Overlays (logo/grafikk) === -->
       <section class="card" id="card_overlays">
@@ -532,52 +531,50 @@
       </section>
     </main>
 
-<!-- Scripts flyttet ut for vedlikeholdbarhet -->
-<!-- Scripts (ekstrahert) -->
-<script src="/static/js/contrast.js" defer></script>
-<script src="/static/js/admin.js" defer></script>
-
+    <!-- Scripts (ekstrahert) -->
+    <script src="/static/js/contrast.js" defer></script>
+    <script src="/static/js/admin.js" defer></script>
 
     <!-- Live forhåndsvisning -->
     <aside id="preview_dock" aria-label="Live forhåndsvisning">
       <iframe id="preview_frame" src="/?preview=1" title="Live preview" loading="eager"></iframe>
     </aside>
-    <!-- static/admin.html : Toast + Picsum-modal (legg før </body>) -->
-<!-- Toast (global) -->
-<div id="status_toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<!-- Picsum-galleri (modal) -->
-<dialog id="picsum_modal" class="picsum-modal">
-  <div class="box" role="document">
-    <header class="pm-header">
-      <div class="left">
-        <strong class="pm-title">Picsum-galleri</strong>
-        <label>Sidenr <input id="pg_page" type="number" min="1" step="1" value="1" /></label>
-        <label>Pr. side
-          <select id="pg_per_page">
-            <option>12</option>
-            <option selected>24</option>
-            <option>36</option>
-            <option>60</option>
-          </select>
-        </label>
-        <button id="pg_prev" type="button">◀ Forrige</button>
-        <button id="pg_next" type="button">Neste ▶</button>
+    <!-- Toast (global) -->
+    <div id="status_toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <!-- Picsum-galleri (modal) -->
+    <dialog id="picsum_modal" class="picsum-modal">
+      <div class="box" role="document">
+        <header class="pm-header">
+          <div class="left">
+            <strong class="pm-title">Picsum-galleri</strong>
+            <label>Sidenr <input id="pg_page" type="number" min="1" step="1" value="1" /></label>
+            <label
+              >Pr. side
+              <select id="pg_per_page">
+                <option>12</option>
+                <option selected>24</option>
+                <option>36</option>
+                <option>60</option>
+              </select>
+            </label>
+            <button id="pg_prev" type="button">◀ Forrige</button>
+            <button id="pg_next" type="button">Neste ▶</button>
+          </div>
+          <div class="right">
+            <span id="pg_status" class="pm-status"></span>
+            <button id="pg_close" type="button">Lukk</button>
+          </div>
+        </header>
+
+        <div id="pg_grid" class="pm-grid" aria-live="polite"></div>
+
+        <footer class="pm-footer">
+          <button id="pg_add_use" type="button">Legg til & bruk første</button>
+          <button id="pg_add" type="button">Legg til valgte</button>
+        </footer>
       </div>
-      <div class="right">
-        <span id="pg_status" class="pm-status"></span>
-        <button id="pg_close" type="button">Lukk</button>
-      </div>
-    </header>
-
-    <div id="pg_grid" class="pm-grid" aria-live="polite"></div>
-
-    <footer class="pm-footer">
-      <button id="pg_add_use" type="button">Legg til & bruk første</button>
-      <button id="pg_add" type="button">Legg til valgte</button>
-    </footer>
-  </div>
-</dialog>
-
+    </dialog>
   </body>
 </html>

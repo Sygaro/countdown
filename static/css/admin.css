@@ -404,17 +404,44 @@ header,
   opacity: 0;
   transform: translateY(8px);
   pointer-events: none;
-  transition: opacity 0.16s ease, transform 0.16s ease;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
 }
-#status_toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
-#status_toast.ok   { background: rgba(63, 160, 84, 0.95); color: #0b0f14; border-color: transparent; }
-#status_toast.warn { background: rgba(255, 209, 102, 0.95); color: #0b0f14; border-color: transparent; }
-#status_toast.error{ background: rgba(255, 107, 107, 0.96); color: #0b0f14; border-color: transparent; }
-#status_toast.info { background: rgba(20, 24, 32, 0.92); color: #dbe5f0; }
+#status_toast.show {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+#status_toast.ok {
+  background: rgba(63, 160, 84, 0.95);
+  color: #0b0f14;
+  border-color: transparent;
+}
+#status_toast.warn {
+  background: rgba(255, 209, 102, 0.95);
+  color: #0b0f14;
+  border-color: transparent;
+}
+#status_toast.error {
+  background: rgba(255, 107, 107, 0.96);
+  color: #0b0f14;
+  border-color: transparent;
+}
+#status_toast.info {
+  background: rgba(20, 24, 32, 0.92);
+  color: #dbe5f0;
+}
 
 /* Picsum-modal */
-.picsum-modal::backdrop { background: rgba(0,0,0,.55); }
-.picsum-modal { border: 0; padding: 0; background: transparent; }
+.picsum-modal::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+.picsum-modal {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
 .picsum-modal .box {
   background: #0f1622;
   color: #e6edf3;
@@ -422,7 +449,7 @@ header,
   max-width: 92vw;
   height: 88vh;
   border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.4);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -434,12 +461,23 @@ header,
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(255,255,255,.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
-.pm-footer { border-top: 1px solid rgba(255,255,255,.08); border-bottom: 0; }
+.pm-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 0;
+}
 .pm-header .left,
-.pm-header .right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.pm-status { opacity: .8; font-size: 12px; }
+.pm-header .right {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.pm-status {
+  opacity: 0.8;
+  font-size: 12px;
+}
 .pm-grid {
   padding: 12px;
   display: grid;
@@ -449,17 +487,46 @@ header,
   flex: 1;
   min-height: 0;
 }
-.pm-grid .tile { position: relative; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,.07); cursor: pointer; }
-.pm-grid .tile img { display: block; width: 100%; height: 140px; object-fit: cover; }
-.pm-grid .tile .meta { position: absolute; left: 0; right: 0; bottom: 0; font-size: 12px; background: linear-gradient(transparent, rgba(0,0,0,.65)); padding: 28px 8px 6px; }
-.pm-grid .tile .check { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,.55); border-radius: 999px; padding: 4px 6px; font-size: 12px; }
-.pm-grid .tile.selected { outline: 3px solid #4dabf7; }
+.pm-grid .tile {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+}
+.pm-grid .tile img {
+  display: block;
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+}
+.pm-grid .tile .meta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  font-size: 12px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
+  padding: 28px 8px 6px;
+}
+.pm-grid .tile .check {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 999px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+.pm-grid .tile.selected {
+  outline: 3px solid #4dabf7;
+}
 
 /* static/css/admin.css — Picsum modal (CSS only) */
 .pm-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, .6);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -472,24 +539,41 @@ header,
   max-width: 92vw;
   height: 88vh;
   border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.4);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
-.pm-header, .pm-footer {
+.pm-header,
+.pm-footer {
   display: flex;
   gap: 8px;
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(255,255,255,.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
-.pm-footer { border-top: 1px solid rgba(255,255,255,.08); border-bottom: 0; justify-content: flex-end; }
-.pm-header .left { display: flex; gap: 10px; align-items: center; }
-.pm-header .right { display: flex; gap: 8px; align-items: center; }
-.pm-title { font-size: 14px; }
-.pm-input-number { width: 72px; }
+.pm-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 0;
+  justify-content: flex-end;
+}
+.pm-header .left {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.pm-header .right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.pm-title {
+  font-size: 14px;
+}
+.pm-input-number {
+  width: 72px;
+}
 .pm-grid {
   padding: 12px;
   display: grid;
@@ -503,18 +587,37 @@ header,
   position: relative;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,.07);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   cursor: pointer;
 }
-.pm-tile img { display: block; width: 100%; height: 140px; object-fit: cover; }
+.pm-tile img {
+  display: block;
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+}
 .pm-meta {
-  position: absolute; left: 0; right: 0; bottom: 0; font-size: 12px;
-  background: linear-gradient(transparent, rgba(0,0,0,.65));
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  font-size: 12px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
   padding: 28px 8px 6px;
 }
 .pm-check {
-  position: absolute; top: 8px; left: 8px;
-  background: rgba(0,0,0,.55); border-radius: 999px; padding: 4px 6px; font-size: 12px;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 999px;
+  padding: 4px 6px;
+  font-size: 12px;
 }
-.pm-selected { outline: 3px solid #4dabf7; }
-.pm-status { opacity: .8; font-size: 12px; }
+.pm-selected {
+  outline: 3px solid #4dabf7;
+}
+.pm-status {
+  opacity: 0.8;
+  font-size: 12px;
+}

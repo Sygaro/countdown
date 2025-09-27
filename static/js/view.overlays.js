@@ -7,7 +7,7 @@
     const v = ov && ov.visible_in;
     if (!Array.isArray(v)) return true;
     if (!v.length) return false;
-    return (mode === "clock") ? v.includes("clock") : v.includes("countdown");
+    return mode === "clock" ? v.includes("clock") : v.includes("countdown");
   }
 
   function placeOverlay(wrap, o) {
@@ -18,16 +18,61 @@
     const clr = (...ps) => ps.forEach((p) => (wrap.style[p] = ""));
 
     switch (pos) {
-      case "top-left":     set("top", `${offVH}vh`); set("left", `${offVW}vw`); clr("right", "bottom"); wrap.style.transform = "none"; break;
-      case "top-right":    set("top", `${offVH}vh`); set("right", `${offVW}vw`); clr("left", "bottom"); wrap.style.transform = "none"; break;
-      case "bottom-left":  set("bottom", `${offVH}vh`); set("left", `${offVW}vw`); clr("right", "top"); wrap.style.transform = "none"; break;
-      case "bottom-center":set("bottom", `${offVH}vh`); set("left", "50%"); clr("top", "right"); wrap.style.transform = "translateX(-50%)"; break;
-      case "top-center":   set("top", `${offVH}vh`); set("left", "50%"); clr("bottom", "right"); wrap.style.transform = "translateX(-50%)"; break;
-      case "center":       set("top", "50%"); set("left", "50%"); clr("bottom", "right"); wrap.style.transform = "translate(-50%,-50%)"; break;
-      case "center-left":  set("top", "50%"); set("left", `${offVW}vw`); clr("right", "bottom"); wrap.style.transform = "translateY(-50%)"; break;
-      case "center-right": set("top", "50%"); set("right", `${offVW}vw`); clr("left", "bottom"); wrap.style.transform = "translateY(-50%)"; break;
+      case "top-left":
+        set("top", `${offVH}vh`);
+        set("left", `${offVW}vw`);
+        clr("right", "bottom");
+        wrap.style.transform = "none";
+        break;
+      case "top-right":
+        set("top", `${offVH}vh`);
+        set("right", `${offVW}vw`);
+        clr("left", "bottom");
+        wrap.style.transform = "none";
+        break;
+      case "bottom-left":
+        set("bottom", `${offVH}vh`);
+        set("left", `${offVW}vw`);
+        clr("right", "top");
+        wrap.style.transform = "none";
+        break;
+      case "bottom-center":
+        set("bottom", `${offVH}vh`);
+        set("left", "50%");
+        clr("top", "right");
+        wrap.style.transform = "translateX(-50%)";
+        break;
+      case "top-center":
+        set("top", `${offVH}vh`);
+        set("left", "50%");
+        clr("bottom", "right");
+        wrap.style.transform = "translateX(-50%)";
+        break;
+      case "center":
+        set("top", "50%");
+        set("left", "50%");
+        clr("bottom", "right");
+        wrap.style.transform = "translate(-50%,-50%)";
+        break;
+      case "center-left":
+        set("top", "50%");
+        set("left", `${offVW}vw`);
+        clr("right", "bottom");
+        wrap.style.transform = "translateY(-50%)";
+        break;
+      case "center-right":
+        set("top", "50%");
+        set("right", `${offVW}vw`);
+        clr("left", "bottom");
+        wrap.style.transform = "translateY(-50%)";
+        break;
       case "bottom-right":
-      default:             set("bottom", `${offVH}vh`); set("right", `${offVW}vw`); clr("left", "top"); wrap.style.transform = "none"; break;
+      default:
+        set("bottom", `${offVH}vh`);
+        set("right", `${offVW}vw`);
+        clr("left", "top");
+        wrap.style.transform = "none";
+        break;
     }
   }
 
