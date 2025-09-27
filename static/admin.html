@@ -36,15 +36,16 @@
         <!-- Viktig: behold UNDERSCORE-id'en din -->
         <button id="btn_save" class="primary">Lagre</button>
         <button id="btn_refresh">Hent config</button>
-        <button id="btn_reset_view">Tilbakestill:</button>
-        <label for="reset_profile"></label>
+       <!-- erstatt disse linjene i actions-raden -->
+<button id="btn_reset_view">Tilbakestill:</button>
+<label for="reset_profile">Profil</label>
 <select id="reset_profile">
   <option value="visual" selected>Alt</option>
   <option value="minimal">Tekstfarger</option>
   <option value="background">Bakgrunn</option>
   <option value="behavior">Nedtelling</option>
-
 </select>
+
 
         <span id="sync_pill" class="pill dot off" title="Synk: —" aria-label="Synkestatus"></span>
       </div>
@@ -542,5 +543,42 @@
     <aside id="preview_dock" aria-label="Live forhåndsvisning">
       <iframe id="preview_frame" src="/?preview=1" title="Live preview" loading="eager"></iframe>
     </aside>
+    <!-- static/admin.html : Toast + Picsum-modal (legg før </body>) -->
+<!-- Toast (global) -->
+<div id="status_toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<!-- Picsum-galleri (modal) -->
+<dialog id="picsum_modal" class="picsum-modal">
+  <div class="box" role="document">
+    <header class="pm-header">
+      <div class="left">
+        <strong class="pm-title">Picsum-galleri</strong>
+        <label>Sidenr <input id="pg_page" type="number" min="1" step="1" value="1" /></label>
+        <label>Pr. side
+          <select id="pg_per_page">
+            <option>12</option>
+            <option selected>24</option>
+            <option>36</option>
+            <option>60</option>
+          </select>
+        </label>
+        <button id="pg_prev" type="button">◀ Forrige</button>
+        <button id="pg_next" type="button">Neste ▶</button>
+      </div>
+      <div class="right">
+        <span id="pg_status" class="pm-status"></span>
+        <button id="pg_close" type="button">Lukk</button>
+      </div>
+    </header>
+
+    <div id="pg_grid" class="pm-grid" aria-live="polite"></div>
+
+    <footer class="pm-footer">
+      <button id="pg_add_use" type="button">Legg til & bruk første</button>
+      <button id="pg_add" type="button">Legg til valgte</button>
+    </footer>
+  </div>
+</dialog>
+
   </body>
 </html>

@@ -516,9 +516,11 @@
 
       const wrap = document.createElement("div");
       wrap.className = "overlay-wrap";
+      wrap.setAttribute("data-overlay-id", o.id || "");   // ← NYTT: kobling til config
       wrap.style.position = "absolute";
       wrap.style.pointerEvents = "none";
       wrap.style.display = "inline-block";
+
       const z = Number.isFinite(o.z_index) ? o.z_index : 10;
       wrap.style.zIndex = String(z);
 
@@ -622,6 +624,10 @@
       }
 
       root.appendChild(wrap);
+      try {
+        window.dispatchEvent(new Event("overlays:updated"));
+      } catch (_) {}
+
     }
   }
 

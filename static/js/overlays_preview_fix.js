@@ -1,76 +1,56 @@
-/* File: static/js/overlays_preview_fix.js
- * Purpose: Riktig synlighetslogikk for overlays i preview + enkel re-render trigger.
- * Notes: Inkluderes etter admin/preview-skript. Ikke-invasiv.
- */
-
+// filepath: static/js/overlays_preview_fix.js
+// Overlays preview-fix: én kilde for sannhet, robust synlighetslogikk i preview.
 (() => {
   "use strict";
 
   function overlayIsVisible(ov, mode /* "countdown" | "clock" */) {
     const v = ov && ov.visible_in;
-    if (!Array.isArray(v)) return true; // backwards compat: mangler => vis
-    if (v.length === 0) return false; // eksplisitt tom => skjul overalt
+    if (!Array.isArray(v)) return true;     // eldre config → synlig
+    if (v.length === 0) return false;       // eksplisitt tom → aldri
     return v.includes(mode);
   }
+  // Eksponer for andre moduler (admin/view/preview)
+  try { window.overlayIsVisible = overlayIsVisible; } catch {}
 
-  // Eksponer for annen kode
-  window.overlayIsVisible = overlayIsVisible;
-
-  // Når overlays endres i UI, prøv å trigge preview
-  window.addEventListener("overlays:updated", () => {
-    // Foretrukket: hvis admin-preview har en render-funksjon
-    if (typeof window.renderPreview === "function") {
-      try {
-        window.renderPreview();
-        return;
-      } catch {}
-    }
-    // Fallback: skjul/vis DOM-noder i #overlays etter data-overlay-id
-    try {
-      const mode = document.body.getAttribute("data-mode") || "countdown";
-      const cfg = window.latestConfig || window.previewConfig || null;
-      if (!cfg || !Array.isArray(cfg.overlays)) return;
-
-      const layer = document.getElementById("overlays") || document.body;
-      cfg.overlays.forEach((ov) => {
-        const el = layer.querySelector(`[data-overlay-id="${ov.id}"]`);
-        if (!el) return;
-        el.style.display = overlayIsVisible(ov, mode) ? "" : "none";
-      });
-    } catch {}
-  });
-})();
-
-(function () {
-  "use strict";
-
-  function overlayIsVisible(ov, mode /* "countdown" | "clock" */) {
-    const v = ov && ov.visible_in;
-    if (!Array.isArray(v)) return true; // eldre config → vis som før
-    if (v.length === 0) return false; // eksplisitt tom → aldri vis
-    return v.includes(mode);
+  function detectModeFromDOMOrConfig(cfg) {
+    const bodyMode = (document.body.getAttribute("data-mode") || "").toLowerCase();
+    if (bodyMode === "clock" || bodyMode === "countdown") return bodyMode;
+    const cfgMode = (cfg?.mode || "").toLowerCase();
+    return cfgMode === "clock" ? "clock" : "countdown";
   }
-  window.overlayIsVisible = overlayIsVisible;
 
   function applyVisibility() {
     try {
       const cfg = window.latestConfig || window.previewConfig || null;
       if (!cfg || !Array.isArray(cfg.overlays)) return;
-
-      // Finn modus: bruk <body data-mode="..."> hvis satt, ellers fra config
-      const bodyMode = (document.body.getAttribute("data-mode") || "").toLowerCase();
-      const cfgMode = (cfg.mode || "").toLowerCase() === "clock" ? "clock" : "countdown";
-      const mode = bodyMode === "clock" ? "clock" : cfgMode;
-
+      const mode = detectModeFromDOMOrConfig(cfg);
       const layer = document.getElementById("overlays") || document.body;
       cfg.overlays.forEach((ov) => {
         const el = layer.querySelector(`[data-overlay-id="${ov.id}"]`);
         if (!el) return;
         el.style.display = overlayIsVisible(ov, mode) ? "" : "none";
       });
-    } catch {}
+    } catch {
+      /* stille feil */
+    }
   }
 
-  window.addEventListener("overlays:updated", applyVisibility);
-  document.addEventListener("DOMContentLoaded", applyVisibility, { once: true });
+  // Lytt på preview-oppdateringer (hvis admin sender postMessage)
+  window.addEventListener("message", (ev) => {
+    const d = ev?.data;
+    if (!d || d.type !== "preview-config" || !d.config) return;
+    try { window.previewConfig = d.config; } catch {}
+    // Gi view.js litt tid til å re-rendre før vi maskerer synlighet
+    setTimeout(applyVisibility, 30);
+  });
+
+  // Når UI indikerer overlay-endring
+  window.addEventListener("overlays:updated", () => setTimeout(applyVisibility, 0));
+
+  // Init på DOM klar
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => setTimeout(applyVisibility, 0), { once: true });
+  } else {
+    setTimeout(applyVisibility, 0);
+  }
 })();

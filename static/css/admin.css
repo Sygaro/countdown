@@ -117,55 +117,7 @@ body {
   padding: 2px 6px;
   border-radius: 6px;
 }
-/* --- Toast (flytende status nederst til høyre) --- */
-#status_toast {
-  position: fixed;
-  right: 14px;
-  bottom: 14px;
-  z-index: 1100;
-  max-width: min(60ch, calc(100vw - 28px));
-  background: rgba(20, 24, 32, 0.92);
-  color: #dbe5f0;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 12px;
-  padding: 10px 12px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
-  opacity: 0;
-  transform: translateY(8px);
-  pointer-events: none;
-  transition:
-    opacity 0.16s ease,
-    transform 0.16s ease;
-  font:
-    500 0.95rem/1.35 system-ui,
-    -apple-system,
-    Segoe UI,
-    Roboto,
-    sans-serif;
-}
-#status_toast.show {
-  opacity: 1;
-  transform: translateY(0);
-}
-#status_toast.ok {
-  background: rgba(63, 160, 84, 0.95);
-  color: #0b0f14;
-  border-color: transparent;
-}
-#status_toast.warn {
-  background: rgba(255, 209, 102, 0.95);
-  color: #0b0f14;
-  border-color: transparent;
-}
-#status_toast.error {
-  background: rgba(255, 107, 107, 0.96);
-  color: #0b0f14;
-  border-color: transparent;
-}
-#status_toast.info {
-  background: rgba(20, 24, 32, 0.92);
-  color: #dbe5f0;
-}
+
 /* === Admin actions: knapper (delikate hover/focus/active) === */
 .actions .mode-btn,
 .actions button,
@@ -434,3 +386,71 @@ header,
   position: relative;
   z-index: 1;
 }
+/* static/css/admin.css */
+/* Toast (global, konsistent m/ eksisterende #status_toast API) */
+.toast,
+#status_toast {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 1100;
+  max-width: min(60ch, calc(100vw - 28px));
+  background: rgba(20, 24, 32, 0.92);
+  color: #dbe5f0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+#status_toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+#status_toast.ok   { background: rgba(63, 160, 84, 0.95); color: #0b0f14; border-color: transparent; }
+#status_toast.warn { background: rgba(255, 209, 102, 0.95); color: #0b0f14; border-color: transparent; }
+#status_toast.error{ background: rgba(255, 107, 107, 0.96); color: #0b0f14; border-color: transparent; }
+#status_toast.info { background: rgba(20, 24, 32, 0.92); color: #dbe5f0; }
+
+/* Picsum-modal */
+.picsum-modal::backdrop { background: rgba(0,0,0,.55); }
+.picsum-modal { border: 0; padding: 0; background: transparent; }
+.picsum-modal .box {
+  background: #0f1622;
+  color: #e6edf3;
+  min-width: 70vw;
+  max-width: 92vw;
+  height: 88vh;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.pm-header,
+.pm-footer {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.pm-footer { border-top: 1px solid rgba(255,255,255,.08); border-bottom: 0; }
+.pm-header .left,
+.pm-header .right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.pm-status { opacity: .8; font-size: 12px; }
+.pm-grid {
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+.pm-grid .tile { position: relative; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,.07); cursor: pointer; }
+.pm-grid .tile img { display: block; width: 100%; height: 140px; object-fit: cover; }
+.pm-grid .tile .meta { position: absolute; left: 0; right: 0; bottom: 0; font-size: 12px; background: linear-gradient(transparent, rgba(0,0,0,.65)); padding: 28px 8px 6px; }
+.pm-grid .tile .check { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,.55); border-radius: 999px; padding: 4px 6px; font-size: 12px; }
+.pm-grid .tile.selected { outline: 3px solid #4dabf7; }

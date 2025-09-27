@@ -155,14 +155,6 @@ main.grid {
   max-height: clamp(20rem, 48vh, 34rem);
   overflow: auto;
 }
-.sys-pill {
-  border: 1px solid var(--border);
-  border-radius: 0.6rem;
-  padding: 0.2rem 0.6rem;
-}
-.sys-pill.muted {
-  opacity: 0.9;
-}
 /* Sysbar-layout (som før) */
 .sysbar {
   display: flex;
@@ -180,25 +172,42 @@ main.grid {
 }
 
 /* Host-pill (brukt av diag.js i .sysbar .right) */
+/* Konsolidert sys-pill for topbar/diag */
 .sys-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 12px;
-  background: #f2f4f7;
-  color: #111;
-  border: 1px solid #e2e6ea;
-  font:
-    13px/1.2 system-ui,
-    -apple-system,
-    Segoe UI,
-    Roboto,
-    sans-serif;
+  gap: .4rem;
+  padding: .15rem .5rem;
+  border-radius: 999px;
+  font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  color: #e6edf3;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.10);
+  white-space: nowrap;
 }
+
 .sys-pill.muted {
-  opacity: 0.8;
+  color: #cbd5e1;
+  background: rgba(255,255,255,.05);
+  border-color: rgba(255,255,255,.08);
 }
+
+/* Små dotter som ofte står inne i pillen eller ved siden av */
+.sys-pill .dot,
+.pill.dot {
+  width: .55rem;
+  height: .55rem;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: .25rem;
+  background: rgba(255,255,255,.25); /* default/warn */
+}
+
+.pill.dot.ok  { background: #33d17a; }
+.pill.dot.bad { background: #e43d3d; }
+.pill.dot.off { background: #7c8aa0; } /* offline/ukjent */
+.pill.dot.warn{ background: #ffd166; }
+
 
 /* NTP-boksen – skal være en "container", ikke en pill */
 #ntp_status {
