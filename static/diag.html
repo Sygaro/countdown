@@ -56,7 +56,7 @@
       </section>
       <section class="card">
         <h2>NTP / Tidssynk</h2>
-        <div id="ntp_status" class="muted">—</div>
+        <pre id="ntp_details" class="mono muted">—</pre>
       </section>
     </main>
     <script type="module">
@@ -64,7 +64,8 @@
       Topbar.init({ el: "#topbar", layout: "compact" });
     </script>
 
-    <script type="module" src="/static/js/diag_live.js"></script>
+    <script src="/static/js/ui.js" defer></script>
+    <script type="module" src="/static/js/topbar.js"></script>
     <script type="module" src="/static/js/diag.js"></script>
     <script type="module" src="/static/js/statusbar.js"></script>
   </body>

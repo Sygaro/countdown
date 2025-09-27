@@ -1,5 +1,8 @@
-// static/js/statusbar.js
+// filepath: static/js/statusbar.js
+// Robust statusbar: no-ops hvis markup ikke finnes (kan lastes på alle sider)
 (function () {
+  "use strict";
+
   const qs = (s, r) => (r || document).querySelector(s);
 
   function authHeaders() {
@@ -21,35 +24,40 @@
   }
 
   function fmtMMSS(ms) {
-    const neg = ms < 0,
-      abs = Math.abs(ms);
+    const neg = ms < 0;
+    const abs = Math.abs(ms);
     const s = Math.floor(abs / 1000);
-    const mm = Math.floor(s / 60),
-      ss = s % 60;
+    const mm = Math.floor(s / 60);
+    const ss = s % 60;
     const pad = (n) => String(n).padStart(2, "0");
     return (neg ? "−" : "") + `${mm}:${pad(ss)}`;
   }
 
   async function pollTick() {
+    const out = qs("#sb_cd");
+    if (!out) return; // ← ikke på denne siden
     try {
       const r = await fetch("/tick", { cache: "no-store" });
       const t = await r.json();
-      qs("#sb_cd").textContent = fmtMMSS(t.signed_display_ms);
-    } catch (_) {
-      /* ignore */
+      out.textContent = fmtMMSS(t.signed_display_ms);
+    } catch {
+      /* stille feil */
     }
   }
 
   async function pollServices() {
+    // valgfritt UI – hvis ikke finnes gjør vi ingenting
+    const hasSvc = !!qs(".sb-services");
+    if (!hasSvc) return;
+
     try {
       const r = await fetch("/api/sys/about-status", { headers: authHeaders() });
       const js = await r.json();
       if (!r.ok || js.ok === false) throw new Error(js.error || r.status);
       const s = js.about?.services || {};
-      // app, kiosk (web er alias)
       setDot("app", !!s.app?.active);
       setDot("kiosk", !!s.kiosk?.active);
-    } catch (_) {
+    } catch {
       setDot("app", null);
       setDot("kiosk", null);
     }
@@ -57,18 +65,24 @@
 
   function startClock() {
     const el = qs("#sb_clock");
-    const tick = () => {
-      el.textContent = fmtClock(new Date());
-    };
+    if (!el) return; // ← ikke på denne siden
+    const tick = () => { el.textContent = fmtClock(new Date()); };
     tick();
     setInterval(tick, 1000);
   }
 
-  document.addEventListener("DOMContentLoaded", () => {
+  function init() {
+    // Ingen hard avhengighet til markup; gjør kun det som er mulig på siden
     startClock();
     pollTick();
     setInterval(pollTick, 1000);
     pollServices();
     setInterval(pollServices, 10000);
-  });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once: true });
+  } else {
+    init();
+  }
 })();

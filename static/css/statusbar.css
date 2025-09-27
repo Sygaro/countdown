@@ -30,22 +30,4 @@
   align-items: center;
   font-size: 0.95rem;
 }
-.dot {
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  display: inline-block;
-}
-.dot.ok {
-  background: #16a34a;
-  border-color: #166534;
-}
-.dot.bad {
-  background: #dc2626;
-  border-color: #7f1d1d;
-}
-.dot.warn {
-  background: #f59e0b;
-  border-color: #92400e;
-}
+

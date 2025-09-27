@@ -117,55 +117,7 @@ body {
   padding: 2px 6px;
   border-radius: 6px;
 }
-/* --- Toast (flytende status nederst til høyre) --- */
-#status_toast {
-  position: fixed;
-  right: 14px;
-  bottom: 14px;
-  z-index: 1100;
-  max-width: min(60ch, calc(100vw - 28px));
-  background: rgba(20, 24, 32, 0.92);
-  color: #dbe5f0;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 12px;
-  padding: 10px 12px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
-  opacity: 0;
-  transform: translateY(8px);
-  pointer-events: none;
-  transition:
-    opacity 0.16s ease,
-    transform 0.16s ease;
-  font:
-    500 0.95rem/1.35 system-ui,
-    -apple-system,
-    Segoe UI,
-    Roboto,
-    sans-serif;
-}
-#status_toast.show {
-  opacity: 1;
-  transform: translateY(0);
-}
-#status_toast.ok {
-  background: rgba(63, 160, 84, 0.95);
-  color: #0b0f14;
-  border-color: transparent;
-}
-#status_toast.warn {
-  background: rgba(255, 209, 102, 0.95);
-  color: #0b0f14;
-  border-color: transparent;
-}
-#status_toast.error {
-  background: rgba(255, 107, 107, 0.96);
-  color: #0b0f14;
-  border-color: transparent;
-}
-#status_toast.info {
-  background: rgba(20, 24, 32, 0.92);
-  color: #dbe5f0;
-}
+
 /* === Admin actions: knapper (delikate hover/focus/active) === */
 .actions .mode-btn,
 .actions button,
@@ -233,18 +185,25 @@ body {
 }
 
 /* --- Preview-dock --- */
+:root {
+  --preview-w: 38vw; /* én kilde for sannhet */
+  --header-h: 56px; /* du har disse allerede definert */
+  --actions-h: 1px;
+}
+
 #preview_dock {
   position: fixed;
-  top: 3.2rem;
+  top: calc(var(--header-h) + var(--actions-h)); /* i stedet for hard 3.2rem */
   right: 0;
   bottom: 0;
-  width: 38vw;
+  width: var(--preview-w);
   min-width: 420px;
   border-left: 1px solid #1c2436;
   background: #0b0f14;
   display: grid;
   grid-template-rows: 1fr;
-  z-index: 0; /* under baren */
+  z-index: 50; /* over page-bg, under dialoger */
+  pointer-events: auto; /* klikkbar */
 }
 #preview_dock iframe {
   width: 100%;
@@ -253,23 +212,77 @@ body {
   background: #0b0f14;
 }
 
-/* Gi hovedinnholdet litt plass til venstre for docken */
+/* === Widescreen: reserver plass til preview og klem griden === */
 @media (min-width: 1100px) {
-  body {
-    margin-right: 39vw;
+  :root {
+    --preview-w: 38vw;
+  }
+
+  body.admin {
+    /* reserver fysisk plass til dock; unngå at innhold havner under */
+    padding-right: var(--preview-w) !important;
+    overflow-x: hidden;
+  }
+
+  /* Kritisk: selve grid-containeren får fast maks-bredde (100vw - preview) */
+  body.admin > main.grid {
+    box-sizing: border-box;
+    width: calc(100vw - var(--preview-w) - 12px) !important;
+    max-width: calc(100vw - var(--preview-w) - 12px) !important;
+    /* hindrer at auto margins sentrerer bredden under docken */
+    margin-right: 0 !important;
+    padding-right: 8px; /* litt luft mot dock-kanten */
+  }
+
+  /* Hvis du har en indre .grid wrapper – klem den også */
+  body.admin main.grid,
+  body.admin .grid {
+    max-width: calc(100vw - var(--preview-w) - 12px) !important;
+  }
+
+  /* Stabil kolonne-layout så siste kolonne ikke prøver å “snike seg” under docken */
+  body.admin main.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-auto-flow: row;
   }
 }
 
-/* Små skjermer: dock flyter under, dekk hele bredde */
-@media (max-width: 1099px) {
-  #preview_dock {
-    position: static;
-    width: 100%;
-    height: 50vh;
-    min-width: 0;
+/* === Små skjermer (preview under kortene) === */
+@media (max-width: 1099.98px) {
+  /* innhold skal ikke reservere plass til docken */
+  body.admin {
+    padding-right: 0 !important;
+    margin-right: 0 !important;
+    overflow-x: hidden;
   }
-  body {
-    margin-right: 0;
+
+  /* flytt docken under innholdet, full bredde */
+  #preview_dock {
+    position: static !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: min(50vh, 60svh); /* mer robust på mobil */
+    z-index: 1 !important; /* under ev. sticky-bar */
+    border-left: 0 !important;
+    border-top: 1px solid #1c2436; /* beholde visuell separasjon */
+    margin-top: 8px;
+  }
+
+  #preview_dock iframe {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* sørg for at grid kan bruke hele bredden igjen */
+  body.admin > main.grid,
+  body.admin .grid {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-right: 0 !important;
   }
 }
 
@@ -373,3 +386,135 @@ header,
   position: relative;
   z-index: 1;
 }
+/* static/css/admin.css */
+/* Toast (global, konsistent m/ eksisterende #status_toast API) */
+.toast,
+#status_toast {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 1100;
+  max-width: min(60ch, calc(100vw - 28px));
+  background: rgba(20, 24, 32, 0.92);
+  color: #dbe5f0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+#status_toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+#status_toast.ok   { background: rgba(63, 160, 84, 0.95); color: #0b0f14; border-color: transparent; }
+#status_toast.warn { background: rgba(255, 209, 102, 0.95); color: #0b0f14; border-color: transparent; }
+#status_toast.error{ background: rgba(255, 107, 107, 0.96); color: #0b0f14; border-color: transparent; }
+#status_toast.info { background: rgba(20, 24, 32, 0.92); color: #dbe5f0; }
+
+/* Picsum-modal */
+.picsum-modal::backdrop { background: rgba(0,0,0,.55); }
+.picsum-modal { border: 0; padding: 0; background: transparent; }
+.picsum-modal .box {
+  background: #0f1622;
+  color: #e6edf3;
+  min-width: 70vw;
+  max-width: 92vw;
+  height: 88vh;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.pm-header,
+.pm-footer {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.pm-footer { border-top: 1px solid rgba(255,255,255,.08); border-bottom: 0; }
+.pm-header .left,
+.pm-header .right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.pm-status { opacity: .8; font-size: 12px; }
+.pm-grid {
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+.pm-grid .tile { position: relative; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,.07); cursor: pointer; }
+.pm-grid .tile img { display: block; width: 100%; height: 140px; object-fit: cover; }
+.pm-grid .tile .meta { position: absolute; left: 0; right: 0; bottom: 0; font-size: 12px; background: linear-gradient(transparent, rgba(0,0,0,.65)); padding: 28px 8px 6px; }
+.pm-grid .tile .check { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,.55); border-radius: 999px; padding: 4px 6px; font-size: 12px; }
+.pm-grid .tile.selected { outline: 3px solid #4dabf7; }
+
+/* static/css/admin.css — Picsum modal (CSS only) */
+.pm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.pm-box {
+  background: #0f1622;
+  color: #e6edf3;
+  min-width: 70vw;
+  max-width: 92vw;
+  height: 88vh;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.pm-header, .pm-footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.pm-footer { border-top: 1px solid rgba(255,255,255,.08); border-bottom: 0; justify-content: flex-end; }
+.pm-header .left { display: flex; gap: 10px; align-items: center; }
+.pm-header .right { display: flex; gap: 8px; align-items: center; }
+.pm-title { font-size: 14px; }
+.pm-input-number { width: 72px; }
+.pm-grid {
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+.pm-tile {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.07);
+  cursor: pointer;
+}
+.pm-tile img { display: block; width: 100%; height: 140px; object-fit: cover; }
+.pm-meta {
+  position: absolute; left: 0; right: 0; bottom: 0; font-size: 12px;
+  background: linear-gradient(transparent, rgba(0,0,0,.65));
+  padding: 28px 8px 6px;
+}
+.pm-check {
+  position: absolute; top: 8px; left: 8px;
+  background: rgba(0,0,0,.55); border-radius: 999px; padding: 4px 6px; font-size: 12px;
+}
+.pm-selected { outline: 3px solid #4dabf7; }
+.pm-status { opacity: .8; font-size: 12px; }

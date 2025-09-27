@@ -90,6 +90,11 @@ fi
 echo "==> Aktiverer og restart-er systemd-timesyncd …"
 sudo timedatectl set-ntp true || true
 sudo systemctl enable --now systemd-timesyncd.service || true
+
+# Vent på første synk ved boot (systemd-time-wait-sync)
+# Dette sikrer at time-sync.target ikke bare er “aktiv tjeneste”,
+# men at klokken faktisk er synkronisert minst én gang.
+sudo systemctl enable --now systemd-time-wait-sync.service || true
 sudo systemctl restart systemd-timesyncd.service || true
 
 # Liten status-visning
@@ -152,8 +157,6 @@ Restart=always
 RestartSec=2
 KillMode=process
 TimeoutStopSec=10
-NoNewPrivileges=yes
-
 
 [Install]
 WantedBy=default.target
@@ -207,32 +210,40 @@ echo "   → ACTIVE_OUT=${ACTIVE_OUT}, DRM_DEV=${DRM_DEV}"
 echo "==> Oppretter kiosk (Cog/DRM) som system-service…"
 cat > /etc/systemd/system/kiosk-cog.service <<'UNIT'
 [Unit]
-After=network-online.target systemd-user-sessions.service user@__USER_UID__.service time-sync.target
-Wants=network-online.target user@__USER_UID__.service time-sync.target
-
 Description=Kiosk (Cog on DRM/KMS) on tty1
-After=network-online.target systemd-user-sessions.service user@__USER_UID__.service
-Wants=network-online.target user@__USER_UID__.service
+Wants=network-online.target user@__USER_UID__.service time-sync.target
+After=network-online.target user@__USER_UID__.service time-sync.target
+ConditionPathExists=/dev/tty1
+# Vent på faktisk klokkesynk før start (best-effort)
+Wants=systemd-time-wait-sync.service
+After=systemd-time-wait-sync.service
 
 [Service]
 User=__USER_NAME__
 Environment=XDG_RUNTIME_DIR=/run/user/__USER_UID__
+Environment=HOME=__USER_HOME__
+WorkingDirectory=__APP_DIR__
 
 Environment=WPE_BACKEND_FDO_DRM_DEVICE=__DRM_DEV__
 Environment=COG_PLATFORM_DRM_OUTPUT=__ACTIVE_OUT__
-
 Environment=COG_PLATFORM_DRM_VIDEO_MODE=1920x1080
 Environment=COG_PLATFORM_DRM_MODE_MAX=1920x1080@30
 Environment=COG_PLATFORM_DRM_NO_CURSOR=1
-Environment=COUNTDOWN_VERSION=1.0.0
-Environment=COUNTDOWN_COMMIT=%h
+Environment=COG_PLATFORM_DRM_DISABLE_MODIFIERS=1
 
-ExecStartPre=/bin/sh -c 'for i in $(seq 1 150); do \
-  ss -ltn | grep -q ":__PORT__ " && exit 0; \
-  curl -fsS "http://127.0.0.1:__PORT__/health" >/dev/null 2>&1 && exit 0; \
-  code=$(curl -fsSI -o /dev/null -w "%{http_code}" "http://127.0.0.1:__PORT__/" || true); \
-  echo "$code" | grep -qE "^(200|30[0-9])$" && exit 0; \
-  sleep 0.5; done; exit 1'
+ExecStartPre=/bin/sh -c '\
+  for i in $(seq 1 40); do \
+    test -d "/run/user/__USER_UID__" && break; sleep 0.25; done; \
+  for i in $(seq 1 40); do \
+    test -S "/run/user/__USER_UID__/systemd/private" && break; sleep 0.25; done; \
+  for i in $(seq 1 150); do \
+    ss -ltn | grep -q ":__PORT__ " && exit 0; \
+    curl -fsS "http://127.0.0.1:__PORT__/health" >/dev/null 2>&1 && exit 0; \
+    code=$(curl -fsSI -o /dev/null -w "%{http_code}" "http://127.0.0.1:__PORT__/" || true); \
+    echo "$code" | grep -qE "^(200|30[0-9])$" && exit 0; \
+    sleep 0.5; \
+  done; \
+  echo "Flask/Gunicorn svarte ikke i tide"; exit 1'
 
 ExecStart=/usr/bin/cog --platform=drm --platform-params=renderer=gles "http://127.0.0.1:__PORT__/?kiosk=1"
 
@@ -245,6 +256,8 @@ StandardError=journal
 
 Restart=always
 RestartSec=2
+TimeoutStopSec=10
+KillMode=process
 
 [Install]
 WantedBy=multi-user.target
@@ -254,15 +267,17 @@ UNIT
 sed -i \
   -e "s#__USER_NAME__#${USER_NAME}#g" \
   -e "s#__USER_UID__#${USER_UID}#g" \
+  -e "s#__USER_HOME__#${USER_HOME}#g" \
+  -e "s#__APP_DIR__#${APP_DIR}#g" \
   -e "s#__DRM_DEV__#${DRM_DEV}#g" \
   -e "s#__ACTIVE_OUT__#${ACTIVE_OUT}#g" \
   -e "s#__PORT__#${PORT}#g" \
   /etc/systemd/system/kiosk-cog.service
 
-# Slå av getty og enable kiosk
 systemctl disable --now getty@tty1.service || true
 systemctl daemon-reload
 systemctl enable --now kiosk-cog.service
+
 
 
 
@@ -289,5 +304,77 @@ hdmi_group=2
 hdmi_mode=82   # 1080p30
 hdmi_drive=2
 EOF
+
+### ─────────────────────────────────────────────────────────────────────────────
+### X) Root-helpers for diag + smal sudoers (NOPASSWD kun for disse)
+###     - cdown-restart   -> restart countdown.service (user-scope)
+###     - cdown-reboot    -> system reboot (system-scope)
+###     - cdown-shutdown  -> system poweroff (system-scope)
+### Idempotent.
+### ─────────────────────────────────────────────────────────────────────────────
+echo "==> Installerer countdown root-helpers + sudoers…"
+
+# Helper: restart app (USER-SCOPE via --user)
+install -m 0755 -o root -g root /dev/stdin /usr/local/sbin/cdown-restart <<'SH'
+#!/bin/sh
+set -eu
+APP_USER="__APP_USER__"
+APP_UID="__APP_UID__"
+export XDG_RUNTIME_DIR="/run/user/${APP_UID}"
+if RUNUSER="$(command -v runuser 2>/dev/null)"; then
+  exec "$RUNUSER" -u "$APP_USER" -- systemctl --user restart --no-block --quiet --fail countdown.service
+else
+  exec su -s /bin/sh - "$APP_USER" -c "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR systemctl --user restart --no-block --quiet --fail countdown.service"
+fi
+SH
+sed -i -e "s#__APP_USER__#${USER_NAME}#g" -e "s#__APP_UID__#${USER_UID}#g" /usr/local/sbin/cdown-restart
+
+# Helper: reboot (SYSTEM-SCOPE)
+install -m 0755 -o root -g root /dev/stdin /usr/local/sbin/cdown-reboot <<'SH'
+#!/bin/sh
+exec /usr/sbin/reboot
+SH
+
+# Helper: shutdown (SYSTEM-SCOPE)
+install -m 0755 -o root -g root /dev/stdin /usr/local/sbin/cdown-shutdown <<'SH'
+#!/bin/sh
+exec /usr/sbin/poweroff
+SH
+
+# Sudoers-regel – NOPASSWD kun for de tre helperne over
+TMP_SUDOERS="$(mktemp)"
+cat > "${TMP_SUDOERS}" <<EOF
+# Countdown kiosk: tillat begrensede handlinger uten passord
+${USER_NAME} ALL=(root) NOPASSWD: /usr/local/sbin/cdown-restart, /usr/local/sbin/cdown-reboot, /usr/local/sbin/cdown-shutdown
+EOF
+visudo -c -f "${TMP_SUDOERS}" >/dev/null 2>&1 && \
+  install -m 0440 -o root -g root "${TMP_SUDOERS}" /etc/sudoers.d/countdown || \
+  { echo "FEIL: sudoers-validering feilet – endrer ingenting."; rm -f "${TMP_SUDOERS}"; exit 1; }
+rm -f "${TMP_SUDOERS}"
+
+# Non-invasive sanity check: vent kort på user-bus og test restart
+READY=0
+if systemctl is-active "user@${USER_UID}.service" >/dev/null 2>&1; then
+  for i in $(seq 1 40); do
+    if [ -S "/run/user/${USER_UID}/systemd/private" ]; then
+      READY=1
+      break
+    fi
+    sleep 0.25
+  done
+fi
+
+if [ "$READY" = "1" ]; then
+  if sudo -u "${USER_NAME}" -n /usr/local/sbin/cdown-restart >/dev/null 2>&1; then
+    echo "   → sudoers + user-restart OK."
+  else
+    echo "   → Hint: restart-test feilet nå, men oppsettet ser korrekt ut. Prøver igjen etter reboot/innlogging."
+  fi
+else
+  echo "   → Hopper over sanity-check: user-bus er ikke klar ennå (helt normalt under setup)."
+fi
+
+
+
 
 echo "==> Ferdig! Anbefalt: sudo reboot"
