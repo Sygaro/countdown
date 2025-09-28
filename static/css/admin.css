@@ -1,134 +1,62 @@
 /* static/css/admin.css */
-/* --- Top actions / sticky bar --- */
+
+/* ===========================
+   Variabler (single source)
+   =========================== */
+:root {
+  --header-h: 56px;   /* sticky header høyde */
+  --actions-h: 1px;   /* sticky actions bar høyde-reservasjon */
+  --preview-w: 38vw;  /* bredde på preview-dock (widescreen) */
+}
+
+/* ===========================
+   Små hjelpere / badges
+   =========================== */
+.ok   { color: #0b0f14; background: #69db7c; border-color: transparent; }
+.warn { color: #0b0f14; background: #ffd166; border-color: transparent; }
+.off  { color: #e6edf3; background: #374151; }
+
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.hint-inline { font-size: .85rem; opacity: .9; margin-left: 6px; }
+.tag { font-size: .8rem; color: var(--muted); border: 1px dashed var(--border); padding: 2px 6px; border-radius: 6px; }
+
+/* ===========================
+   Sticky actions (robust)
+   =========================== */
 .actions {
   position: sticky;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 0; left: 0; right: 0;
   z-index: 1200;
   padding: 8px 12px;
-  background: rgba(11, 15, 20, 0.85);
+  background: rgba(11,15,20,.85);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-/* Viktig for sticky: ingen forfader må bryte sticky-oppførselen */
-.admin,
-.grid,
-main,
-body {
-  overflow: visible; /* ikke overflow:auto/hidden på forfedre til .actions */
-  transform: none; /* ingen transform på forfedre */
-  contain: none; /* unngå å lage ny containing block */
-}
-.actions button {
-  padding: 6px 10px;
-  font-size: 0.95rem;
-  border-radius: 12px;
-  transition:
-    transform 0.08s ease,
-    background-color 0.12s ease,
-    box-shadow 0.12s ease;
-}
-.actions button:hover {
-  transform: translateY(-1px);
-}
-.actions button:active {
-  transform: translateY(0);
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
 }
 
-/* --- Synk-pill / status-dot --- */
-.pill {
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  border: 1px solid var(--border);
-}
-.pill.compact {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 84px;
-  text-align: center;
-  white-space: nowrap;
-}
-/* Kompakt statusdott */
-.pill.dot {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  min-width: 12px;
-  padding: 0;
-  border-radius: 999px;
-  border: 0;
-  vertical-align: middle;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06) inset;
-  cursor: help;
-}
-.pill.dot.ok {
-  background: #69db7c;
-} /* grønn */
-.pill.dot.warn {
-  background: #ffd166;
-} /* gul */
-.pill.dot.off {
-  background: #374151;
-} /* grå */
-.pill.dot:hover {
-  box-shadow: 0 0 0 3px rgba(106, 169, 255, 0.35);
+/* For at sticky skal fungere må ingen forfedre bryte den */
+html, body, main, .grid, .admin {
+  overflow: visible !important;
+  transform: none !important;
+  contain: none !important;
 }
 
-/* --- Tonebadges (kan brukes andre steder også) --- */
-.ok {
-  color: #0b0f14;
-  background: #69db7c;
-  border-color: transparent;
-}
-.warn {
-  color: #0b0f14;
-  background: #ffd166;
-  border-color: transparent;
-}
-.off {
-  color: #e6edf3;
-  background: #374151;
-}
-
-/* --- Små layoutverktøy --- */
-.row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-}
-.hint-inline {
-  font-size: 0.85rem;
-  opacity: 0.9;
-  margin-left: 6px;
-}
-.tag {
-  font-size: 0.8rem;
-  color: var(--muted);
-  border: 1px dashed var(--border);
-  padding: 2px 6px;
-  border-radius: 6px;
-}
-
-/* === Admin actions: knapper (delikate hover/focus/active) === */
+/* Knapper i actions */
 .actions .mode-btn,
 .actions button,
 .actions .primary {
   transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    transform 0.04s ease,
-    box-shadow 0.15s ease;
+    background-color .15s ease,
+    border-color .15s ease,
+    transform .06s ease,
+    box-shadow .15s ease;
   will-change: transform;
+  padding: 6px 10px;
+  font-size: .95rem;
+  border-radius: 12px;
 }
+
 .actions button:not(.primary),
 .actions .mode-btn {
   background: #121a2b;
@@ -136,488 +64,232 @@ body {
   color: #d6dde8;
 }
 .actions button:not(.primary):hover,
-.actions .mode-btn:hover {
-  background: #17223a;
-  border-color: #36456b;
-}
-.actions button:focus-visible {
-  outline: 2px solid #2d7ef7;
-  outline-offset: 2px;
-}
-.actions button:active {
-  transform: translateY(1px);
-}
+.actions .mode-btn:hover { background: #17223a; border-color: #36456b; }
+.actions button:focus-visible { outline: 2px solid #2d7ef7; outline-offset: 2px; }
+.actions button:active,
+.actions .primary:active { transform: translateY(1px); }
+
 .actions .primary {
   background: var(--accent);
-  color: #0b0f14;
-  border-color: transparent;
-  font-weight: 600;
-  box-shadow: 0 2px 10px rgba(106, 169, 255, 0.25);
+  color: #0b0f14; border-color: transparent; font-weight: 600;
+  box-shadow: 0 2px 10px rgba(106,169,255,.25);
 }
-.actions .primary:hover {
-  filter: brightness(1.05);
-}
-.actions .primary:active {
-  transform: translateY(1px);
-}
+.actions .primary:hover { filter: brightness(1.05); }
 
-/* Hint-tekst: ikke ta plass; vis kun når man hovrer hele actions-raden */
+/* Hint-tekst: ekspander bare på hover */
 #save_hint {
   display: inline-block;
-  max-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: 0.9rem;
-  color: var(--muted);
-  transition:
-    max-width 0.18s ease,
-    opacity 0.18s ease;
-  opacity: 0.75;
+  max-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-size: .9rem; color: var(--muted);
+  transition: max-width .18s ease, opacity .18s ease;
+  opacity: .75;
 }
-.actions:hover #save_hint {
-  max-width: 180px;
-} /* utvider seg ved hover */
-@media (max-width: 1100px) {
-  #save_hint {
-    display: none;
-  }
-}
+.actions:hover #save_hint { max-width: 180px; }
+@media (max-width: 1100px) { #save_hint { display: none; } }
 
-/* --- Preview-dock --- */
-:root {
-  --preview-w: 38vw; /* én kilde for sannhet */
-  --header-h: 56px; /* du har disse allerede definert */
-  --actions-h: 1px;
-}
-
+/* ===========================
+   Preview dock
+   =========================== */
 #preview_dock {
   position: fixed;
-  top: calc(var(--header-h) + var(--actions-h)); /* i stedet for hard 3.2rem */
-  right: 0;
-  bottom: 0;
+  top: calc(var(--header-h) + var(--actions-h));
+  right: 0; bottom: 0;
   width: var(--preview-w);
   min-width: 420px;
   border-left: 1px solid #1c2436;
   background: #0b0f14;
-  display: grid;
-  grid-template-rows: 1fr;
-  z-index: 50; /* over page-bg, under dialoger */
-  pointer-events: auto; /* klikkbar */
+  display: grid; grid-template-rows: 1fr;
+  z-index: 50; pointer-events: auto;
 }
-#preview_dock iframe {
-  width: 100%;
-  height: 100%;
-  border: 0;
-  background: #0b0f14;
-}
+#preview_dock iframe { width: 100%; height: 100%; border: 0; background: #0b0f14; }
 
-/* === Widescreen: reserver plass til preview og klem griden === */
+/* Widescreen: reserver plass til dock */
 @media (min-width: 1100px) {
-  :root {
-    --preview-w: 38vw;
-  }
-
   body.admin {
-    /* reserver fysisk plass til dock; unngå at innhold havner under */
     padding-right: var(--preview-w) !important;
     overflow-x: hidden;
+    background: #0b0f14 !important;
+    background-image: none !important;
   }
-
-  /* Kritisk: selve grid-containeren får fast maks-bredde (100vw - preview) */
   body.admin > main.grid {
     box-sizing: border-box;
     width: calc(100vw - var(--preview-w) - 12px) !important;
     max-width: calc(100vw - var(--preview-w) - 12px) !important;
-    /* hindrer at auto margins sentrerer bredden under docken */
     margin-right: 0 !important;
-    padding-right: 8px; /* litt luft mot dock-kanten */
-  }
-
-  /* Hvis du har en indre .grid wrapper – klem den også */
-  body.admin main.grid,
-  body.admin .grid {
-    max-width: calc(100vw - var(--preview-w) - 12px) !important;
-  }
-
-  /* Stabil kolonne-layout så siste kolonne ikke prøver å “snike seg” under docken */
-  body.admin main.grid {
+    padding-right: 8px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     grid-auto-flow: row;
   }
 }
 
-/* === Små skjermer (preview under kortene) === */
+/* Små skjermer: dock under innholdet */
 @media (max-width: 1099.98px) {
-  /* innhold skal ikke reservere plass til docken */
   body.admin {
-    padding-right: 0 !important;
-    margin-right: 0 !important;
-    overflow-x: hidden;
+    padding-right: 0 !important; margin-right: 0 !important; overflow-x: hidden;
+    background: #0b0f14 !important;
+    background-image: none !important;
   }
-
-  /* flytt docken under innholdet, full bredde */
   #preview_dock {
-    position: static !important;
-    top: auto !important;
-    right: auto !important;
-    bottom: auto !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    height: min(50vh, 60svh); /* mer robust på mobil */
-    z-index: 1 !important; /* under ev. sticky-bar */
-    border-left: 0 !important;
-    border-top: 1px solid #1c2436; /* beholde visuell separasjon */
+    position: static !important; width: 100% !important; min-width: 0 !important;
+    height: min(50vh, 60svh);
+    z-index: 1 !important;
+    border-left: 0 !important; border-top: 1px solid #1c2436;
     margin-top: 8px;
   }
-
-  #preview_dock iframe {
-    width: 100% !important;
-    height: 100% !important;
-  }
-
-  /* sørg for at grid kan bruke hele bredden igjen */
-  body.admin > main.grid,
-  body.admin .grid {
-    width: 100% !important;
-    max-width: 100% !important;
-    padding-right: 0 !important;
+  #preview_dock iframe { width: 100% !important; height: 100% !important; }
+  body.admin > main.grid, body.admin .grid {
+    width: 100% !important; max-width: 100% !important; padding-right: 0 !important;
   }
 }
 
-/* Kompakt admin-layout (kun denne siden) */
-.admin .grid {
-  gap: 1px;
-}
-.admin .card {
-  margin: 10px; /* var 16px */
-  padding: 14px; /* var 16px */
-  border-radius: 14px; /* litt strammere */
-}
-.admin .card h2 {
-  margin: 0 0 0.5rem 0;
-}
-.admin .row {
-  gap: 8px;
-}
-.admin label {
-  margin: 0.2rem 0.4rem 0.2rem 0;
-}
-.admin button,
-.admin input,
-.admin select,
-.admin textarea {
-  padding: 6px 9px; /* var 8–10px */
-  border-radius: 10px;
-  font-size: 0.95rem;
+/* ===========================
+   Kompakt admin-layout
+   =========================== */
+.admin .grid { gap: 1px; }
+.admin .card { margin: 10px; padding: 14px; border-radius: 14px; }
+.admin .card h2 { margin: 0 0 .5rem 0; }
+.admin .row { gap: 8px; }
+.admin label { margin: .2rem .4rem; }
+.admin button, .admin input, .admin select, .admin textarea {
+  padding: 6px 9px; border-radius: 10px; font-size: .95rem;
 }
 .admin button {
-  transition:
-    background-color 0.15s ease,
-    box-shadow 0.15s ease,
-    transform 0.06s ease;
+  transition: background-color .15s ease, box-shadow .15s ease, transform .06s ease;
 }
-.admin button:hover {
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-  transform: translateY(-1px);
-}
-.admin button:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-}
-.admin button.primary:hover {
-  filter: brightness(1.05);
-}
-/* Kill legacy tiled background og sett solid fallback */
-html,
-body {
+.admin button:hover { box-shadow: 0 4px 14px rgba(0,0,0,.25); transform: translateY(-1px); }
+.admin button:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.admin button.primary:hover { filter: brightness(1.05); }
+
+/* ===========================
+   Bakgrunn/lag og scroll
+   =========================== */
+html, body {
   min-height: 100%;
-  background: #0b0f14; /* fallback */
+  background: #0b0f14;  /* fallback; ui.css overstyres i admin */
   background-image: none !important;
-  overflow-y: auto; /* lar hele siden scrolle */
+  overflow-y: auto;     /* lar hele siden scrolle */
 }
 
-/* Det dynamiske gradient-laget dekker hele viewporten */
+/* Dynamisk gradientlag under innholdet */
 #dynbg-layer {
-  position: fixed;
-  inset: 0; /* viktig: ingen positiv/negativ margin her */
-  z-index: 0; /* bak innholdet */
-  pointer-events: none; /* aldri klikkbar */
+  position: fixed; inset: 0;
+  z-index: 0; pointer-events: none;
 }
 
-/* Alt vanlig innhold ligger over */
-#app-root,
-main,
-header,
-.card {
-  position: relative;
-  z-index: 1;
-}
-/* === Sticky header + sticky actions (robust) === */
-:root {
-  /* juster hvis headeren blir høyere/lavere */
-  --header-h: 56px;
-  --actions-h: 1px;
-}
+/* Alt vanlig innhold skal være foran bakgrunnslag */
+#app-root, main, header, .card { position: relative; z-index: 1; }
 
-/* Sørg for at ingen forfedre bryter sticky */
-html,
-body,
-main,
-.grid,
-.admin {
-  overflow: visible !important;
-  transform: none !important;
-  contain: none !important;
-}
+/* ===========================
+   Picsum – dialog + CSS-only
+   =========================== */
 
-/* Kill legacy tiled background – overstyr ui.css i admin */
-body.admin {
-  background: #0b0f14 !important;
-  background-image: none !important;
-  padding-top: var(--actions-h);
-  margin-top: var(--actions-h);
-}
-#app-root,
-main,
-header,
-.card {
-  position: relative;
-  z-index: 1;
-}
-/* static/css/admin.css */
-/* Toast (global, konsistent m/ eksisterende #status_toast API) */
-.toast,
-#status_toast {
-  position: fixed;
-  right: 14px;
-  bottom: 14px;
-  z-index: 1100;
-  max-width: min(60ch, calc(100vw - 28px));
-  background: rgba(20, 24, 32, 0.92);
-  color: #dbe5f0;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 12px;
-  padding: 10px 12px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
-  opacity: 0;
-  transform: translateY(8px);
-  pointer-events: none;
-  transition:
-    opacity 0.16s ease,
-    transform 0.16s ease;
-}
-#status_toast.show {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-#status_toast.ok {
-  background: rgba(63, 160, 84, 0.95);
-  color: #0b0f14;
-  border-color: transparent;
-}
-#status_toast.warn {
-  background: rgba(255, 209, 102, 0.95);
-  color: #0b0f14;
-  border-color: transparent;
-}
-#status_toast.error {
-  background: rgba(255, 107, 107, 0.96);
-  color: #0b0f14;
-  border-color: transparent;
-}
-#status_toast.info {
-  background: rgba(20, 24, 32, 0.92);
-  color: #dbe5f0;
-}
-
-/* Picsum-modal */
-.picsum-modal::backdrop {
-  background: rgba(0, 0, 0, 0.55);
-}
-.picsum-modal {
-  border: 0;
-  padding: 0;
-  background: transparent;
-}
-.picsum-modal .box {
-  background: #0f1622;
-  color: #e6edf3;
-  min-width: 70vw;
-  max-width: 92vw;
-  height: 88vh;
+/* <dialog> variant */
+.picsum-modal { border: 0; padding: 0; background: transparent; }
+.picsum-modal::backdrop { background: rgba(0,0,0,.55); }
+.picsum-modal .box,
+.pm-box { /* deler sammekjerne som fallback-boksen */
+  background: #0f1622; color: #e6edf3;
+  min-width: 70vw; max-width: 92vw;
+  height: auto;                   /* viktig: ikke tving høyde */
+  max-height: min(88vh, 92svh);   /* rammehøyde */
   border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,.4);
+  display: flex; flex-direction: column;
+  overflow: hidden;               /* innhold skal scrolle */
 }
-.pm-header,
-.pm-footer {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  justify-content: space-between;
+
+/* Felles header/footer */
+.pm-header, .pm-footer {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255,255,255,.08);
 }
-.pm-footer {
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  border-bottom: 0;
-}
-.pm-header .left,
-.pm-header .right {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.pm-status {
-  opacity: 0.8;
-  font-size: 12px;
-}
+.pm-footer { border-top: 1px solid rgba(255,255,255,.08); border-bottom: 0; }
+.pm-header .left, .pm-header .right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.pm-title { font-size: 14px; }
+.pm-input-number { width: 72px; }
+.pm-status { opacity: .8; font-size: 12px; }
+
+/* Selve galleriet – én kilde for sannhet (scroll-fix her) */
 .pm-grid {
+  grid-auto-rows: auto !important;
   padding: 12px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 12px;
-  overflow: auto;
-  flex: 1;
+  flex: 1 1 auto;   /* fyll tilgjengelig plass i .box/.pm-box */
+  min-height: 0;    /* nødvendig for at flex-barn kan scrolle */
+  overflow-y: auto; overflow-x: hidden;
+  overscroll-behavior: contain;
+  grid-auto-rows: auto;
+  align-content: start;          /* ikke fordel rader over hele høyden */
+  overflow-y: auto;              /* scroll skjer her */
+  overflow-x: hidden;
   min-height: 0;
-}
-.pm-grid .tile {
-  position: relative;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  cursor: pointer;
-}
-.pm-grid .tile img {
-  display: block;
-  width: 100%;
-  height: 140px;
-  object-fit: cover;
-}
-.pm-grid .tile .meta {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  font-size: 12px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
-  padding: 28px 8px 6px;
-}
-.pm-grid .tile .check {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  background: rgba(0, 0, 0, 0.55);
-  border-radius: 999px;
-  padding: 4px 6px;
-  font-size: 12px;
-}
-.pm-grid .tile.selected {
-  outline: 3px solid #4dabf7;
 }
 
-/* static/css/admin.css — Picsum modal (CSS only) */
-.pm-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-.pm-box {
-  background: #0f1622;
-  color: #e6edf3;
-  min-width: 70vw;
-  max-width: 92vw;
-  height: 88vh;
-  border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.pm-header,
-.pm-footer {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-.pm-footer {
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  border-bottom: 0;
-  justify-content: flex-end;
-}
-.pm-header .left {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-.pm-header .right {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.pm-title {
-  font-size: 14px;
-}
-.pm-input-number {
-  width: 72px;
-}
-.pm-grid {
-  padding: 12px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 12px;
-  overflow: auto;
-  flex: 1;
-  min-height: 0;
-}
+/* Fliser – brukes i begge varianter */
+.pm-grid .tile,
 .pm-tile {
   position: relative;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255,255,255,.07);
   cursor: pointer;
+  min-width: 210px;              /* hindrer kompresjon under minmax */
 }
+.pm-grid .tile img,
 .pm-tile img {
+  height: 140px;
+  max-height: none;
+  object-fit: cover;
+  width: 100%;
   display: block;
   width: 100%;
-  height: 140px;
-  object-fit: cover;
 }
+.pm-grid .tile .meta,
 .pm-meta {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: absolute; left: 0; right: 0; bottom: 0;
   font-size: 12px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
+  background: linear-gradient(transparent, rgba(0,0,0,.65));
   padding: 28px 8px 6px;
 }
+.pm-grid .tile .check,
 .pm-check {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  background: rgba(0, 0, 0, 0.55);
-  border-radius: 999px;
-  padding: 4px 6px;
-  font-size: 12px;
+  position: absolute; top: 8px; left: 8px;
+  background: rgba(0,0,0,.55);
+  border-radius: 999px; padding: 4px 6px; font-size: 12px;
 }
+
+/* Valgt-flis – tydelig markering */
+.pm-grid .tile.selected,
 .pm-selected {
   outline: 3px solid #4dabf7;
+  box-shadow: 0 0 0 3px #4dabf7 inset;
 }
-.pm-status {
-  opacity: 0.8;
-  font-size: 12px;
+
+/* CSS-only backdrop (fallback) */
+.pm-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
 }
+
+/* ===========================
+   Diverse
+   =========================== */
+
+/* pill/dot – brukes av admin-«synk»-indikator */
+.pill.dot {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border-radius: 999px;
+  border: 2px solid rgba(0,0,0,.35);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.06) inset, 0 0 0 2px rgba(0,0,0,.06);
+  vertical-align: middle;
+}
+.pill.dot.ok   { background: #36b37e; }
+.pill.dot.warn { background: #ffd166; }
+.pill.dot.off  { background: #6b7280; }  /* grå = offline/ukjent */

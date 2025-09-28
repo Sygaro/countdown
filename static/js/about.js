@@ -10,21 +10,28 @@
   }
 
   function serviceCard(name, svc) {
-    const wrap = document.createElement("div");
-    wrap.className = "service";
-    const ok = !!svc.active;
-    wrap.innerHTML = `
-      <div class="head">
-        <div><strong>${name}</strong> <span class="muted">(${svc.scope})</span></div>
-        <span class="badge ${ok ? "ok" : "fail"}">${ok ? "active" : "inactive"}</span>
-      </div>
-      <div>Unit: <code>${svc.unit || ""}</code></div>
-      ${svc.description ? `<div class="muted">${svc.description}</div>` : ""}
-      ${svc.since ? `<div>Aktiv siden: <span class="muted">${svc.since}</span></div>` : ""}
-      ${svc.exec_main_start ? `<div>Prosess start: <span class="muted">${svc.exec_main_start}</span></div>` : ""}
-    `;
-    return wrap;
-  }
+  const ok = !!svc.active;
+  const wrap = document.createElement("div");
+  wrap.className = "svc"; // matcher about.css
+
+  wrap.innerHTML = `
+    <div class="title">
+      <span>${name}</span>
+      <span class="role">(${svc.scope || "—"})</span>
+      <span class="badge ${ok ? "ok" : "bad"}">${ok ? "active" : "inactive"}</span>
+    </div>
+    <div><span class="label">Unit</span> <span class="chip">${svc.unit || ""}</span></div>
+    ${svc.description ? `<div class="desc">${svc.description}</div>` : ""}
+    ${svc.since ? `<div><span class="label">Aktiv siden</span> <span class="muted">${svc.since}</span></div>` : ""}
+    ${
+      svc.exec_main_start
+        ? `<div><span class="label">Prosess start</span> <span class="muted">${svc.exec_main_start}</span></div>`
+        : ""
+    }
+  `;
+  return wrap;
+}
+
 
   async function loadAbout() {
     const boxErr = qs("#about_error");
@@ -49,21 +56,23 @@
         if (el) el.textContent = a[key] || "—";
       }
 
-      // Services
       const wrap = qs("#v_services_wrap");
-      wrap.innerHTML = "";
-      const services = a.services || {};
-      // Stabil rekkefølge: app, kiosk, web (web = alias)
-      ["app", "kiosk", "web"].forEach((name) => {
-        if (services[name]) wrap.appendChild(serviceCard(name, services[name]));
-      });
+      if (wrap) {
+        wrap.innerHTML = "";
+        const services = a.services || {};
+        ["app", "kiosk", "web"].forEach((name) => {
+          if (services[name]) wrap.appendChild(serviceCard(name, services[name]));
+        });
+      }
 
       s.style.display = "";
       boxErr.style.display = "none";
     } catch (e) {
-      s.style.display = "none";
-      boxErr.style.display = "";
-      boxErr.textContent = `Feil: ${e.message}. Tips: åpne Admin og lagre/sett passord (lagres i localStorage).`;
+      if (s) s.style.display = "none";
+      if (boxErr) {
+        boxErr.style.display = "";
+        boxErr.textContent = `Feil: ${e.message}. Tips: åpne Admin og lagre/sett passord (lagres i localStorage).`;
+      }
     }
   }
 

@@ -4,6 +4,7 @@
 (function () {
   "use strict";
   const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
   const state = {
     cfg: null,
@@ -11,6 +12,7 @@
     lastCfgRev: 0,
     clockTimer: null,
     isPreview: new URLSearchParams(location.search).get("preview") === "1",
+    picsum: { id: null, pollTimer: null },
   };
   if (state.isPreview) document.documentElement.classList.add("is-preview");
 
@@ -57,13 +59,129 @@
     ["#msg_secondary_above", "#msg_secondary_below"].forEach((sel) => applyTo(sel, s));
   }
 
+  // ---------- Unified Picsum rotate (erstatter picsum-rotate.js) ----------
+  function picsumShouldRun() {
+    return (state.cfg?.theme?.background?.mode || "").toLowerCase() === "picsum";
+  }
+
+  // HARD teardown når vi ikke er i picsum-modus
+  function picsumTearDownIfInactive() {
+    if (picsumShouldRun()) return;
+
+    // 1) Stopp videre polling
+    clearTimeout(state.picsum.pollTimer);
+    state.picsum.pollTimer = null;
+    state.picsum.id = null;
+
+    // 2) Fjern ev. eldre hooks (om vi skulle ha dem i fremtiden)
+    try {
+      if (window.ViewBg?.clearPicsum) window.ViewBg.clearPicsum();
+      if (window.ViewBg?.disablePicsum) window.ViewBg.disablePicsum();
+    } catch {}
+
+    // 3) Hard-reset alle bakgrunns-egenskaper som Picsum kan ha satt
+    const el = document.body;
+    if (el) {
+      el.style.background = "";
+      el.style.backgroundColor = "";
+      el.style.backgroundImage = "";
+      el.style.backgroundRepeat = "";
+      el.style.backgroundSize = "";
+      el.style.backgroundPosition = "";
+    }
+  }
+
+  function picsumSchedule(ms) {
+    clearTimeout(state.picsum.pollTimer);
+    state.picsum.pollTimer = setTimeout(picsumPoll, Math.max(750, Math.min(ms || 5000, 24 * 60 * 60 * 1000)));
+  }
+  async function picsumPoll() {
+    try {
+      if (!picsumShouldRun()) {
+        picsumSchedule(5000);
+        return;
+      }
+      const r = await fetch("/api/picsum/next", { cache: "no-store" });
+      const js = await r.json();
+
+      // Forventet: { ok, id, enabled, interval_seconds, next_in_seconds, updated }
+      if (!js || js.ok === false || js.enabled === false) {
+        picsumSchedule(5000);
+        return;
+      }
+
+      // Oppdatér bakgrunn straks når backend sier “updated”
+      if (js.updated && Number.isFinite(js.id) && js.id > 0) {
+        if (js.id !== state.picsum.id) {
+          state.picsum.id = js.id;
+          const bg = state.cfg?.theme?.background || {};
+          state.cfg.theme = state.cfg.theme || {};
+          state.cfg.theme.background = bg;
+          bg.picsum = bg.picsum || {};
+          bg.picsum.id = js.id;
+          window.ViewBg.applyBackground(document.body, bg);
+          ensureForeground();
+        }
+        const wait = clamp((parseInt(js.interval_seconds, 10) || 5) * 1000, 1000, 24 * 60 * 60 * 1000);
+        picsumSchedule(wait);
+        return;
+      }
+
+      // Ikke bytte ennå → poll hurtigere nær slutten
+      const nextIn = clamp(parseInt(js.next_in_seconds, 10) || 0, 0, 24 * 60 * 60);
+      picsumSchedule(nextIn > 3 ? 5000 : 1000);
+
+      // Første oppstart: ta id selv om updated=false
+      if (!state.picsum.id && Number.isFinite(js.id) && js.id > 0) {
+        state.picsum.id = js.id;
+        const bg = state.cfg?.theme?.background || {};
+        bg.picsum = bg.picsum || {};
+        bg.picsum.id = js.id;
+        window.ViewBg.applyBackground(document.body, bg);
+        ensureForeground();
+      }
+    } catch {
+      picsumSchedule(5000);
+    }
+  }
+
+  // ---------- Sørg for at innhold alltid ligger foran bakgrunnslag ----------
+  function ensureForeground() {
+    [
+      "#view_countdown",
+      "#view_clock",
+      "#screen",
+      "#digits",
+      "#msgs_above",
+      "#msgs_below",
+      "#clock_time",
+      "#clock_msgs",
+    ]
+      .map((sel) => $(sel))
+      .filter(Boolean)
+      .forEach((el) => {
+        if (!el.style.position) el.style.position = "relative";
+        el.style.zIndex = "1";
+      });
+
+    ["#dynbg-layer", "#bg-layer", ".bg-layer", ".background-layer"].forEach((sel) => {
+      $$(sel).forEach((n) => {
+        n.style.zIndex = "0";
+        n.style.pointerEvents = "none";
+      });
+    });
+  }
+
   function renderCountdown() {
+    picsumTearDownIfInactive();
+
     $("#view_clock")?.style && ($("#view_clock").style.display = "none");
     const root = $("#view_countdown");
     if (!root) return;
     root.style.display = "flex";
 
     window.ViewBg.applyBackground(document.body, state.cfg?.theme?.background);
+    ensureForeground();
 
     if (state.clockTimer) {
       clearInterval(state.clockTimer);
@@ -120,6 +238,7 @@
   }
 
   function renderClock() {
+    picsumTearDownIfInactive();
     const viewCountdown = $("#view_countdown");
     if (viewCountdown) viewCountdown.style.display = "none";
 
@@ -134,6 +253,7 @@
     root.style.padding = `${3}vh ${5}vw`;
 
     window.ViewBg.applyBackground(document.body, state.cfg?.theme?.background);
+    ensureForeground();
 
     const clk = state.cfg?.clock || {};
     const sizeVmin = clamp(Number(clk.size_vmin ?? 12), 6, 30);
@@ -248,6 +368,8 @@
     state.tick = await r.json();
     render();
     sendHeartbeat();
+    // Start unified picsum-polling (kjører kun når bg.mode === "picsum")
+    picsumSchedule(200);
   }
   async function pollTick() {
     const r = await fetch("/tick");
@@ -266,11 +388,13 @@
       if (rev !== state.lastCfgRev) {
         state.cfg = cfg;
         state.lastCfgRev = rev;
+        if ((cfg?.theme?.background?.mode || "").toLowerCase() !== "picsum") {
+          // viktig: bryt picsum-kjede straks config sier vi ikke er i picsum
+          picsumTearDownIfInactive();
+        }
         render();
       }
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   }
 
   // Heartbeat
@@ -359,6 +483,7 @@
     if (vw !== lastSize.w || vh !== lastSize.h) {
       lastSize = { w: vw, h: vh };
       window.ViewBg.applyBackground(document.body, state.cfg?.theme?.background);
+      ensureForeground();
     }
   }, 3000);
 })();

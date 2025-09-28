@@ -33,15 +33,27 @@
 
   // ==== Toast/status =========================================================
   function showStatusToast(msg, tone = "info", ms = 2500) {
-    const el = document.getElementById("status_toast");
-    if (!el) return; // sikker, men vi forventer at admin.html har elementet
-    el.className = ""; // reset
-    el.textContent = String(msg || "");
-    el.classList.add(tone || "info", "show");
-    el.hidden = false;
-    clearTimeout(el._hideTimer);
-    el._hideTimer = setTimeout(() => el.classList.remove("show"), Math.max(600, Number(ms) || 1600));
-  }
+  const el = document.getElementById("status_toast");
+  if (!el) return;
+
+  // Behold base-klassen "toast" for posisjonering/styling
+  el.className = "toast";
+  el.textContent = String(msg || "");
+  el.hidden = false;
+
+  // tone = "ok" | "warn" | "error" | "info" → legg som ekstra klasse
+  if (tone) el.classList.add(String(tone));
+
+  // Vis (styres av .toast.show i CSS)
+  el.classList.add("show");
+
+  clearTimeout(el._hideTimer);
+  el._hideTimer = setTimeout(() => {
+    el.classList.remove("show", "ok", "warn", "error", "info");
+    // behold "toast" videre
+  }, Math.max(600, Number(ms) || 1600));
+}
+
 
   // ==== Helpers ==============================================================
   const debounce = (fn, ms = 600) => {
@@ -65,34 +77,43 @@
   }
 
   function headers() {
-    const pwd = ($("#admin_password")?.value || "").trim();
-    const h = { "Content-Type": "application/json" };
+const pwd =
+     ($("#admin_password")?.value || "").trim() ||
+     (localStorage.getItem("admin_password") || "").trim();    const h = { "Content-Type": "application/json" };
     if (pwd) h["X-Admin-Password"] = pwd;
     return h;
   }
 
   async function getJSON(url) {
-    try {
-      if (window.ui?.get) return await window.ui.get(url);
-    } catch {
-      /* fallback */
-    }
-    const r = await fetch(url, { cache: "no-store" });
-    const js = await r.json().catch(() => ({}));
-    if (!r.ok || js.ok === false) throw new Error(js.error || `HTTP ${r.status}`);
-    return js;
+  try {
+    if (window.ui?.get) return await window.ui.get(url);
+  } catch {
+    /* fallback */
   }
-  async function postJSON(url, body) {
-    try {
-      if (window.ui?.post) return await window.ui.post(url, body);
-    } catch {
-      /* fallback */
-    }
-    const r = await fetch(url, { method: "POST", headers: headers(), body: JSON.stringify(body || {}) });
-    const js = await r.json().catch(() => ({}));
-    if (!r.ok || js.ok === false) throw new Error(js.error || `HTTP ${r.status}`);
-    return js;
+  const r = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
+  const js = await r.json().catch(() => ({}));
+  if (!r.ok || js.ok === false) throw new Error(js.error || `HTTP ${r.status}`);
+  return js;
+}
+
+async function postJSON(url, body) {
+  try {
+    if (window.ui?.post) return await window.ui.post(url, body);
+  } catch {
+    /* fallback */
   }
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { ...headers(), Accept: "application/json" },
+    body: JSON.stringify(body || {}),
+    credentials: "same-origin",
+  });
+  const js = await r.json().catch(() => ({}));
+  if (!r.ok || js.ok === false) throw new Error(js.error || `HTTP ${r.status}`);
+  return js;
+}
+
+
 
   // ==== State ================================================================
   let lastCfg = null;
@@ -522,18 +543,24 @@
 
   // ==== Save config ==========================================================
   async function saveAll() {
-    try {
-      const body = buildPatch();
-      const js = await postJSON("/api/config", body);
-      lastCfg = js.config || lastCfg;
-      apply(js.config, js.tick);
-      showStatusToast("Lagret ✔", "ok", 1400);
-    } catch (e) {
-      console.error(e);
-      showStatusToast(`Kunne ikke lagre: ${e.message}`, "error", 3500);
-      alert("Lagring feilet:\n" + (e?.message || e));
-    }
+  try {
+    const body = buildPatch();
+    await postJSON("/api/config", body);
+
+    // VIKTIG: alltid les tilbake persistert config etter lagring,
+    // så vi får med backend-normalisering (f.eks. auto-rotate OFF når mode != picsum).
+    await loadAll();
+
+    showStatusToast("Lagret ✔", "ok", 1400);
+    // Push preview (konfig er allerede oppdatert i loadAll → apply → pushPreview)
+    pushPreview();
+  } catch (e) {
+    console.error(e);
+    showStatusToast(`Kunne ikke lagre: ${e.message}`, "error", 3500);
+    alert("Lagring feilet:\n" + (e?.message || e));
   }
+}
+
 
   // ==== Apply config to form =================================================
   function setVal(sel, value) {
@@ -865,92 +892,93 @@
     host.appendChild(bar);
   }
 
-  // static/js/admin.js — REPLACE function ensurePicsumModal()
-  function ensurePicsumModal() {
-    if (document.getElementById("picsum_modal")) return;
+  // --- Picsum modal: bind mot eksisterende <dialog id="picsum_modal"> ---
+function ensurePicsumModal() {
+  const dlg = document.getElementById("picsum_modal");
+  if (!dlg || dlg._bound) return;
 
-    // Bygg DOM uten å injisere CSS (stiler ligger i static/css/admin.css)
-    const modal = document.createElement("div");
-    modal.id = "picsum_modal";
-    modal.className = "pm-backdrop";
-    modal.style.display = "none";
-    modal.innerHTML = `
-    <div class="pm-box" role="dialog" aria-modal="true" aria-label="Picsum-galleri">
-      <header class="pm-header">
-        <div class="left">
-          <strong class="pm-title">Picsum-galleri</strong>
-          <label>Sidenr <input id="pg_page" class="pm-input-number" type="number" min="1" step="1" value="1"></label>
-          <label>Pr. side
-            <select id="pg_per_page" class="pm-select">
-              <option>12</option><option selected>24</option><option>36</option><option>60</option>
-            </select>
-          </label>
-          <button id="pg_prev" type="button">◀ Forrige</button>
-          <button id="pg_next" type="button">Neste ▶</button>
-        </div>
-        <div class="right">
-          <span id="pg_status" class="pm-status"></span>
-          <button id="pg_close" type="button">Lukk</button>
-        </div>
-      </header>
-      <div id="pg_grid" class="pm-grid" aria-live="polite"></div>
-      <footer class="pm-footer">
-        <button id="pg_add_use" type="button" class="primary">Legg til & bruk første</button>
-        <button id="pg_add" type="button">Legg til valgte</button>
-      </footer>
-    </div>`;
+  // Lukk ved klikk utenfor boksen
+  dlg.addEventListener("click", (ev) => {
+    if (ev.target === dlg) closePicsumPicker();
+  });
 
-    document.body.appendChild(modal);
+  // "Esc" → close (standard), men sørg for å rydde status
+  dlg.addEventListener("cancel", (e) => {
+    e.preventDefault();
+    closePicsumPicker();
+  });
 
-    // Interaksjon
-    modal.addEventListener("click", (ev) => {
-      if (ev.target === modal) closePicsumPicker();
-    });
-    document.getElementById("pg_close").addEventListener("click", closePicsumPicker);
-    document.getElementById("pg_prev").addEventListener("click", () => {
-      if (picsumPicker.page > 1) {
-        picsumPicker.page--;
-        fetchPicsumPage();
-      }
-    });
-    document.getElementById("pg_next").addEventListener("click", () => {
-      picsumPicker.page++;
-      fetchPicsumPage();
-    });
-    document.getElementById("pg_page").addEventListener("change", () => {
-      const p = parseInt(document.getElementById("pg_page").value || "1", 10);
-      picsumPicker.page = Math.max(1, isFinite(p) ? p : 1);
-      fetchPicsumPage();
-    });
-    document.getElementById("pg_per_page").addEventListener("change", () => {
-      picsumPicker.perPage = parseInt(document.getElementById("pg_per_page").value, 10) || 30;
-      fetchPicsumPage();
-    });
-    document.getElementById("pg_add").addEventListener("click", () => addSelectedToCurated(false));
-    document.getElementById("pg_add_use").addEventListener("click", () => addSelectedToCurated(true));
-
-    // ESC for å lukke
-    window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && picsumPicker.open) closePicsumPicker();
-    });
-  }
-
-  function openPicsumPicker() {
-    ensurePicsumModal();
-    const modal = document.getElementById("picsum_modal");
-    picsumPicker.open = true;
-    picsumPicker.selected = new Set();
-    modal.style.display = "flex";
-    document.getElementById("pg_page").value = String(picsumPicker.page);
-    document.getElementById("pg_per_page").value = String(picsumPicker.perPage);
-    fetchPicsumPage();
-  }
-
-  function closePicsumPicker() {
+  // Rydd state når dialog lukkes
+  dlg.addEventListener("close", () => {
     picsumPicker.open = false;
-    const modal = document.getElementById("picsum_modal");
-    if (modal) modal.style.display = "none";
-  }
+    picsumPicker.selected.clear();
+  });
+
+  // Knapper og inputfelt i dialogen (finnes allerede i admin.html)
+  document.getElementById("pg_close")?.addEventListener("click", closePicsumPicker);
+
+  document.getElementById("pg_prev")?.addEventListener("click", () => {
+    if (picsumPicker.page > 1) {
+      picsumPicker.page--;
+      fetchPicsumPage();
+    }
+  });
+
+  document.getElementById("pg_next")?.addEventListener("click", () => {
+    picsumPicker.page++;
+    fetchPicsumPage();
+  });
+
+  document.getElementById("pg_page")?.addEventListener("change", () => {
+    const p = parseInt(document.getElementById("pg_page").value || "1", 10);
+    picsumPicker.page = Math.max(1, Number.isFinite(p) ? p : 1);
+    fetchPicsumPage();
+  });
+
+  document.getElementById("pg_per_page")?.addEventListener("change", () => {
+    picsumPicker.perPage = parseInt(document.getElementById("pg_per_page").value, 10) || 24;
+    fetchPicsumPage();
+  });
+
+  document.getElementById("pg_add")?.addEventListener("click", () => addSelectedToCurated(false));
+  document.getElementById("pg_add_use")?.addEventListener("click", () => addSelectedToCurated(true));
+
+  dlg._bound = true;
+}
+
+function openPicsumPicker() {
+  ensurePicsumModal();
+  const dlg = document.getElementById("picsum_modal");
+  if (!dlg) return;
+
+  picsumPicker.open = true;
+  picsumPicker.selected = new Set();
+
+  // Åpne riktig – dette gir korrekt backdrop + scrolling
+  if (typeof dlg.showModal === "function") dlg.showModal();
+  else dlg.setAttribute("open", ""); // fallback
+
+  // Synk UI og last side
+  const pg = document.getElementById("pg_page");
+  const pp = document.getElementById("pg_per_page");
+  if (pg) pg.value = String(picsumPicker.page);
+  if (pp) pp.value = String(picsumPicker.perPage);
+
+  fetchPicsumPage();
+}
+
+function closePicsumPicker() {
+  const dlg = document.getElementById("picsum_modal");
+  if (!dlg) return;
+  picsumPicker.open = false;
+
+  if (typeof dlg.close === "function") dlg.close();
+  else dlg.removeAttribute("open"); // fallback
+}
+
+  // eksponer for "Åpne Picsum-galleri…" knappen
+  window.openPicsumPicker = openPicsumPicker;
+  window.closePicsumPicker = closePicsumPicker;
 
   async function fetchPicsumPage() {
     if (!picsumPicker.open) return;
@@ -988,23 +1016,24 @@
 
       // static/js/admin.js — REPLACE tile building inside renderPicsumGrid()
       const tile = document.createElement("div");
-      tile.className = "pm-tile";
-      tile.innerHTML = `
+tile.className = "tile";
+tile.innerHTML = `
   <img src="${url}" alt="Picsum #${id}">
-  <div class="pm-check">#${id}</div>
-  <div class="pm-meta"><strong>${author || "Ukjent"}</strong></div>
+  <div class="check">#${id}</div>
+  <div class="meta"><strong>${author || "Ukjent"}</strong></div>
 `;
-      const mark = () => {
-        if (picsumPicker.selected.has(id)) {
-          picsumPicker.selected.delete(id);
-          tile.classList.remove("pm-selected");
-        } else {
-          picsumPicker.selected.add(id);
-          tile.classList.add("pm-selected");
-        }
-      };
-      tile.addEventListener("click", mark);
-      grid.appendChild(tile);
+const mark = () => {
+  if (picsumPicker.selected.has(id)) {
+    picsumPicker.selected.delete(id);
+    tile.classList.remove("selected");
+  } else {
+    picsumPicker.selected.add(id);
+    tile.classList.add("selected");
+  }
+};
+tile.addEventListener("click", mark);
+grid.appendChild(tile);
+
     });
   }
 
@@ -1048,36 +1077,51 @@
     pushPreview();
     showStatusToast("Status oppdatert", "info", 1200);
   }
-  async function updateSyncPill() {
-    const pill = $("#sync_pill");
-    if (!pill) return;
-    try {
-      const js = await getJSON("/debug/view-heartbeat");
-      const hb = js.heartbeat || {};
-      const age = hb.age_seconds ?? 9999;
-      const viewRev = hb.rev || 0;
-      const cfgRev = lastCfg && lastCfg._updated_at ? lastCfg._updated_at : 0;
-      let detailed = "",
-        cls = "off";
-      if (age > 30 || !hb.ts_iso) {
-        detailed = "Synk: visning offline";
-        cls = "off";
-      } else if (viewRev >= cfgRev) {
-        detailed = `Synk: OK (rev ${viewRev})`;
-        cls = "ok";
-      } else {
-        detailed = `Synk: venter (view ${viewRev} < cfg ${cfgRev})`;
-        cls = "warn";
-      }
-      pill.className = `pill dot ${cls}`;
-      pill.title = detailed;
-      pill.textContent = "";
-    } catch {
-      pill.className = "pill dot off";
-      pill.title = "Synk: —";
-      pill.textContent = "";
-    }
+  // ==== Sync-pill (robust) =====================================================
+async function updateSyncPill() {
+  // Sørg for at elementet finnes
+  let pill = document.getElementById("sync_pill");
+  if (!pill) {
+    const host = document.getElementById("admin_toolbar") || document.body;
+    pill = document.createElement("span");
+    pill.id = "sync_pill";
+    pill.className = "pill dot off";
+    pill.title = "Synk: —";
+    host.appendChild(pill);
   }
+
+  try {
+    const js = await getJSON("/debug/view-heartbeat");
+    const hb = js.heartbeat || {};
+    const age = hb.age_seconds ?? 9999;
+    const viewRev = hb.rev || 0;
+    const cfgRev = lastCfg && lastCfg._updated_at ? lastCfg._updated_at : 0;
+
+    let tone = "off";
+    let title = "Synk: —";
+
+    if (age > 30 || !hb.ts_iso) {
+      tone = "off";
+      title = "Synk: visning offline";
+    } else if (viewRev >= cfgRev) {
+      tone = "ok";
+      title = `Synk: OK (rev ${viewRev})`;
+    } else {
+      tone = "warn";
+      title = `Synk: venter (view ${viewRev} < cfg ${cfgRev})`;
+    }
+
+    pill.className = `pill dot ${tone}`;
+    pill.title = title;
+    pill.textContent = "";
+  } catch {
+    pill.className = "pill dot off";
+    pill.title = "Synk: —";
+    pill.textContent = "";
+  }
+}
+
+
 
   // ==== Mode/duration actions ===============================================
   async function patchMode(newMode) {
@@ -1108,7 +1152,7 @@
       // noop
     } else if (p === "dark-solid") {
       (document.querySelector(`input[name="bg_mode"][value="solid"]`) || {}).checked = true;
-      $("#bg_solid_color") && ($("#bg_solid_color").value = "#0b0f14");
+      $("#bg_solid_color") && ($("#bg_solid_color").value = "#061126");
     } else if (p === "dark-grad") {
       (document.querySelector(`input[name="bg_mode"][value="gradient"]`) || {}).checked = true;
       $("#bg_grad_from") && ($("#bg_grad_from").value = "#274779");
@@ -1202,6 +1246,8 @@
     ensurePicsumBrowseButton();
     ensurePicsumModal();
     await loadAll().catch(console.error);
+        await updateSyncPill().catch(() => {});    // <-- nytt: første oppdatering
+
     setInterval(updateSyncPill, 3000);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });

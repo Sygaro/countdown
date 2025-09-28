@@ -204,14 +204,18 @@ def _pick_next_picsum_id(cfg: Dict[str, Any]) -> tuple[int | None, int | None]:
     cur_id = bg.get("id") if isinstance(bg.get("id"), int) else None
     if not catalog:
         return None, None
-    ids = [
-        int(x.get("id"))
-        for x in catalog
-        if isinstance(x, dict)
-        and isinstance(x.get("id"), (int, float))
-        and int(x.get("id")) > 0
-    ]
-    ids = [i for i in ids if i > 0]
+    raw = theme.get("picsum_catalog") or []
+    ids: list[int] = []
+    for x in raw:
+        if isinstance(x, dict):
+            iv = x.get("id")
+            try:
+                iv = int(iv)
+            except Exception:
+                iv = None
+            if isinstance(iv, int) and iv > 0:
+                ids.append(iv)
+
     if not ids:
         return None, None
 
@@ -761,12 +765,16 @@ def api_picsum_next() -> Response:
             "next_in_seconds": None,
         }
 
+        # If active background is not Picsum, hard-disable at the API layer
         if (mode != "picsum") or (not enabled):
-            # beregn 'next_in' likevel for klienter som viser nedtelling
-            if enabled and interval > 0:
-                elapsed = max(0, now_ms - last_switch_ms)
-                payload["next_in_seconds"] = max(0, interval - elapsed // 1000)
+            payload["enabled"] = False
+            payload["next_in_seconds"] = None
             return _json_ok(payload)
+
+        if not enabled:
+            # beholde dagens oppførsel når picsum er aktiv, men auto-rotate er av
+            return _json_ok(payload)
+
 
         elapsed_ms = now_ms - last_switch_ms
         if elapsed_ms < interval * 1000:

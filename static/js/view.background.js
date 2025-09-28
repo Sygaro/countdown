@@ -36,13 +36,13 @@
     document.head.appendChild(st);
   }
   function getDynLayer() {
-    return document.getElementById("dyn_bg_layer");
+    return document.getElementById("dynbg_layer");
   }
   function ensureDynLayer() {
     let el = getDynLayer();
     if (!el) {
       el = document.createElement("div");
-      el.id = "dyn_bg_layer";
+      el.id = "dynbg_layer";
       Object.assign(el.style, {
         position: "fixed",
         inset: "0",

@@ -123,6 +123,12 @@ def _mark_compact_lists(obj):
         return [_mark_compact_lists(x) for x in obj]
     return obj
 
+def _int_or_none(x) -> int | None:
+    try:
+        return int(x)  # str, float, bool osv. vil forsøkes
+    except Exception:
+        return None
+
 # ── visual reset ──────────────────────────────────────────────────────────────
 # File: app/storage.py
 
@@ -554,41 +560,30 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         "color": str(tint.get("color") or "#000000"),
         "opacity": max(0.0, min(1.0, float(tint.get("opacity") or 0.0))),
     }
-    # --- auto-rotate ---
+        # --- auto-rotate ---
     ar = pc.get("auto_rotate") or {}
     ar_enabled = bool(ar.get("enabled", False))
     try:
         ar_interval = int(
             ar.get(
                 "interval_seconds",
-                _DEFAULTS["theme"]["background"]["picsum"]["auto_rotate"][
-                    "interval_seconds"
-                ],
+                _DEFAULTS["theme"]["background"]["picsum"]["auto_rotate"]["interval_seconds"],
             )
         )
     except Exception:
-        ar_interval = _DEFAULTS["theme"]["background"]["picsum"]["auto_rotate"][
-            "interval_seconds"
-        ]
+        ar_interval = _DEFAULTS["theme"]["background"]["picsum"]["auto_rotate"]["interval_seconds"]
 
-    # clamp 5s .. 24h
-    ar_interval = max(5, min(24 * 60 * 60, ar_interval))
-
+    ar_interval = max(5, min(24 * 60 * 60, ar_interval))  # clamp 5s..24h
     strategy = str(ar.get("strategy", "shuffle")).lower()
     if strategy not in ("shuffle", "sequential"):
         strategy = "shuffle"
 
-    # interne felter (tillate None for last_index)
     try:
         last_switch_ms = int(ar.get("last_switch_ms") or 0)
     except Exception:
         last_switch_ms = 0
-    try:
-        last_index = (
-            int(ar.get("last_index")) if ar.get("last_index") is not None else None
-        )
-    except Exception:
-        last_index = None
+    last_index = _int_or_none(ar.get("last_index"))
+
 
     pc["auto_rotate"] = {
         "enabled": ar_enabled,
@@ -609,8 +604,23 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         except Exception:
             pc.pop("id", None)
 
-    bg["picsum"] = pc
+    # >>> HARD RULE: if active mode is NOT 'picsum', force-disable picsum <<<
+    if mode != "picsum":
+        # id har ingen effekt uten picsum, fjern den for å unngå “heng”
+        pc.pop("id", None)
+        # og sørg for at auto-rotate er av
+        pc["auto_rotate"]["enabled"] = False
+        # Hvis vi ikke er i picsum-modus: slå av auto-rotate og fjern aktiv id
+    if (bg.get("mode") or "solid").lower() != "picsum":
+        ar = pc.get("auto_rotate") or {}
+        ar["enabled"] = False
+        ar["last_switch_ms"] = 0
+        ar["last_index"] = None
+        pc["auto_rotate"] = ar
+        pc.pop("id", None)
 
+
+    bg["picsum"] = pc
     th["background"] = bg
     cfg["theme"] = th
 

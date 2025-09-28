@@ -198,29 +198,6 @@ main.grid {
   border-color: rgba(255, 255, 255, 0.08);
 }
 
-/* Små dotter som ofte står inne i pillen eller ved siden av */
-.sys-pill .dot,
-.pill.dot {
-  width: 0.55rem;
-  height: 0.55rem;
-  border-radius: 50%;
-  display: inline-block;
-  margin-right: 0.25rem;
-  background: rgba(255, 255, 255, 0.25); /* default/warn */
-}
-
-.pill.dot.ok {
-  background: #33d17a;
-}
-.pill.dot.bad {
-  background: #e43d3d;
-}
-.pill.dot.off {
-  background: #7c8aa0;
-} /* offline/ukjent */
-.pill.dot.warn {
-  background: #ffd166;
-}
 
 /* NTP-boksen – skal være en "container", ikke en pill */
 #ntp_status {

@@ -38,6 +38,3 @@
 
   return { hexToRgb, luminance, ratio, advise };
 });
-
-// ESM export (treeshake-vennlig)
-export const Contrast = typeof window !== "undefined" && window.Contrast ? window.Contrast : undefined;
