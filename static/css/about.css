@@ -9,7 +9,6 @@
   --bad: #ff6b6b;
   color: var(--text);
 }
-
 /* kort */
 #about .card {
   background: var(--panel);
@@ -27,7 +26,6 @@
   font-size: 20px;
   margin: 18px 0 10px 0;
 }
-
 /* Key/Value (bruker <dt>/<dd> direkte) */
 #about dl.kv {
   display: grid;
@@ -50,7 +48,6 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 90%;
 }
-
 /* Tjenester-grid */
 #about .services {
   display: grid;
@@ -81,7 +78,6 @@
   margin: 4px 0 10px 0;
   font-size: 90%;
 }
-
 /* Badge */
 #about .badge {
   display: inline-block;
@@ -108,7 +104,6 @@
   background: var(--bad);
   border-color: rgba(0, 0, 0, 0.1);
 }
-
 /* Små helpers */
 #about .label {
   color: var(--muted);

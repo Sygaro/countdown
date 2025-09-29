@@ -9,7 +9,6 @@
   }
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-
   function hexToRgb(h) {
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(h || "").trim());
     return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [230, 237, 243];
@@ -35,6 +34,5 @@
     if (r >= 3) return { tone: "warn", label: `${r.toFixed(2)} ⚠` };
     return { tone: "error", label: `${r.toFixed(2)} ✖` };
   }
-
   return { hexToRgb, luminance, ratio, advise };
 });

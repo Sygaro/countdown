@@ -2,9 +2,7 @@
 // Ansvar: all bakgrunnslogikk (solid / gradient / image / picsum / dynamic)
 (function () {
   "use strict";
-
   const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
-
   function hexToRgba(hex, opacity) {
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || "").trim());
     if (!m) return `rgba(0,0,0,${Number(opacity || 0)})`;
@@ -14,7 +12,6 @@
     const a = clamp(Number(opacity || 0), 0, 1);
     return `rgba(${r},${g},${b},${a})`;
   }
-
   // Enkel URL-sikringsvakt: tillat http(s) og relative URLer. Avvis javascript:, data:, file:, etc.
   function safeUrl(u) {
     const s = String(u || "").trim();
@@ -29,7 +26,6 @@
       return s.startsWith("/") ? s : "";
     }
   }
-
   function viewportPxForPicsum(fit) {
     const dpr = clamp(window.devicePixelRatio || 1, 1, 2);
     let vw = Math.max(1, Math.round((window.innerWidth || 1280) * dpr));
@@ -46,7 +42,6 @@
     const pc = (bg && bg.picsum) || {};
     const fit = (pc.fit || "cover").toLowerCase();
     const { vw, vh } = viewportPxForPicsum(fit);
-
     let base;
     const idNum = Number(pc.id ?? 0);
     if (Number.isFinite(idNum) && idNum > 0) {
@@ -62,7 +57,6 @@
     if (blurN > 0) params.push(`blur=${blurN}`);
     return params.length ? `${base}?${params.join("&")}` : base;
   }
-
   // Enkelt preloader; løses når bildet er lastet (timeout → reject)
   function preloadImage(url, timeoutMs = 30000) {
     return new Promise((resolve, reject) => {
@@ -96,7 +90,6 @@
       img.src = url;
     });
   }
-
   // dynamic helper
   function ensureDynKeyframes() {
     if (document.getElementById("dynbg_keyframes")) return;
@@ -111,7 +104,6 @@
   `;
     document.head.appendChild(st);
   }
-
   function getDynLayer() {
     // Standardiser: bruk bindestrek-versjonen overalt
     return document.getElementById("dynbg-layer");
@@ -135,7 +127,6 @@
     const el = getDynLayer();
     if (el?.parentNode) el.parentNode.removeChild(el);
   }
-
   function applyBaseImageLayers(el, fit, url, tint) {
     const safe = safeUrl(url);
     const layers = [];
@@ -145,7 +136,6 @@
     }
     if (safe) layers.push(`url("${safe}")`);
     if (!layers.length) return false;
-
     el.style.backgroundImage = layers.join(", ");
     el.style.backgroundRepeat = "no-repeat, no-repeat";
     el.style.backgroundSize = (layers.length === 2 ? "auto, " : "") + (fit === "contain" ? "contain" : "cover");
@@ -153,7 +143,6 @@
     el.style.backgroundColor = "transparent";
     return true;
   }
-
   // appliers
   function applyBgSolid(el, bg) {
     el.style.backgroundColor = bg?.solid?.color || "#0b0f14";
@@ -185,7 +174,6 @@
     applyBaseImageLayers(el, (pc.fit || "cover").toLowerCase(), url, pc.tint);
   }
   window.ViewBg = { applyBackground, viewportPxForPicsum, buildPicsumUrlFromBg, preloadImage };
-
   function applyBgDynamic(rootEl, bg) {
     const dyn = bg?.dynamic || {};
     const basePref = (dyn.base_mode || "auto").toLowerCase();
@@ -199,40 +187,31 @@
       else if (bg?.picsum) applyBgPicsum(rootEl, bg);
       else applyBgSolid(rootEl, bg);
     }
-
     ensureDynKeyframes();
     const layer = ensureDynLayer();
-
     const num = (v, lo, hi, d) => Math.max(lo, Math.min(hi, Number.isFinite(+v) ? +v : d));
     const from = dyn.from || "#16233a";
     const to = dyn.to || "#0e1a2f";
-
     const rotateS = num(dyn.rotate_s, 0.1, 3600, 60);
     const blurPx = num(dyn.blur_px, 0, 500, 18);
     const opacity = num(dyn.opacity, 0, 1, 0.9);
     const layerPos = (dyn.layer || "under").toLowerCase();
-
     const zUnder = Number.isFinite(+dyn.z_under) ? String(+dyn.z_under) : "0";
     const zOver = Number.isFinite(+dyn.z_over) ? String(+dyn.z_over) : "15";
     const zIndex = layerPos === "over" ? zOver : zUnder;
-
     const s1 = dyn.shape1 || {};
     const s2 = dyn.shape2 || {};
     const [s1x, s1y] = Array.isArray(s1.size_vmax) ? s1.size_vmax : [72, 54];
     const [p1x, p1y] = Array.isArray(s1.pos_pct) ? s1.pos_pct : [12, 10];
     const st1 = Number.isFinite(+s1.stop_pct) ? +s1.stop_pct : 62;
-
     const [s2x, s2y] = Array.isArray(s2.size_vmax) ? s2.size_vmax : [70, 52];
     const [p2x, p2y] = Array.isArray(s2.pos_pct) ? s2.pos_pct : [88, 12];
     const st2 = Number.isFinite(+s2.stop_pct) ? +s2.stop_pct : 64;
-
     const cdeg = Number.isFinite(+dyn.conic_from_deg) ? +dyn.conic_from_deg : 220;
     const animScale = Number.isFinite(+dyn.anim_scale) ? +dyn.anim_scale : 1.02;
-
     // Signatur for å unngå unødvendig restart av animasjonen
     const sig = JSON.stringify({ from, to, rotateS, blurPx, opacity, layerPos, s1, s2, cdeg, zUnder, zOver });
     const prevSig = layer.dataset.dynsig || "";
-
     // Oppdater statiske stiler
     Object.assign(layer.style, {
       zIndex,
@@ -244,10 +223,8 @@
         `radial-gradient(${s2x}vmax ${s2y}vmax at ${p2x}% ${p2y}%, ${to} 0%, transparent ${st2}%),` +
         `conic-gradient(from ${cdeg}deg at 50% 50%, #0000 0%, #0000 100%)`,
     });
-
     // Anim-skala via CSS-variabel (endringer krever ikke restart)
     layer.style.setProperty("--dynbg-scale", String(animScale));
-
     // Restart kun når signatur endres (inkl. rotate_s, blur, posisjoner, osv.)
     if (prevSig !== sig) {
       layer.style.animation = "none";
@@ -260,11 +237,9 @@
       layer.dataset.dynsig = sig;
     }
   }
-
   function applyBackground(rootEl, bg) {
     if (!rootEl) return;
     const mode = (bg?.mode || "solid").toLowerCase();
-
     // Nullstill base-bakgrunnsegenskaper som før …
     rootEl.style.background = "";
     rootEl.style.backgroundColor = "";
@@ -272,12 +247,10 @@
     rootEl.style.backgroundRepeat = "";
     rootEl.style.backgroundSize = "";
     rootEl.style.backgroundPosition = "";
-
     // … men IKKE fjern det dynamiske laget hvis vi fortsatt er i dynamic-modus.
     if (mode !== "dynamic") {
       removeDynLayer();
     }
-
     switch (mode) {
       case "solid":
         return applyBgSolid(rootEl, bg);
@@ -293,6 +266,5 @@
         rootEl.style.backgroundColor = "#0b0f14";
     }
   }
-
   window.ViewBg = { applyBackground, viewportPxForPicsum, buildPicsumUrlFromBg, preloadImage };
 })();

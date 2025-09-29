@@ -1,46 +1,38 @@
 /* static/css/diag.css */
 /* Kun for diagnose: gjøre nedtelling mer synlig og få ryddig layout */
-
 .big {
   font-size: 8vh;
   line-height: 1.1;
   font-weight: 700;
 }
-
 .muted {
   opacity: 0.75;
 }
-
 .ok {
   color: #6dd96d;
 }
 .fail {
   color: #ff6b6b;
 }
-
 .grid {
   display: grid;
   gap: 1rem;
   grid-template-columns: 1fr;
   row-gap: 1.25rem;
 }
-
 @media (min-width: 960px) {
   .grid {
     grid-template-columns: 1fr 1fr;
   }
 }
-
 .chip {
   border: 1px solid var(--border, #1c2436);
   border-radius: 8px;
   padding: 4px 8px;
 }
-
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
-
 #selftest {
   list-style: none;
   padding: 0;
@@ -65,7 +57,6 @@
   border-color: #7a2d33;
   background: #2a1416;
 }
-
 /* Gjør tabs flate og fine */
 .tabs {
   display: flex;
@@ -77,7 +68,6 @@
   border-radius: 0.6rem;
   padding: 0.3rem 0.6rem;
 }
-
 /* --- Sticky kontrollbar (øverst) --- */
 .controlbar {
   position: sticky;
@@ -125,18 +115,15 @@ main.grid {
 main.grid > .card {
   margin: 4px;
 }
-
 main.grid {
   row-gap: 1.5rem !important;
 }
-
 /* Kort som fleksbokser */
 .card {
   display: flex;
   flex-direction: column;
   height: 100%;
 }
-
 /* La JSON-<pre> fylle resten av kortet og scrolle internt */
 .card > pre {
   flex: 1 1 auto;
@@ -144,13 +131,11 @@ main.grid {
   overflow: auto;
   max-height: 25rem; /* overstyr ev. tidligere max-height */
 }
-
 /* (valgfritt) litt luft under knapperekka i Debug-kortet */
 .card.debug h2 + div {
   margin-bottom: 0.75rem;
 }
 /* Debug-kort: ikke la JSON-<pre> bli uendelig høyt */
-
 .card.debug pre#raw {
   flex: 0 1 auto; /* ikke strekk for å fylle hele kortet */
   max-height: clamp(20rem, 48vh, 34rem);
@@ -171,7 +156,6 @@ main.grid {
   gap: 8px;
   flex-wrap: wrap;
 }
-
 /* Host-pill (brukt av diag.js i .sysbar .right) */
 /* Konsolidert sys-pill for topbar/diag */
 .sys-pill {
@@ -192,13 +176,11 @@ main.grid {
   border: 1px solid rgba(255, 255, 255, 0.1);
   white-space: nowrap;
 }
-
 .sys-pill.muted {
   color: #cbd5e1;
   background: rgba(255, 255, 255, 0.05);
   border-color: rgba(255, 255, 255, 0.08);
 }
-
 /* NTP-boksen – skal være en "container", ikke en pill */
 #ntp_status {
   display: inline-block;
@@ -215,7 +197,6 @@ main.grid {
     Roboto,
     sans-serif;
 }
-
 /* Linjene som diag.js skriver inn */
 #ntp_status > div {
   display: inline-block;

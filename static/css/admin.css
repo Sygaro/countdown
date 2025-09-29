@@ -1,5 +1,4 @@
 /* static/css/admin.css */
-
 /* ===========================
    Variabler (single source)
    =========================== */
@@ -8,7 +7,6 @@
   --actions-h: 1px; /* sticky actions bar høyde-reservasjon */
   --preview-w: 38vw; /* bredde på preview-dock (widescreen) */
 }
-
 /* ===========================
    Små hjelpere / badges
    =========================== */
@@ -26,7 +24,6 @@
   color: #e6edf3;
   background: #374151;
 }
-
 .row {
   display: flex;
   flex-wrap: wrap;
@@ -45,7 +42,6 @@
   padding: 2px 6px;
   border-radius: 6px;
 }
-
 /* ===========================
    Sticky actions (robust)
    =========================== */
@@ -65,7 +61,6 @@
   gap: 6px;
   flex-wrap: wrap;
 }
-
 /* For at sticky skal fungere må ingen forfedre bryte den */
 html,
 body,
@@ -76,7 +71,6 @@ main,
   transform: none !important;
   contain: none !important;
 }
-
 /* Knapper i actions */
 .actions .mode-btn,
 .actions button,
@@ -91,7 +85,6 @@ main,
   font-size: 0.95rem;
   border-radius: 12px;
 }
-
 .actions button:not(.primary),
 .actions .mode-btn {
   background: #121a2b;
@@ -111,7 +104,6 @@ main,
 .actions .primary:active {
   transform: translateY(1px);
 }
-
 .actions .primary {
   background: var(--accent);
   color: #0b0f14;
@@ -122,7 +114,6 @@ main,
 .actions .primary:hover {
   filter: brightness(1.05);
 }
-
 /* Hint-tekst: ekspander bare på hover */
 #save_hint {
   display: inline-block;
@@ -145,7 +136,6 @@ main,
     display: none;
   }
 }
-
 /* ===========================
    Preview dock
    =========================== */
@@ -169,7 +159,6 @@ main,
   border: 0;
   background: #0b0f14;
 }
-
 /* Widescreen: reserver plass til dock */
 @media (min-width: 1100px) {
   body.admin {
@@ -189,7 +178,6 @@ main,
     grid-auto-flow: row;
   }
 }
-
 /* Små skjermer: dock under innholdet */
 @media (max-width: 1099.98px) {
   body.admin {
@@ -220,7 +208,6 @@ main,
     padding-right: 0 !important;
   }
 }
-
 /* ===========================
    Kompakt admin-layout
    =========================== */
@@ -266,7 +253,6 @@ main,
 .admin button.primary:hover {
   filter: brightness(1.05);
 }
-
 /* ===========================
    Bakgrunn/lag og scroll
    =========================== */
@@ -277,7 +263,6 @@ body {
   background-image: none !important;
   overflow-y: auto; /* lar hele siden scrolle */
 }
-
 /* Dynamisk gradientlag under innholdet */
 #dynbg-layer {
   position: fixed;
@@ -285,7 +270,6 @@ body {
   z-index: 0;
   pointer-events: none;
 }
-
 /* Alt vanlig innhold skal være foran bakgrunnslag */
 #app-root,
 main,
@@ -294,11 +278,9 @@ header,
   position: relative;
   z-index: 1;
 }
-
 /* ===========================
    Picsum – dialog + CSS-only
    =========================== */
-
 /* <dialog> variant */
 .picsum-modal {
   border: 0;
@@ -323,7 +305,6 @@ header,
   flex-direction: column;
   overflow: hidden; /* innhold skal scrolle */
 }
-
 /* Felles header/footer */
 .pm-header,
 .pm-footer {
@@ -355,7 +336,6 @@ header,
   opacity: 0.8;
   font-size: 12px;
 }
-
 /* Selve galleriet – én kilde for sannhet (scroll-fix her) */
 .pm-grid {
   grid-auto-rows: auto !important;
@@ -374,7 +354,6 @@ header,
   overflow-x: hidden;
   min-height: 0;
 }
-
 /* Fliser – brukes i begge varianter */
 .pm-grid .tile,
 .pm-tile {
@@ -414,14 +393,12 @@ header,
   padding: 4px 6px;
   font-size: 12px;
 }
-
 /* Valgt-flis – tydelig markering */
 .pm-grid .tile.selected,
 .pm-selected {
   outline: 3px solid #4dabf7;
   box-shadow: 0 0 0 3px #4dabf7 inset;
 }
-
 /* CSS-only backdrop (fallback) */
 .pm-backdrop {
   position: fixed;
@@ -432,11 +409,9 @@ header,
   justify-content: center;
   z-index: 9999;
 }
-
 /* ===========================
    Diverse
    =========================== */
-
 /* pill/dot – brukes av admin-«synk»-indikator */
 .pill.dot {
   display: inline-block;
@@ -462,24 +437,19 @@ header,
 .picsum-modal .pm-grid {
   /* Sørg for at hver rad får plass til innholdet sitt, ikke "del høyden likt" */
   grid-auto-rows: max-content !important;
-
   /* Rader skal pakkes oppover og starte øverst (hindrer "strekk") */
   align-content: start !important;
-
   /* Denne beholder vi og forsterker: scrolling skjer i gridet */
   overflow-y: auto !important;
   overflow-x: hidden !important;
-
   /* Sikre at flex-forhold ikke presser høyden */
   flex: 1 1 auto !important;
   min-height: 0 !important;
 }
-
 /* Ikke la enkelttiles forsøke å strekke seg vertikalt i gridet */
 .picsum-modal .pm-grid .tile {
   align-self: start;
 }
-
 /* Bildene skal ha stabil høyde og aldri "klemmes" vertikalt */
 .picsum-modal .pm-grid .tile img {
   height: 140px; /* som før */

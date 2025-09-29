@@ -1,7 +1,6 @@
 // static/js/ui.js
 // Felles hjelper: fetch, toast, mm:ss (og signed), og nav-aktiv.
 // Både som ESM-export og på window for enkel feilsøking.
-
 export const ui = (function () {
   function qs(sel, root) {
     if (!root) root = document;
@@ -11,7 +10,6 @@ export const ui = (function () {
     if (!root) root = document;
     return Array.prototype.slice.call(root.querySelectorAll(sel));
   }
-
   function toast(msg, tone) {
     var el = qs("#_toast");
     if (!el) {
@@ -39,18 +37,15 @@ export const ui = (function () {
       el.style.opacity = "0";
     }, 1600);
   }
-
   function _handle(r) {
     if (!r.ok) throw new Error("HTTP " + r.status);
     var ct = r.headers.get("content-type") || "";
     if (ct.indexOf("application/json") !== -1) return r.json();
     return r.text();
   }
-
   function get(url) {
     return fetch(url, { cache: "no-store" }).then(_handle);
   }
-
   function post(url, body, opts) {
     opts = opts || {};
     var headers = { "Content-Type": "application/json" };
@@ -61,21 +56,18 @@ export const ui = (function () {
       body: JSON.stringify(body || {}),
     }).then(_handle);
   }
-
   function activateNav(path) {
     qsa(".nav a.link").forEach(function (a) {
       if (a.getAttribute("href") === path) a.classList.add("active");
       else a.classList.remove("active");
     });
   }
-
   function mmss(ms) {
     var s = Math.max(0, Math.floor(Number(ms || 0) / 1000));
     var mm = Math.floor(s / 60);
     var ss = s % 60;
     return (mm < 10 ? "0" + mm : mm) + ":" + (ss < 10 ? "0" + ss : ss);
   }
-
   function signedMmss(ms, unicodeMinus) {
     if (unicodeMinus == null) unicodeMinus = true;
     var n = Number(ms || 0);
@@ -87,7 +79,6 @@ export const ui = (function () {
     var sign = neg ? (unicodeMinus ? "−" : "-") : "";
     return sign + (mm < 10 ? "0" + mm : mm) + ":" + (ss < 10 ? "0" + ss : ss);
   }
-
   return {
     qs: qs,
     qsa: qsa,
@@ -99,7 +90,6 @@ export const ui = (function () {
     signedMmss: signedMmss,
   };
 })();
-
 try {
   window.ui = window.ui || ui;
 } catch (e) {}

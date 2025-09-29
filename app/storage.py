@@ -1,6 +1,5 @@
 # File: app/storage.py
 # Purpose: Enkelt, moderne config-IO uten legacy. Kun size_vmin. Lager 'layer' i dynamic-bg.
-
 from __future__ import annotations
 import json
 import os
@@ -11,7 +10,6 @@ from datetime import datetime
 from .settings import CONFIG_PATH
 from collections import OrderedDict
 from typing import Mapping
-
 # ── defaults ──────────────────────────────────────────────────────────────────
 _DEFAULTS: Dict[str, Any] = {
     "mode": "daily",
@@ -121,13 +119,10 @@ _DEFAULTS: Dict[str, Any] = {
     "overlays": [],
     "admin_password": None,
 }
-
 # --- compact JSON support for selected lists ---------------------------------
 class _CompactList(list):
     """Marker lister som skal skrives som ett objekt per linje."""
-
     pass
-
 def _mark_compact_lists(obj):
     """
     Gå rekursivt gjennom objektet og pakk bestemte lister i _CompactList,
@@ -144,18 +139,14 @@ def _mark_compact_lists(obj):
     elif isinstance(obj, list):
         return [_mark_compact_lists(x) for x in obj]
     return obj
-
 def _int_or_none(x) -> int | None:
     try:
         return int(x)  # str, float, bool osv. vil forsøkes
     except Exception:
         return None
-
 # ── visual reset ──────────────────────────────────────────────────────────────
 # File: app/storage.py
-
 # app/storage.py
-
 def build_visual_reset_patch(
     defaults: Dict[str, Any],
     *,
@@ -183,17 +174,14 @@ def build_visual_reset_patch(
     """
     d = json.loads(json.dumps(defaults))  # dyp kopi
     patch: Dict[str, Any] = {}
-
     # Top-level faser
     if phase_colors:
         for k in ("color_normal", "color_warn", "color_alert", "color_over"):
             patch[k] = d[k]
-
     # UI-meldinger (blank hvis ønsket)
     if ui_messages_text:
         patch["message_primary"] = ""
         patch["message_secondary"] = ""
-
     # Klokke
     if clock_color or clock_texts:
         patch["clock"] = {}
@@ -202,7 +190,6 @@ def build_visual_reset_patch(
         if clock_texts:
             patch["clock"]["message_primary"] = ""
             patch["clock"]["message_secondary"] = ""
-
     # Theme
     theme_patch: Dict[str, Any] = {}
     if theme_messages:
@@ -212,7 +199,6 @@ def build_visual_reset_patch(
         }
     if digits:
         theme_patch["digits"] = {"size_vmin": d["theme"]["digits"]["size_vmin"]}
-
     # Background
     if any([bg_mode, bg_solid, bg_gradient, bg_image, bg_picsum, bg_dynamic]):
         b = d["theme"]["background"]
@@ -234,14 +220,11 @@ def build_visual_reset_patch(
                 # Ekskluder id i patch for å BEHOLDE eksisterende id
                 picsum.pop("id", None)
             bgp["picsum"] = picsum
-
         if bg_dynamic:
             bgp["dynamic"] = b["dynamic"]
         theme_patch["background"] = bgp
-
     if theme_patch:
         patch["theme"] = theme_patch
-
     # Nedtelling & adferd
     if behavior_settings:
         patch["warn_minutes"] = d["warn_minutes"]
@@ -254,18 +237,14 @@ def build_visual_reset_patch(
         patch["messages_position"] = d["messages_position"]
         patch["use_blink"] = d["use_blink"]
         patch["use_phase_colors"] = d["use_phase_colors"]
-
     # NY: planlegging (kun daily_time)
     if reset_daily_time:
         # Viktig: rør ikke mode/once_at/duration_* her.
         patch["daily_time"] = d["daily_time"]
-
     return patch
-
 # ── utils ─────────────────────────────────────────────────────────────────────
 def get_defaults() -> Dict[str, Any]:
     return json.loads(json.dumps(_DEFAULTS))  # dyp kopi
-
 def _order_like_defaults(
     defaults: Mapping[str, Any], data: Dict[str, Any]
 ) -> "OrderedDict[str, Any]":
@@ -293,13 +272,11 @@ def _order_like_defaults(
         else:
             ordered[key] = data_value
     return ordered
-
 # --- robust, stabil JSON-dumper med støtte for _CompactList -------------------
 def _write_json_value(fp, value: Any, indent: int, level: int) -> None:
     """Skriver JSON-verdier deterministisk. Unngår private encoder-APIer."""
     indent_current = " " * (indent * level)
     indent_inner = " " * (indent * (level + 1))
-
     if isinstance(value, dict) or isinstance(value, OrderedDict):
         items = list(value.items())
         if not items:
@@ -315,7 +292,6 @@ def _write_json_value(fp, value: Any, indent: int, level: int) -> None:
                 fp.write("\n")
         fp.write(f"{indent_current}}}")
         return
-
     if isinstance(value, list):
         # Kompakt én-linje-per-objekt for _CompactList
         if isinstance(value, _CompactList):
@@ -331,7 +307,6 @@ def _write_json_value(fp, value: Any, indent: int, level: int) -> None:
             fp.write(",\n".join(lines))
             fp.write(f"\n{indent_current}]")
             return
-
         # Vanlige lister: pent med indent
         if not value:
             fp.write("[]")
@@ -346,15 +321,12 @@ def _write_json_value(fp, value: Any, indent: int, level: int) -> None:
                 fp.write("\n")
         fp.write(f"{indent_current}]")
         return
-
     # Skalarer
     fp.write(json.dumps(value, ensure_ascii=False))
-
 def _dump_json_to_file(fp, obj: Any, indent: int = 2) -> None:
     """Skriver `obj` til fp med ønsket layout og avsluttende linjeskift."""
     _write_json_value(fp, obj, indent=indent, level=0)
     fp.write("\n")
-
 def _atomic_write(path: str, data: Dict[str, Any]) -> None:
     """
     Atomisk skriving til path.
@@ -364,13 +336,10 @@ def _atomic_write(path: str, data: Dict[str, Any]) -> None:
     """
     dirpath = os.path.dirname(path) or "."
     os.makedirs(dirpath, exist_ok=True)
-
     # 1) Kanoniser rekkefølge etter _DEFAULTS
     serializable = _order_like_defaults(_DEFAULTS, data)
-
     # 2) Merk lister som skal være kompakte (f.eks. "picsum_catalog")
     serializable = _mark_compact_lists(serializable)
-
     # 3) Dump med robust egen-dumper (unngår private json internals)
     fd, tmp = tempfile.mkstemp(prefix=".config.", dir=dirpath)
     try:
@@ -385,7 +354,6 @@ def _atomic_write(path: str, data: Dict[str, Any]) -> None:
                 os.unlink(tmp)
         except Exception:
             pass
-
 def _deep_merge(dst: Dict[str, Any], src: Dict[str, Any]) -> Dict[str, Any]:
     for k, v in (src or {}).items():
         if isinstance(v, dict) and isinstance(dst.get(k), dict):
@@ -393,14 +361,12 @@ def _deep_merge(dst: Dict[str, Any], src: Dict[str, Any]) -> Dict[str, Any]:
         else:
             dst[k] = v
     return dst
-
 def _clamp01(x, d=1.0) -> float:
     try:
         v = float(x)
     except Exception:
         v = d
     return max(0.0, min(1.0, v))
-
 def _i(v, d=None):
     if v in (None, ""):
         return d
@@ -408,7 +374,6 @@ def _i(v, d=None):
         return int(v)
     except Exception:
         return d
-
 def _b(v, d: bool) -> bool:
     if isinstance(v, bool):
         return v
@@ -419,7 +384,6 @@ def _b(v, d: bool) -> bool:
         if s in ("0", "false", "no", "n", "off"):
             return False
     return d
-
 # ── coerce/validate/clean ─────────────────────────────────────────────────────
 # === REPLACE ENTIRE _coerce FUNCTION ===
 def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
@@ -435,12 +399,10 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     ):
         if k in cfg:
             cfg[k] = _i(cfg[k], _DEFAULTS.get(k, 0))
-
     # strings
     for k in ("message_primary", "message_secondary", "daily_time", "once_at"):
         if cfg.get(k) is None:
             cfg[k] = ""
-
     # bools
     for k, d in (
         ("show_message_primary", _DEFAULTS["show_message_primary"]),
@@ -450,7 +412,6 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         ("use_phase_colors", _DEFAULTS["use_phase_colors"]),
     ):
         cfg[k] = _b(cfg.get(k, d), d)
-
     for k in (
         "target_time_after",
         "messages_position",
@@ -461,10 +422,8 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     ):
         if cfg.get(k) is None:
             cfg[k] = _DEFAULTS[k]
-
     # theme
     th = _deep_merge(get_defaults()["theme"], cfg.get("theme") or {})
-
     # digits: kun size_vmin
     dg = th.get("digits", {}) or {}
     try:
@@ -475,7 +434,6 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     dg.pop("size_vw", None)
     dg.pop("size_vh", None)
     th["digits"] = dg
-
     # messages
     msg = th.get("messages", {}) or {}
     for key in ("primary", "secondary"):
@@ -496,15 +454,12 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
             m["color"] = _DEFAULTS["theme"]["messages"][key]["color"]
         msg[key] = m
     th["messages"] = msg
-
     # background
     bg = th.get("background") or {}
-
     mode = (bg.get("mode") or "solid").lower()
     if mode not in ("solid", "gradient", "image", "dynamic", "picsum"):
         mode = "solid"
     bg["mode"] = mode
-
     # gradient
     g = bg.get("gradient") or {}
     try:
@@ -513,7 +468,6 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         ang = 180
     g["angle_deg"] = max(0, min(360, ang))
     bg["gradient"] = g
-
     # image
     im = bg.get("image") or {}
     im["opacity"] = _clamp01(im.get("opacity", 1.0), 1.0)
@@ -523,7 +477,6 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     if isinstance(im.get("url"), str):
         im["url"] = im["url"].strip()
     bg["image"] = im
-
     # dynamic
     # dynamic
     dyn = bg.get("dynamic") or {}
@@ -531,17 +484,14 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         dyn["from"] = _DEFAULTS["theme"]["background"]["dynamic"]["from"]
     if not isinstance(dyn.get("to"), str) or not dyn.get("to"):
         dyn["to"] = _DEFAULTS["theme"]["background"]["dynamic"]["to"]
-
     # limits (tillat å mangle → bruk defaults)
     lim_def = _DEFAULTS["theme"]["background"]["dynamic"]["limits"]
     limits = dyn.get("limits") or {}
-
     def _lim(k):
         try:
             return float(limits.get(k, lim_def[k]))
         except Exception:
             return float(lim_def[k])
-
     rot_min = max(0.1, _lim("rotate_min_s"))
     rot_max = max(rot_min, _lim("rotate_max_s"))
     blur_min = max(0.0, _lim("blur_min_px"))
@@ -557,7 +507,6 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         "opacity_max": op_max,
     }
     dyn["limits"] = limits
-
     # numeriske felt, klampet iht. limits
     def _clamp(v, lo, hi, d):
         try:
@@ -565,7 +514,6 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         except Exception:
             x = float(d)
         return max(lo, min(hi, x))
-
     dyn["rotate_s"] = int(
         _clamp(
             dyn.get("rotate_s"),
@@ -588,17 +536,14 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         limits["opacity_max"],
         _DEFAULTS["theme"]["background"]["dynamic"]["opacity"],
     )
-
     bm = str(dyn.get("base_mode", "auto")).lower()
     if bm not in ("auto", "solid", "gradient", "image", "picsum"):
         bm = "auto"
     dyn["base_mode"] = bm
-
     layer = str(dyn.get("layer", "under")).lower()
     if layer not in ("under", "over"):
         layer = "under"
     dyn["layer"] = layer
-
     # NYTT: z-index verdier
     try:
         dyn["z_under"] = int(
@@ -612,7 +557,6 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         )
     except Exception:
         dyn["z_over"] = _DEFAULTS["theme"]["background"]["dynamic"]["z_over"]
-
     # NYTT: animasjonsskala
     try:
         s = float(
@@ -623,7 +567,6 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     except Exception:
         s = _DEFAULTS["theme"]["background"]["dynamic"]["anim_scale"]
     dyn["anim_scale"] = max(0.5, min(2.0, s))
-
     # NYTT: geometri for radialene + conic-start
     def _pair_floats(v, dflt):
         v = v if isinstance(v, (list, tuple)) and len(v) == 2 else dflt
@@ -634,12 +577,10 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
             except Exception:
                 out.append(float(dflt[i]))
         return out
-
     sh1 = dyn.get("shape1") or {}
     sh2 = dyn.get("shape2") or {}
     d_sh1 = _DEFAULTS["theme"]["background"]["dynamic"]["shape1"]
     d_sh2 = _DEFAULTS["theme"]["background"]["dynamic"]["shape2"]
-
     dyn["shape1"] = {
         "size_vmax": _pair_floats(sh1.get("size_vmax"), d_sh1["size_vmax"]),
         "pos_pct": [
@@ -656,7 +597,6 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         ],
         "stop_pct": max(0.0, min(100.0, float(sh2.get("stop_pct", d_sh2["stop_pct"])))),
     }
-
     try:
         cdeg = float(
             dyn.get(
@@ -667,9 +607,7 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     except Exception:
         cdeg = _DEFAULTS["theme"]["background"]["dynamic"]["conic_from_deg"]
     dyn["conic_from_deg"] = max(0.0, min(360.0, cdeg))
-
     bg["dynamic"] = dyn
-
     # picsum
     pc = bg.get("picsum") or {}
     pc["fit"] = (pc.get("fit") or "cover").lower()
@@ -704,18 +642,15 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         ar_interval = _DEFAULTS["theme"]["background"]["picsum"]["auto_rotate"][
             "interval_seconds"
         ]
-
     ar_interval = max(5, min(24 * 60 * 60, ar_interval))  # clamp 5s..24h
     strategy = str(ar.get("strategy", "shuffle")).lower()
     if strategy not in ("shuffle", "sequential"):
         strategy = "shuffle"
-
     try:
         last_switch_ms = int(ar.get("last_switch_ms") or 0)
     except Exception:
         last_switch_ms = 0
     last_index = _int_or_none(ar.get("last_index"))
-
     pc["auto_rotate"] = {
         "enabled": ar_enabled,
         "interval_seconds": ar_interval,
@@ -723,7 +658,6 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         "last_switch_ms": max(0, last_switch_ms),
         "last_index": last_index,
     }
-
     # NEW: sanitize id – keep only positive ints, otherwise drop
     if "id" in pc:
         try:
@@ -734,7 +668,6 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
                 pc.pop("id", None)
         except Exception:
             pc.pop("id", None)
-
     # Bruk picsum hvis bakgrunn er 'picsum' ELLER hvis dynamic.base_mode er 'picsum'
     use_picsum_base = (mode == "picsum") or (
         mode == "dynamic" and dyn.get("base_mode") == "picsum"
@@ -751,7 +684,6 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     bg["picsum"] = pc
     th["background"] = bg
     cfg["theme"] = th
-
     # clock
     clk = _deep_merge(get_defaults()["clock"], cfg.get("clock") or {})
     clk["with_seconds"] = bool(clk.get("with_seconds", False))
@@ -786,16 +718,13 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         v = clk.get(key, "")
         clk[key] = v if isinstance(v, str) else ("" if v is None else str(v))
     cfg["clock"] = clk
-
     # hms threshold
     hm = _i(cfg.get("hms_threshold_minutes"), _DEFAULTS["hms_threshold_minutes"])
     cfg["hms_threshold_minutes"] = max(0, min(720, hm))
-
     # admin pw
     if not cfg.get("admin_password"):
         cfg["admin_password"] = None
     return cfg
-
 def _validate(cfg: Dict[str, Any]) -> Tuple[bool, str]:
     m = cfg.get("mode")
     if m not in ("daily", "once", "duration", "clock"):
@@ -827,7 +756,6 @@ def _validate(cfg: Dict[str, Any]) -> Tuple[bool, str]:
         if dm <= 0:
             return False, "duration_minutes må være > 0"
     return True, ""
-
 def _clean_by_mode(cfg: Dict[str, Any]) -> Dict[str, Any]:
     m = cfg.get("mode")
     if m == "daily":
@@ -841,13 +769,11 @@ def _clean_by_mode(cfg: Dict[str, Any]) -> Dict[str, Any]:
         cfg["once_at"] = ""
         cfg["duration_started_ms"] = 0
     return cfg
-
 # ── overlays ──────────────────────────────────────────────────────────────────
 def _sanitize_overlays(seq: Any) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
     if not isinstance(seq, list):
         return out
-
     ALLOWED_POS = {
         "top-left",
         "top-center",
@@ -861,24 +787,20 @@ def _sanitize_overlays(seq: Any) -> List[Dict[str, Any]]:
     }
     ALLOWED_VISIBLE = {"countdown", "clock"}
     ALLOWED_URL_SCHEMES = ("http://", "https://")
-
     for idx, it in enumerate(seq, start=1):
         if not isinstance(it, dict):
             continue
         if (it.get("type") or "image") != "image":
             continue
-
         url = str(it.get("url") or "").strip()
         if url and not url.startswith(ALLOWED_URL_SCHEMES):
             if url.startswith("//"):
                 url = "https:" + url
             elif ":" in url:
                 url = ""
-
         pos = str(it.get("position") or "top-right").strip().lower()
         if pos not in ALLOWED_POS:
             pos = "top-right"
-
         if "visible_in" in it:
             src = it.get("visible_in")
             if src is None:
@@ -889,18 +811,15 @@ def _sanitize_overlays(seq: Any) -> List[Dict[str, Any]]:
                 vis = ["countdown", "clock"]
         else:
             vis = ["countdown", "clock"]
-
         def _f(v: Any, d: float) -> float:
             try:
                 return float(v)
             except Exception:
                 return d
-
         try:
             z_index = int(it.get("z_index") or 10)
         except Exception:
             z_index = 10
-
         tint = it.get("tint") or {}
         out.append(
             {
@@ -922,7 +841,6 @@ def _sanitize_overlays(seq: Any) -> List[Dict[str, Any]]:
             }
         )
     return out
-
 def _merge_overlays_by_id(
     old_list: Any, new_list: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
@@ -936,7 +854,6 @@ def _merge_overlays_by_id(
         n = {**n, "id": nid}
         by_id[nid] = n
     return list(by_id.values())
-
 # ── public API ────────────────────────────────────────────────────────────────
 def load_config() -> Dict[str, Any]:
     path = str(CONFIG_PATH)
@@ -955,7 +872,6 @@ def load_config() -> Dict[str, Any]:
     if not ok:
         cfg = _coerce(get_defaults())
     return _clean_by_mode(cfg)
-
 def replace_config(new_cfg: Dict[str, Any]) -> Dict[str, Any]:
     cfg_in = _deep_merge(get_defaults(), new_cfg or {})
     if "overlays" in new_cfg:
@@ -971,15 +887,12 @@ def replace_config(new_cfg: Dict[str, Any]) -> Dict[str, Any]:
     cfg = _clean_by_mode(cfg)
     _atomic_write(str(CONFIG_PATH), cfg)
     return cfg
-
 def save_config_patch(patch: Dict[str, Any]) -> Dict[str, Any]:
     current = load_config()
     merged = _deep_merge(get_defaults(), current)
-
     overlays_mode = "merge"
     if isinstance(patch, dict):
         overlays_mode = str(patch.get("overlays_mode") or "merge").lower()
-
     if isinstance(patch, dict) and "overlays" in patch:
         new_ov = _sanitize_overlays(patch.get("overlays"))
         if overlays_mode == "replace":
@@ -992,10 +905,8 @@ def save_config_patch(patch: Dict[str, Any]) -> Dict[str, Any]:
         patch = dict(patch)
         patch.pop("overlays", None)
         patch.pop("overlays_mode", None)
-
     _deep_merge(merged, patch or {})
     return replace_config(merged)
-
 def set_mode(
     mode: str,
     *,
@@ -1024,7 +935,6 @@ def set_mode(
     else:
         raise ValueError("Ugyldig mode")
     return replace_config(cfg)
-
 def start_duration(minutes: int) -> Dict[str, Any]:
     if minutes <= 0:
         raise ValueError("minutes må være > 0")
@@ -1035,7 +945,6 @@ def start_duration(minutes: int) -> Dict[str, Any]:
     cfg["duration_started_ms"] = now_ms
     cfg["once_at"] = ""
     return replace_config(cfg)
-
 def clear_duration_and_switch_to_daily() -> Dict[str, Any]:
     cfg = load_config()
     cfg["duration_started_ms"] = 0

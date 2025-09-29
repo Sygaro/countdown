@@ -5,7 +5,6 @@
   "use strict";
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
-
   const state = {
     cfg: null,
     tick: null,
@@ -15,7 +14,6 @@
     picsum: { id: null, pollTimer: null },
   };
   if (state.isPreview) document.documentElement.classList.add("is-preview");
-
   const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
   const fmtMMSS = (ms) => {
     const neg = ms < 0 ? "-" : "";
@@ -39,7 +37,6 @@
   const setText = (el, text) => {
     if (el) el.textContent = text;
   };
-
   function applyDigitsSize() {
     const vmin = Number(state.cfg?.theme?.digits?.size_vmin ?? 14);
     const el = $("#digits");
@@ -58,7 +55,6 @@
     ["#msg_primary_above", "#msg_primary_below"].forEach((sel) => applyTo(sel, p));
     ["#msg_secondary_above", "#msg_secondary_below"].forEach((sel) => applyTo(sel, s));
   }
-
   // ---------- Unified Picsum rotate (erstatter picsum-rotate.js) ----------
   function picsumShouldRun() {
     const bg = state.cfg?.theme?.background || {};
@@ -70,22 +66,18 @@
     }
     return false;
   }
-
   // HARD teardown når vi ikke er i picsum-modus
   function picsumTearDownIfInactive() {
     if (picsumShouldRun()) return;
-
     // 1) Stopp videre polling
     clearTimeout(state.picsum.pollTimer);
     state.picsum.pollTimer = null;
     state.picsum.id = null;
-
     // 2) Fjern ev. eldre hooks (om vi skulle ha dem i fremtiden)
     try {
       if (window.ViewBg?.clearPicsum) window.ViewBg.clearPicsum();
       if (window.ViewBg?.disablePicsum) window.ViewBg.disablePicsum();
     } catch {}
-
     // 3) Hard-reset alle bakgrunns-egenskaper som Picsum kan ha satt
     const el = document.body;
     if (el) {
@@ -97,7 +89,6 @@
       el.style.backgroundPosition = "";
     }
   }
-
   function picsumSchedule(ms) {
     clearTimeout(state.picsum.pollTimer);
     state.picsum.pollTimer = setTimeout(picsumPoll, Math.max(750, Math.min(ms || 5000, 24 * 60 * 60 * 1000)));
@@ -110,20 +101,17 @@
       }
       const r = await fetch("/api/picsum/next", { cache: "no-store" });
       const js = await r.json();
-
       // Forventet: { ok, id, enabled, interval_seconds, next_in_seconds, updated }
       if (!js || js.ok === false || js.enabled === false) {
         picsumSchedule(5000);
         return;
       }
-
       // Oppdatér bakgrunn straks når backend sier “updated”
       if (js.updated && Number.isFinite(js.id) && js.id > 0) {
         const curBg = state.cfg?.theme?.background || {};
         const nextBg = JSON.parse(JSON.stringify(curBg));
         nextBg.picsum = nextBg.picsum || {};
         nextBg.picsum.id = js.id;
-
         // Prøv å forhåndslaste – men UANSETT: bytt etterpå, så vi ikke “stivner”.
         try {
           const url = window.ViewBg.buildPicsumUrlFromBg(nextBg);
@@ -131,22 +119,18 @@
         } catch {
           // Ignorer feil/timeout – vi faller tilbake til umiddelbart bytte
         }
-
         state.picsum.id = js.id;
         state.cfg.theme = state.cfg.theme || {};
         state.cfg.theme.background = nextBg;
         window.ViewBg.applyBackground(document.body, nextBg);
         ensureForeground();
-
         const wait = clamp((parseInt(js.interval_seconds, 10) || 5) * 1000, 1000, 24 * 60 * 60 * 1000);
         picsumSchedule(wait);
         return;
       }
-
       // Ikke bytte ennå → poll hurtigere nær slutten
       const nextIn = clamp(parseInt(js.next_in_seconds, 10) || 0, 0, 24 * 60 * 60);
       picsumSchedule(nextIn > 3 ? 5000 : 1000);
-
       // Første oppstart: ta id selv om updated=false
       if (!state.picsum.id && Number.isFinite(js.id) && js.id > 0) {
         const curBg = state.cfg?.theme?.background || {};
@@ -168,7 +152,6 @@
       picsumSchedule(5000);
     }
   }
-
   // ---------- Sørg for at innhold alltid ligger foran bakgrunnslag ----------
   function ensureForeground() {
     ["#view_countdown", "#view_clock", "#screen", "#digits", "#msgs_above", "#msgs_below", "#clock_time", "#clock_msgs"]
@@ -192,37 +175,28 @@
       });
     });
   }
-
   function renderCountdown() {
     picsumTearDownIfInactive();
-
     $("#view_clock")?.style && ($("#view_clock").style.display = "none");
     const root = $("#view_countdown");
     if (!root) return;
     root.style.display = "flex";
-
     window.ViewBg.applyBackground(document.body, state.cfg?.theme?.background);
     ensureForeground();
-
     if (state.clockTimer) {
       clearInterval(state.clockTimer);
       state.clockTimer = null;
     }
     $("#clock_time") && ($("#clock_time").style.display = "none");
-
     applyDigitsSize();
     applyMessageStyles();
-
     const c = state.cfg;
     const t = state.tick || { state: "idle", mode: "normal", signed_display_ms: 0, blink: false, target_hhmm: null };
-
     const thresholdMs = (c.hms_threshold_minutes ?? 60) * 60 * 1000;
     const isActive = t.state === "countdown" || t.state === "overrun";
     const ms = isActive ? t.signed_display_ms : 0;
-
     const useHMS = Math.abs(ms) >= thresholdMs;
     setText($("#digits"), useHMS ? fmtHMS(ms) : fmtMMSS(ms));
-
     let color = c.color_normal;
     if (c.use_phase_colors) {
       if (t.state === "overrun" || t.signed_display_ms < 0) color = c.color_over || c.color_alert;
@@ -234,7 +208,6 @@
       digits.style.color = color;
       digits.classList.toggle("blink", !!(c.use_blink && t.blink));
     }
-
     const targetPrim =
       c.show_target_time && c.show_message_primary && c.target_time_after === "primary" && t.target_hhmm
         ? ` ${t.target_hhmm}`
@@ -243,10 +216,8 @@
       c.show_target_time && c.show_message_secondary && c.target_time_after === "secondary" && t.target_hhmm
         ? ` ${t.target_hhmm}`
         : "";
-
     const prim = c.show_message_primary ? (c.message_primary || "") + targetPrim : "";
     const sec = c.show_message_secondary ? (c.message_secondary || "") + targetSec : "";
-
     const above = c.messages_position === "above";
     $("#msgs_above").style.display = above ? "block" : "none";
     $("#msgs_below").style.display = above ? "none" : "block";
@@ -254,28 +225,22 @@
     setText($("#msg_secondary_above"), above ? sec : "");
     setText($("#msg_primary_below"), !above ? prim : "");
     setText($("#msg_secondary_below"), !above ? sec : "");
-
     window.ViewOverlays.applyOverlays(state.cfg);
   }
-
   function renderClock() {
     picsumTearDownIfInactive();
     const viewCountdown = $("#view_countdown");
     if (viewCountdown) viewCountdown.style.display = "none";
-
     const root = $("#view_clock, #view_screen");
     const clkEl = $("#clock_time, #screen_clock");
     const wrap = $("#clock_msgs");
     const elP = $("#clock_msg_primary");
     const elS = $("#clock_msg_secondary");
     if (!root || !clkEl || !wrap || !elP || !elS) return;
-
     root.style.display = "flex";
     root.style.padding = `${3}vh ${5}vw`;
-
     window.ViewBg.applyBackground(document.body, state.cfg?.theme?.background);
     ensureForeground();
-
     const clk = state.cfg?.clock || {};
     const sizeVmin = clamp(Number(clk.size_vmin ?? 12), 6, 30);
     Object.assign(clkEl.style, {
@@ -284,7 +249,6 @@
       display: "block",
       color: clk.color || "#e6edf3",
     });
-
     const useOwn = !!clk.use_clock_messages;
     if (!useOwn) {
       root.style.flexDirection = "row";
@@ -294,10 +258,8 @@
       const msgS = (clk.message_secondary || "").trim();
       const showP = !!msgP,
         showS = !!msgS;
-
       const msgPos = (clk.messages_position || "right").toLowerCase();
       const msgAlign = (clk.messages_align || "center").toLowerCase();
-
       if (msgPos === "left" || msgPos === "right") {
         root.style.flexDirection = "row";
         wrap.style.flexDirection = "column";
@@ -314,17 +276,14 @@
         root.style.gap = "1.25vmin";
         wrap.style.marginLeft = wrap.style.marginRight = "0";
       }
-
       wrap.style.display = showP || showS ? "flex" : "none";
       wrap.style.alignItems = { start: "flex-start", center: "center", end: "flex-end" }[msgAlign] || "center";
       wrap.style.textAlign = { start: "left", center: "center", end: "right" }[msgAlign] || "center";
       wrap.style.gap = "0.25rem";
-
       setText(elP, msgP);
       setText(elS, msgS);
       elP.style.display = showP ? "block" : "none";
       elS.style.display = showS ? "block" : "none";
-
       const themeMsg = state.cfg?.theme?.messages || {};
       const pTheme = themeMsg.primary || {};
       const sTheme = themeMsg.secondary || {};
@@ -335,7 +294,6 @@
       elS.style.fontWeight = String(sTheme.weight ?? 400);
       elS.style.color = String(sTheme.color ?? "#9aa4b2");
     }
-
     const clockPos = (state.cfg?.clock?.position || "center").toLowerCase();
     const posMap = {
       center: { ai: "center", jc: "center" },
@@ -351,7 +309,6 @@
     if (isColumn) m = { ai: m.jc, jc: m.ai };
     root.style.alignItems = m.ai;
     root.style.justifyContent = m.jc;
-
     if (state.clockTimer) {
       clearInterval(state.clockTimer);
       state.clockTimer = null;
@@ -365,16 +322,13 @@
     };
     update();
     state.clockTimer = setInterval(update, clk.with_seconds ? 1000 : 5000);
-
     window.ViewOverlays.applyOverlays(state.cfg);
   }
-
   function render() {
     const mode = (state.cfg?.mode || "daily").toLowerCase();
     if (mode === "clock") renderClock();
     else renderCountdown();
   }
-
   // Data
   async function fetchConfig() {
     const r = await fetch("/api/config");
@@ -417,7 +371,6 @@
       }
     } catch {}
   }
-
   // Heartbeat
   function sendHeartbeat() {
     const payload = JSON.stringify({ rev: state.lastCfgRev, page: "view" });
@@ -433,7 +386,6 @@
     }
   }
   setInterval(sendHeartbeat, 10000);
-
   // Fullscreen
   const fsBtn = $("#btn_fullscreen");
   let lastActivityTs = Date.now();
@@ -473,7 +425,6 @@
     });
     showFsBtn();
   }
-
   // Preview
   if (!state.isPreview) {
     firstLoad().catch(console.error);
@@ -494,7 +445,6 @@
       render();
     });
   }
-
   // Oppdater picsum-resolusjon ved viewport-endring
   let lastSize = { w: 0, h: 0 };
   setInterval(() => {

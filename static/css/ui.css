@@ -32,7 +32,6 @@ body {
   color: var(--text);
   background: radial-gradient(1200px 600px at 10% -10%, #142033 0, #0b0f14 60%);
 }
-
 /* === Dynamisk bakgrunn ============================= */
 :root {
   --bgdyn-from: #16233a;
@@ -64,7 +63,6 @@ body.bg-dyn::before {
     transform: rotate(360deg) scale(1.02);
   }
 }
-
 header {
   display: flex;
   flex-wrap: wrap;
@@ -182,7 +180,6 @@ pre {
   max-width: 100%;
   max-height: 100%;
 }
-
 /* Blinking digits */
 @keyframes flash {
   0%,
@@ -201,7 +198,6 @@ pre {
 .pv-digits.blink {
   animation: flash 0.8s steps(1) infinite;
 }
-
 /* Fullscreen-knapp i visning */
 .fs-btn {
   position: fixed;
@@ -228,7 +224,6 @@ input[type="datetime-local"] {
   background: #0e1420;
   border: 1px solid var(--border);
 }
-
 /* Forhåndsvisning */
 .preview {
   background: #0b0f14;
@@ -258,7 +253,6 @@ input[type="datetime-local"] {
   letter-spacing: 0.06em;
   font-size: clamp(4vw, 8vw, 10vw);
 }
-
 /* fullscreen toggle visibility */
 .is-fullscreen #btn_fullscreen,
 .is-fullscreen .fs-toggle,
@@ -268,7 +262,6 @@ input[type="datetime-local"] {
 .is-preview #btn_fullscreen {
   display: none !important;
 }
-
 /* Overlays */
 .overlays {
   position: fixed;
@@ -303,7 +296,6 @@ input[type="datetime-local"] {
   -webkit-mask-composite: source-over;
   mask-composite: add;
 }
-
 /* Responsive grid util */
 .grid-auto {
   display: grid;
@@ -320,7 +312,6 @@ body.admin main.grid-auto {
 .card {
   min-width: 0;
 }
-
 /* Felles statusdot + pill */
 .dot {
   display: inline-block;
@@ -339,7 +330,6 @@ body.admin main.grid-auto {
 .dot.bad {
   background: #e03131;
 } /* rød  */
-
 /* Liten “pill” med bare dot i seg (eks. sync/host) */
 .pill.dot {
   display: inline-flex;
@@ -352,7 +342,6 @@ body.admin main.grid-auto {
   line-height: 1;
   font-size: 12px;
 }
-
 /* Felles toast (brukes av ui.js/diag.js/admin.js) */
 .toast {
   position: fixed;
@@ -376,12 +365,10 @@ body.admin main.grid-auto {
   pointer-events: none;
   display: inline-block; /* <- viktig for innholdsbredden */
 }
-
 /* synlighet */
 .toast.show {
   opacity: 0.95;
 }
-
 /* valgfri tone-farge (svak tint) */
 .toast.ok {
   background: rgba(54, 179, 126, 0.95);

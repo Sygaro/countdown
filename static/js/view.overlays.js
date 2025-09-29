@@ -2,14 +2,12 @@
 // Ansvar: overlay-synlighet, bygging og plassering
 (function () {
   "use strict";
-
   function overlayIsVisible(ov, mode /* clock | countdown/daily */) {
     const v = ov && ov.visible_in;
     if (!Array.isArray(v)) return true;
     if (!v.length) return false;
     return mode === "clock" ? v.includes("clock") : v.includes("countdown");
   }
-
   // Enkel URL-sikringsvakt
   function safeUrl(u) {
     const s = String(u || "").trim();
@@ -23,14 +21,12 @@
       return s.startsWith("/") ? s : "";
     }
   }
-
   function placeOverlay(wrap, o) {
     const pos = String(o.position || "top-right").toLowerCase();
     const offVW = Number(o.offset_vw ?? 2);
     const offVH = Number(o.offset_vh ?? 2);
     const set = (p, v) => (wrap.style[p] = v);
     const clr = (...ps) => ps.forEach((p) => (wrap.style[p] = ""));
-
     switch (pos) {
       case "top-left":
         set("top", `${offVH}vh`);
@@ -89,7 +85,6 @@
         break;
     }
   }
-
   function buildOverlayEl(o) {
     const wrap = document.createElement("div");
     wrap.className = "overlay-wrap";
@@ -98,12 +93,9 @@
     wrap.style.display = "inline-block";
     wrap.style.zIndex = String(Number.isFinite(o.z_index) ? o.z_index : 10);
     wrap.style.width = `${Math.max(2, Number(o.size_vmin ?? 12))}vmin`;
-
     placeOverlay(wrap, o);
-
     const url = safeUrl(o.url);
     if (!url) return wrap; // ingenting å vise
-
     const img = document.createElement("img");
     img.src = url;
     img.alt = o.id || "overlay";
@@ -115,7 +107,6 @@
     img.style.zIndex = wrap.style.zIndex;
     img.style.position = "relative";
     wrap.appendChild(img);
-
     const tint = o.tint || {};
     const tintOpacity = Math.max(0, Math.min(1, Number(tint.opacity ?? 0)));
     if (tintOpacity > 0) {
@@ -133,7 +124,6 @@
     }
     return wrap;
   }
-
   function applyOverlays(cfg) {
     const root = document.getElementById("overlays");
     if (!root) return;
@@ -145,10 +135,8 @@
       pointerEvents: "none", // ikke fang klikk
     });
     root.innerHTML = "";
-
     const list = Array.isArray(cfg?.overlays) ? cfg.overlays : [];
     if (!list.length) return;
-
     const mode = cfg?.mode || "daily";
     for (const o of list) {
       if (o.type !== "image") continue;
@@ -158,6 +146,5 @@
       root.appendChild(buildOverlayEl({ ...o, url }));
     }
   }
-
   window.ViewOverlays = { applyOverlays, overlayIsVisible };
 })();

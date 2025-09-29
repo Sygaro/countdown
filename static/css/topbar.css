@@ -1,5 +1,4 @@
 /* static/css/topbar.css */
-
 /* Sticky base */
 .topbar {
   position: sticky;
@@ -11,7 +10,6 @@
   backdrop-filter: saturate(140%) blur(8px);
   -webkit-backdrop-filter: saturate(140%) blur(8px);
 }
-
 /* --- KOMPAKT LAYOUT --- */
 .topbar.compact {
   display: grid;
@@ -19,7 +17,6 @@
   grid-template-columns: 1fr;
   grid-template-rows: auto auto;
 }
-
 /* Øverste rad (meta): venstre = klokke/cd, høyre = services */
 .tb-meta {
   display: flex;
@@ -42,7 +39,6 @@
   font-variant-numeric: tabular-nums;
   opacity: 0.9;
 }
-
 .tb-svcs {
   display: inline-flex;
   gap: 0.6rem;
@@ -54,7 +50,6 @@
   align-items: center;
   font-size: 0.95rem;
 }
-
 /* Andre rad (actions) */
 .tb-actions {
   display: flex;
@@ -64,7 +59,6 @@
 .tb-actions .danger {
   border-color: #7a2d33 !important;
 }
-
 /* Små skjermer: stable services under klokka */
 @media (max-width: 720px) {
   .tb-meta {

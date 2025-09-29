@@ -3,7 +3,6 @@
 (function () {
   "use strict";
   const qs = (s, r) => (r || document).querySelector(s);
-
   // --- Toast helper (fallback hvis ui.js ikke er lastet) ---
   function ensureLocalToastEl() {
     let el = document.getElementById("_toast");
@@ -46,7 +45,6 @@
     clearTimeout(el._hideTimer);
     el._hideTimer = setTimeout(() => (el.style.opacity = "0"), 1600);
   }
-
   function authHeaders() {
     const pwd = localStorage.getItem("admin_password") || qs('meta[name="admin-password"]')?.content || "";
     const h = { "Content-Type": "application/json", Accept: "application/json" };
@@ -63,7 +61,6 @@
     if (!res.ok || data.ok === false) throw new Error(data.error || data.stderr || `HTTP ${res.status}`);
     return data;
   }
-
   // ---------- Host + uptime pill ----------
   const HOST_PILL_ID = "host-pill";
   const TOPBAR_SVCS_SEL = "#topbar .tb-svcs";
@@ -119,7 +116,6 @@
     attach();
     setInterval(() => ensureHostPill().catch(() => {}), 60_000);
   }
-
   // ---------- NTP-detaljer ----------
   function getNtpTarget() {
     return qs("#ntp_details") || qs("#ntp_status");
@@ -147,14 +143,12 @@
       const r = await fetch("/api/sys/ntp-status", { headers: { Accept: "application/json" } });
       const js = await r.json();
       const n = js?.ntp || {};
-
       function fmtHM(ageMs) {
         const totalMin = Math.floor(Math.abs(Number(ageMs) || 0) / 60000);
         const h = Math.floor(totalMin / 60);
         const m = totalMin % 60;
         return `${h}:${String(m).padStart(2, "0")}`;
       }
-
       let lastMs = null;
       if (n.LastContactMS) lastMs = Number(n.LastContactMS);
       else if (n.LastContactISO) {
@@ -164,7 +158,6 @@
         const us = Number(n.LastSyncUSec);
         if (isFinite(us) && us > 0) lastMs = Math.floor(us / 1000);
       }
-
       const since = lastMs ? fmtHM(Date.now() - lastMs) : "ukjent";
       const server = [n.ServerName, n.ServerAddress].filter(Boolean).join(" ");
       const lines = [
@@ -179,14 +172,12 @@
       toast("Kunne ikke hente NTP-status", "err");
     }
   }
-
   // ---------- Systemknapper ----------
   function bindSysButtons() {
     const map = [
       { sel: "#btn_restart_app", payload: { action: "restart", name: "app" } },
       { sel: "#btn_restart_kiosk", payload: { action: "restart", name: "kiosk" } },
     ];
-
     map.forEach((m) => {
       const el = qs(m.sel);
       if (!el) return;
@@ -202,7 +193,6 @@
         }
       });
     });
-
     const reboot = qs("#btn_reboot");
     if (reboot)
       reboot.addEventListener("click", async () => {
@@ -217,7 +207,6 @@
           reboot.disabled = false;
         }
       });
-
     const shutdown = qs("#btn_shutdown");
     if (shutdown)
       shutdown.addEventListener("click", async () => {
@@ -233,7 +222,6 @@
         }
       });
   }
-
   // ---------- Live (fra diag_live.js) ----------
   const fmtBoth = (ms) => {
     const sgn = ms < 0 ? "-" : "";
@@ -246,7 +234,6 @@
     const pad = (n) => String(n).padStart(2, "0");
     return { mmss: `${sgn}${Math.floor(h * 60 + m)}:${pad(s)}`, hms: `${sgn}${h}:${pad(m)}:${pad(s)}` };
   };
-
   async function pollLive() {
     const t0 = performance.now();
     const r = await fetch("/tick", { cache: "no-store" });
@@ -262,7 +249,6 @@
     qs("#lat") && (qs("#lat").textContent = `latency: ${dt.toFixed(0)} ms`);
     qs("#live") && (qs("#live").textContent = JSON.stringify(t, null, 2));
   }
-
   async function runSelftest() {
     const r = await fetch("/debug/selftest", { cache: "no-store" });
     const js = await r.json();
@@ -280,7 +266,6 @@
     const total = (js.tests || []).length;
     toast(`Selvtest: ${okCount}/${total} OK`, okCount === total ? "ok" : "warn");
   }
-
   async function dump(url) {
     const r = await fetch(url, { cache: "no-store" });
     const js = await r.json();
@@ -288,14 +273,12 @@
     if (pre) pre.textContent = JSON.stringify(js, null, 2);
     toast("Dump oppdatert", "ok");
   }
-
   // ---------- Init ----------
   function init() {
     bindSysButtons();
     loadNtpCard();
     startHostPillRefresh();
     setInterval(loadNtpCard, 60_000);
-
     // Live widgets: bind bare hvis de finnes
     qs("#refresh") && qs("#refresh").addEventListener("click", () => pollLive().catch(console.error));
     qs("#run_selftest") && qs("#run_selftest").addEventListener("click", () => runSelftest().catch(console.error));
@@ -304,11 +287,9 @@
       .forEach((btn) => btn.addEventListener("click", () => dump(btn.dataset.dump).catch(console.error)));
     pollLive().catch(console.error);
     setInterval(pollLive, 1000);
-
     // Eksponer for Topbar
     window.__runSelftest = runSelftest;
   }
-
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init, { once: true });
   } else {

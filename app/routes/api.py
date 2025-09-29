@@ -20,19 +20,15 @@ from ..storage import (
     get_defaults,
     build_visual_reset_patch,
 )
-
 bp = Blueprint("api", __name__, url_prefix="/api")
-
 # ── utils ──────────────────────────────────────────────────────────────────────
 def _now_iso() -> str:
     return datetime.now(TZ).isoformat()
-
 def _json_ok(payload: Dict[str, Any], status: int = 200) -> Response:
     resp = jsonify({"ok": True, "server_time": _now_iso(), **payload})
     resp.status_code = status
     resp.headers["Cache-Control"] = "no-store"
     return resp
-
 def _json_err(
     message: str,
     *,
@@ -49,11 +45,9 @@ def _json_err(
     resp.status_code = status
     resp.headers["Cache-Control"] = "no-store"
     return resp
-
 def _is_json_request() -> bool:
     ctype = (request.headers.get("Content-Type") or "").lower()
     return "application/json" in ctype or request.is_json
-
 def _coerce_int_or_none(v: Any) -> int | None:
     if v in (None, ""):
         return None
@@ -61,14 +55,12 @@ def _coerce_int_or_none(v: Any) -> int | None:
         return int(v)
     except (TypeError, ValueError):
         return None
-
 def _coerce_positive_int(v: Any) -> int | None:
     try:
         iv = int(v) if not (isinstance(v, str) and not v.strip()) else None
     except (TypeError, ValueError):
         iv = None
     return iv if (iv is not None and iv > 0) else None
-
 def _run_cmd(args, timeout: int = 8) -> Tuple[bool, str, str, int]:
     """System-scope kommando; prøv sudo -n først, fall tilbake uten sudo."""
     try:
@@ -91,7 +83,6 @@ def _run_cmd(args, timeout: int = 8) -> Tuple[bool, str, str, int]:
         )
     except Exception as e:
         return False, "", str(e), -1
-
 def _run_cmd_direct(args, timeout: int = 8) -> Tuple[bool, str, str, int]:
     """Kjør uten sudo (brukes for systemctl --user)."""
     try:
@@ -104,7 +95,6 @@ def _run_cmd_direct(args, timeout: int = 8) -> Tuple[bool, str, str, int]:
         )
     except Exception as e:
         return False, "", str(e), -1
-
 def _parse_kv(text: str) -> dict:
     d = {}
     for line in (text or "").splitlines():
@@ -112,12 +102,10 @@ def _parse_kv(text: str) -> dict:
             k, v = line.split("=", 1)
             d[k.strip()] = v.strip()
     return d
-
 # ── config/defaults ────────────────────────────────────────────────────────────
 @bp.get("/defaults")
 def api_defaults() -> Response:
     return _json_ok({"defaults": get_defaults()})
-
 @bp.get("/config")
 def api_get_config() -> Response:
     try:
@@ -127,7 +115,6 @@ def api_get_config() -> Response:
     except Exception:
         current_app.logger.exception("GET /api/config failed")
         return _json_err("internal error", status=500, code="internal_error")
-
 @bp.post("/config")
 @require_password
 def api_post_config() -> Response:
@@ -192,7 +179,6 @@ def api_post_config() -> Response:
     except Exception:
         current_app.logger.exception("POST /api/config failed")
         return _json_err("internal error", status=500, code="internal_error")
-
 def _pick_next_picsum_id(cfg: Dict[str, Any]) -> tuple[int | None, int | None]:
     """
     Returner (next_id, next_index) gitt config, eller (None, None) hvis ikke mulig.
@@ -211,16 +197,13 @@ def _pick_next_picsum_id(cfg: Dict[str, Any]) -> tuple[int | None, int | None]:
             iv = _coerce_int_or_none(x.get("id"))
             if iv is not None and iv > 0:
                 ids.append(int(iv))
-
     if not ids:
         return None, None
-
     ar = bg.get("auto_rotate") or {}
     strategy = str(ar.get("strategy", "shuffle")).lower()
     last_index: int | None = (
         ar.get("last_index") if isinstance(ar.get("last_index"), int) else None
     )
-
     if strategy == "sequential":
         if last_index is None:
             # start fra 0, men hvis samme som cur_id – hopp til neste
@@ -233,14 +216,12 @@ def _pick_next_picsum_id(cfg: Dict[str, Any]) -> tuple[int | None, int | None]:
             idx = (idx + 1) % len(ids)
             nxt = ids[idx]
         return nxt, idx
-
     # shuffle
     if len(ids) == 1:
         return (ids[0] if ids[0] != cur_id else ids[0]), None
     # velg tilfeldig annet enn cur_id
     pool = [i for i in ids if i != cur_id] or ids
     return random.choice(pool), None
-
 # ── duration ───────────────────────────────────────────────────────────────────
 @bp.post("/start-duration")
 @require_password
@@ -264,7 +245,6 @@ def api_start_duration() -> Response:
     except Exception:
         current_app.logger.exception("POST /api/start-duration failed")
         return _json_err("internal error", status=500, code="internal_error")
-
 @bp.post("/stop")
 @require_password
 def stop() -> Response:
@@ -275,7 +255,6 @@ def stop() -> Response:
     except Exception:
         current_app.logger.exception("POST /api/stop failed")
         return _json_err("internal error", status=500, code="internal_error")
-
 @bp.get("/status")
 def status() -> Response:
     try:
@@ -284,7 +263,6 @@ def status() -> Response:
     except Exception:
         current_app.logger.exception("GET /api/status failed")
         return _json_err("internal error", status=500, code="internal_error")
-
 # ── meta ───────────────────────────────────────────────────────────────────────
 @bp.get("/_routes")
 def api_routes():
@@ -296,7 +274,6 @@ def api_routes():
         )
         routes.append({"rule": str(r), "endpoint": r.endpoint, "methods": methods})
     return jsonify(ok=True, routes=routes)
-
 # ── system/services helpers ────────────────────────────────────────────────────
 def _svc_map() -> dict:
     return {
@@ -304,10 +281,8 @@ def _svc_map() -> dict:
         "web": {"unit": "countdown.service", "scope": "user"},  # alias
         "kiosk": {"unit": "kiosk-cog.service", "scope": "system"},
     }
-
 def _run_user_systemctl(cmd: list[str], timeout: int = 8) -> Tuple[bool, str, str, int]:
     return _run_cmd_direct(["systemctl", "--user", *cmd], timeout=timeout)
-
 # ── sys/service ────────────────────────────────────────────────────────────────
 @bp.post("/sys/service")
 @require_password
@@ -326,7 +301,6 @@ def sys_service():
                 action = str(data.get("action") or "").strip().lower()
             if not name:
                 name = str(data.get("name") or "").strip().lower()
-
     services = _svc_map()
     if name not in services:
         return (
@@ -339,11 +313,9 @@ def sys_service():
         )
     if action not in {"restart", "reload", "start", "stop", "status"}:
         return jsonify(ok=False, error=f"Invalid action '{action}'"), 400
-
     meta = services[name]
     unit = meta["unit"]
     scope = meta["scope"]
-
     # 2) Kjør riktig scope:
     if scope == "user":
         # Bruk direkte user-systemctl (aldri via sudo)
@@ -357,7 +329,6 @@ def sys_service():
         else:
             args += [action, unit]
         ok, out, err, rc = _run_cmd(args)
-
     status_code = 200 if rc == 0 else 202  # 202 = accepted/igangsatt
     return (
         jsonify(
@@ -371,7 +342,6 @@ def sys_service():
         ),
         status_code,
     )
-
 # ── alias-endepunkt (bakoverkomp) ─────────────────────────────────────────────
 @bp.post("/sys/restart-app")
 @require_password
@@ -388,7 +358,6 @@ def sys_restart_app_alias():
         scope="user",
         action="restart",
     ), (200 if rc == 0 else 202)
-
 @bp.post("/sys/kiosk-restart")
 @require_password
 def sys_kiosk_restart_alias():
@@ -404,7 +373,6 @@ def sys_kiosk_restart_alias():
         scope="system",
         action="restart",
     ), (200 if rc == 0 else 202)
-
 # ── reboot/shutdown via helpers ────────────────────────────────────────────────
 @bp.post("/sys/reboot")
 @require_password
@@ -412,14 +380,12 @@ def sys_reboot():
     # Kjør whitelista helper (NOPASSWD i sudoers)
     ok, out, err, rc = _run_cmd(["/usr/local/sbin/cdown-reboot"])
     return jsonify(ok=ok, rc=rc, stdout=out, stderr=err), (200 if ok else 500)
-
 @bp.post("/sys/shutdown")
 @require_password
 def sys_shutdown():
     # Kjør whitelista helper (NOPASSWD i sudoers)
     ok, out, err, rc = _run_cmd(["/usr/local/sbin/cdown-shutdown"])
     return jsonify(ok=ok, rc=rc, stdout=out, stderr=err), (200 if ok else 500)
-
 # ── NTP utils/endpoints ───────────────────────────────────────────────────────
 def _ntp_last_sync_from_journal(max_lines: int = 500):
     ok, out, err, rc = _run_cmd(
@@ -455,7 +421,6 @@ def _ntp_last_sync_from_journal(max_lines: int = 500):
                 src = m2.group(1)
             return int(ts_epoch * 1000), src
     return None, None
-
 def _extract_destination_ts(ntp_message: str) -> int | None:
     if not ntp_message:
         return None
@@ -467,14 +432,12 @@ def _extract_destination_ts(ntp_message: str) -> int | None:
         return None
     try:
         from ..settings import TZ as _TZ
-
         dt = datetime.strptime(m.group(1), "%a %Y-%m-%d %H:%M:%S %Z").replace(
             tzinfo=_TZ
         )
         return int(dt.timestamp() * 1000)
     except Exception:
         return None
-
 def _pick_last_contact(ts: dict, base: dict):
     best_ms = None
     src = None
@@ -491,10 +454,8 @@ def _pick_last_contact(ts: dict, base: dict):
         best_ms = dest_ms
         src = "DestinationTimestamp"
     return best_ms, src
-
 _NTP_CACHE = {"ts": 0.0, "payload": None}
 _NTP_TTL_SEC = 15.0
-
 def _compute_ntp_payload() -> dict:
     now = time.monotonic()
     if _NTP_CACHE["payload"] is not None and (now - _NTP_CACHE["ts"] < _NTP_TTL_SEC):
@@ -503,10 +464,8 @@ def _compute_ntp_payload() -> dict:
     ok2, out2, _, _ = _run_cmd(["timedatectl", "show-timesync"])
     base = _parse_kv(out1) if ok1 else {}
     ts = _parse_kv(out2) if ok2 else {}
-
     def to_bool(s):
         return str(s).lower() in {"1", "true", "yes"}
-
     last_ms, src = _pick_last_contact(ts, base)
     if not last_ms:
         j_ms, j_src = _ntp_last_sync_from_journal()
@@ -531,7 +490,6 @@ def _compute_ntp_payload() -> dict:
     _NTP_CACHE["ts"] = now
     _NTP_CACHE["payload"] = payload
     return payload
-
 @bp.get("/sys/ntp-status")
 @require_password
 def sys_ntp_status():
@@ -540,12 +498,10 @@ def sys_ntp_status():
     except Exception:
         current_app.logger.exception("GET /api/sys/ntp-status failed")
         return _json_err("internal error", status=500, code="internal_error")
-
 @bp.get("/sys/about-status")
 @require_password
 def sys_about_status():
     import platform
-
     ver = (os.environ.get("COUNTDOWN_VERSION") or "").strip() or None
     ok_git, out_git, _, _ = _run_cmd(["git", "rev-parse", "--short", "HEAD"])
     commit = (
@@ -553,7 +509,6 @@ def sys_about_status():
         if ok_git and out_git
         else (os.environ.get("COUNTDOWN_COMMIT") or "").strip() or None
     )
-
     uname = platform.uname()
     os_name = f"{uname.system} {uname.release}"
     kernel = uname.version
@@ -576,7 +531,6 @@ def sys_about_status():
             model = f.read().decode("utf-8", "ignore").strip("\x00\r\n ")
     except Exception:
         pass
-
     services_map = _svc_map()
     svc_status = {}
     for name, meta in services_map.items():
@@ -621,7 +575,6 @@ def sys_about_status():
             "description": info.get("Description"),
             "raw": (out_is or err_is or out_show or err_show),
         }
-
     ntp = _compute_ntp_payload()
     return _json_ok(
         {
@@ -638,7 +591,6 @@ def sys_about_status():
             }
         }
     )
-
 @bp.post("/reset-visual")
 @require_password
 def api_reset_visual() -> Response:
@@ -652,7 +604,6 @@ def api_reset_visual() -> Response:
         )
     data = request.get_json(silent=True) or {}
     profile = str(data.get("profile") or "visual").strip().lower()
-
     # Profiler: OBS! "visual" blanker IKKE UI-tekster (etter ditt ønske).
     presets = {
         "visual": dict(
@@ -724,9 +675,7 @@ def api_reset_visual() -> Response:
             reset_daily_time=True,  # ← og tider
         ),
     }
-
     opts = presets.get(profile, presets["visual"])
-
     try:
         defaults = get_defaults()
         patch = build_visual_reset_patch(defaults, **opts)
@@ -738,7 +687,6 @@ def api_reset_visual() -> Response:
     except Exception:
         current_app.logger.exception("POST /api/reset-visual failed")
         return _json_err("internal error", status=500, code="internal_error")
-
 @bp.get("/picsum/next")
 def api_picsum_next() -> Response:
     """
@@ -764,7 +712,6 @@ def api_picsum_next() -> Response:
         dyn = bg_all.get("dynamic") or {}
         base_mode = str(dyn.get("base_mode") or "").lower()
         cur_id = bg.get("id") if isinstance(bg.get("id"), int) else None
-
         # standard svar dersom vi ikke skal endre noe
         payload = {
             "id": cur_id,
@@ -773,7 +720,6 @@ def api_picsum_next() -> Response:
             "updated": False,
             "next_in_seconds": None,
         }
-
         # Tillat også når dynamic.base_mode = "picsum"
         is_picsum_active = (mode == "picsum") or (
             mode == "dynamic" and base_mode == "picsum"
@@ -782,23 +728,19 @@ def api_picsum_next() -> Response:
             payload["enabled"] = False
             payload["next_in_seconds"] = None
             return _json_ok(payload)
-
         if not enabled:
             # beholde dagens oppførsel når picsum er aktiv, men auto-rotate er av
             return _json_ok(payload)
-
         elapsed_ms = now_ms - last_switch_ms
         if elapsed_ms < interval * 1000:
             payload["next_in_seconds"] = max(0, interval - elapsed_ms // 1000)
             return _json_ok(payload)
-
         # finn neste id
         nxt_id, nxt_index = _pick_next_picsum_id(cfg)
         if nxt_id is None:
             # Ingen kuratert liste – ikke gjør endringer
             payload["next_in_seconds"] = max(0, interval - elapsed_ms // 1000)
             return _json_ok(payload)
-
         # Oppdater config (patch) – sett ny id og auto_rotate.last_switch_ms (+ ev. last_index)
         patch = {
             "theme": {

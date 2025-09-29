@@ -1,11 +1,9 @@
 // filepath: static/js/admin.js
 (() => {
   "use strict";
-
   // ==== Mini DOM utils =======================================================
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
-
   // Prøv å hente kontrastmodul (global fra contrast.js). Fallback om mangler.
   const C = window.Contrast || {
     ratio: (fg, bg) => {
@@ -30,23 +28,18 @@
     advise: (r) =>
       r >= 3 ? { tone: "ok", label: `${r.toFixed(2)} ✔` } : { tone: "warn", label: `${r.toFixed(2)} ⚠` },
   };
-
   // ==== Toast/status =========================================================
   function showStatusToast(msg, tone = "info", ms = 2500) {
     const el = document.getElementById("status_toast");
     if (!el) return;
-
     // Behold base-klassen "toast" for posisjonering/styling
     el.className = "toast";
     el.textContent = String(msg || "");
     el.hidden = false;
-
     // tone = "ok" | "warn" | "error" | "info" → legg som ekstra klasse
     if (tone) el.classList.add(String(tone));
-
     // Vis (styres av .toast.show i CSS)
     el.classList.add("show");
-
     clearTimeout(el._hideTimer);
     el._hideTimer = setTimeout(
       () => {
@@ -56,7 +49,6 @@
       Math.max(600, Number(ms) || 1600),
     );
   }
-
   // ==== Helpers ==============================================================
   const debounce = (fn, ms = 600) => {
     let t;
@@ -67,7 +59,6 @@
   };
   const val = (sel, d = "") => $(sel)?.value ?? d;
   const checked = (sel) => !!$(sel)?.checked;
-
   // Hex normalisering (#RRGGBB)
   function normalizeHex6(h, fallback = "#000000") {
     const s = String(h || "").trim();
@@ -77,14 +68,12 @@
     if (m6) return "#" + m6[1].toLowerCase();
     return fallback;
   }
-
   function headers() {
     const pwd = ($("#admin_password")?.value || "").trim() || (localStorage.getItem("admin_password") || "").trim();
     const h = { "Content-Type": "application/json" };
     if (pwd) h["X-Admin-Password"] = pwd;
     return h;
   }
-
   async function getJSON(url) {
     try {
       if (window.ui?.get) return await window.ui.get(url);
@@ -96,7 +85,6 @@
     if (!r.ok || js.ok === false) throw new Error(js.error || `HTTP ${r.status}`);
     return js;
   }
-
   async function postJSON(url, body) {
     try {
       if (window.ui?.post) return await window.ui.post(url, body);
@@ -113,13 +101,11 @@
     if (!r.ok || js.ok === false) throw new Error(js.error || `HTTP ${r.status}`);
     return js;
   }
-
   // ==== State ================================================================
   let lastCfg = null;
   let defaultsCache = null;
   let overlaysLocal = [];
   let picsumCatalogLocal = []; // Picsum-bilder—med ID
-
   // ==== Defaults / reset view ===============================================
   async function fetchDefaults() {
     if (defaultsCache) return defaultsCache;
@@ -127,7 +113,6 @@
     defaultsCache = js.defaults || js;
     return defaultsCache;
   }
-
   // Bruk kun backend for reset – ingen frontend-profiler/JS-defaults her.
   async function handleResetView(buttonEl) {
     const btn = buttonEl;
@@ -153,13 +138,10 @@
       btn.textContent = prev;
     }
   }
-
   // ==== BG & kontrast helpers ===============================================
   const selBgMode = () => $$(`input[name="bg_mode"]:checked`)[0]?.value || "solid";
-
   function currentPreviewBgColor() {
     const bg = selBgMode();
-
     if (bg === "solid") {
       return val("#bg_solid_color", "#0b0f14");
     }
@@ -200,10 +182,8 @@
       const gradTo = val("#bg_grad_to", "");
       return gradTo || val("#bg_solid_color", "#0b0f14");
     }
-
     return "#0b0f14";
   }
-
   function getUiDefault(path, hardcoded) {
     try {
       let cur = defaultsCache;
@@ -216,7 +196,6 @@
       return hardcoded;
     }
   }
-
   function updateDigitContrastHints() {
     const bg = currentPreviewBgColor();
     const set = (id, color) => {
@@ -231,13 +210,11 @@
     const defWarn = getUiDefault(["color_warn"], "#ffd166");
     const defAlert = getUiDefault(["color_alert"], "#ff6b6b");
     const defOver = getUiDefault(["color_over"], "#9ad0ff");
-
     set("#c_contrast_normal", val("#color_normal", defNormal));
     set("#c_contrast_warn", val("#color_warn", defWarn));
     set("#c_contrast_alert", val("#color_alert", defAlert));
     set("#c_contrast_over", val("#color_over", defOver));
   }
-
   function updateMessageContrastHints() {
     const bg = currentPreviewBgColor();
     const set = (id, color) => {
@@ -253,7 +230,6 @@
     $("#m_contrast_p") && set("#m_contrast_p", val("#theme_p_color", defP));
     $("#m_contrast_s") && set("#m_contrast_s", val("#theme_s_color", defS));
   }
-
   function updateClockContrastHint() {
     const bg = currentPreviewBgColor();
     const defClk = getUiDefault(["clock", "color"], "#e6edf3");
@@ -265,13 +241,11 @@
     el.textContent = `kontrast ${r.toFixed(2)}${adv.tone === "ok" ? " ✔" : " ⚠"}`;
     el.style.color = adv.tone === "ok" ? "#69db7c" : "#ffd166";
   }
-
   // ==== Lock / UI enabling ===================================================
   const selMode = () => $$(`input[name="mode"]:checked`)[0]?.value || "daily";
   function lock() {
     const bg = selBgMode();
     const base = val("#bg_dyn_base", "auto");
-
     // Basic mode toggles
     $("#bg_solid_cfg") && ($("#bg_solid_cfg").style.display = bg === "solid" ? "block" : "none");
     $("#bg_grad_cfg") && ($("#bg_grad_cfg").style.display = bg === "gradient" ? "block" : "none");
@@ -280,7 +254,6 @@
       ($("#bg_picsum_cfg").style.display =
         bg === "picsum" || (bg === "dynamic" && base === "picsum") ? "block" : "none");
     $("#bg_dyn_cfg") && ($("#bg_dyn_cfg").style.display = bg === "dynamic" ? "block" : "none");
-
     const own = !!$("#clk_use_own_msgs")?.checked;
     $("#clk_with_seconds") && ($("#clk_with_seconds").disabled = false);
     $("#clk_color") && ($("#clk_color").disabled = false);
@@ -292,7 +265,6 @@
     $("#clk_msg_primary") && ($("#clk_msg_primary").disabled = !own);
     $("#clk_msg_secondary") && ($("#clk_msg_secondary").disabled = !own);
   }
-
   // ==== Preview ==============================================================
   const debouncePreview = (fn) => debounce(fn, 300);
   function getPreviewWin() {
@@ -314,7 +286,6 @@
     win.postMessage({ type: "preview-config", config: simulated }, "*");
   }
   const pushPreviewDebounced = debouncePreview(pushPreview);
-
   // ==== Overlays =============================================================
   function overlayDefaults() {
     return {
@@ -417,11 +388,9 @@
     renderOverlaysUI(Math.min(idx, overlaysLocal.length - 1));
     pushPreview();
   }
-
   // ==== Build patch & save ===================================================
   function buildPatch() {
     const m = selMode();
-
     const clock = (() => {
       const has =
         $("#clk_with_seconds") ||
@@ -448,7 +417,6 @@
       }
       return lastCfg?.clock || {};
     })();
-
     const out = {
       mode: m,
       daily_time: val("#daily_time"),
@@ -503,7 +471,6 @@
             opacity: Number(val("#bg_dyn_opacity", "0.9")),
             base_mode: val("#bg_dyn_base", "auto"),
             layer: val("#bg_dyn_layer", "under"),
-
             // Avansert:
             shape1: {
               size_vmax: [Number(val("#bg_dyn_s1_w", "72")), Number(val("#bg_dyn_s1_h", "54"))],
@@ -520,7 +487,6 @@
             z_under: Number(val("#bg_dyn_z_under", "0")),
             z_over: Number(val("#bg_dyn_z_over", "15")),
           },
-
           image: {
             url: val("#bg_img_url", ""),
             fit: val("#bg_img_fit", "cover"),
@@ -543,23 +509,19 @@
       if (dm != null) out.duration_minutes = dm;
       if (ds != null && ds > 0) out.duration_started_ms = ds;
     }
-
     // 🔧 (valgfritt, men nyttig) – behold _updated_at i simulasjonen
     if (Number.isFinite(lastCfg?._updated_at)) out._updated_at = lastCfg._updated_at;
-
     // Picsum spesial
     // Picsum – alltid persister verdiene fra UI (backend slår dem av når mode != picsum)
     {
       const idStr = (val("#bg_picsum_id", "") || "").trim();
       const idNum = idStr ? parseInt(idStr, 10) : NaN;
       const idVal = Number.isFinite(idNum) && idNum > 0 ? idNum : null;
-
       const arEnabled = !!$("#bg_picsum_auto_enabled")?.checked;
       const rawVal = parseInt(val("#bg_picsum_auto_interval", "5") || "5", 10);
       const unit = (val("#bg_picsum_auto_unit", "m") || "m").toLowerCase();
       let intervalSec = Number.isFinite(rawVal) ? rawVal : 5;
       intervalSec = Math.max(5, Math.min(24 * 60 * 60, unit === "m" ? intervalSec * 60 : intervalSec));
-
       out.theme.background.picsum = {
         fit: val("#bg_picsum_fit", "cover"),
         blur: Math.max(0, Math.min(10, Number(val("#bg_picsum_blur", "0")))),
@@ -585,20 +547,16 @@
         });
       }
     }
-
     return out;
   }
-
   // ==== Save config ==========================================================
   async function saveAll() {
     try {
       const body = buildPatch();
       await postJSON("/api/config", body);
-
       // VIKTIG: alltid les tilbake persistert config etter lagring,
       // så vi får med backend-normalisering (f.eks. auto-rotate OFF når mode != picsum).
       await loadAll();
-
       showStatusToast("Lagret ✔", "ok", 1400);
       // Push preview (konfig er allerede oppdatert i loadAll → apply → pushPreview)
       pushPreview();
@@ -608,7 +566,6 @@
       alert("Lagring feilet:\n" + (e?.message || e));
     }
   }
-
   // ==== Apply config to form =================================================
   function setVal(sel, value) {
     const el = document.querySelector(sel);
@@ -620,13 +577,10 @@
       el.dispatchEvent(new Event("change", { bubbles: true }));
     }
   }
-
   function apply(cfg, tick) {
     lastCfg = cfg;
-
     const modeRadio = document.querySelector(`input[name="mode"][value="${cfg.mode || "daily"}"]`);
     if (modeRadio) modeRadio.checked = true;
-
     $("#daily_time") && ($("#daily_time").value = cfg.daily_time || "");
     $("#once_at") && ($("#once_at").value = (cfg.once_at || "").replace("Z", ""));
     $("#active_mode") &&
@@ -649,7 +603,6 @@
     $("#target_time_after") && ($("#target_time_after").value = cfg.target_time_after || "secondary");
     $("#messages_position") && ($("#messages_position").value = cfg.messages_position || "above");
     $("#hms_threshold_minutes") && ($("#hms_threshold_minutes").value = cfg.hms_threshold_minutes ?? 60);
-
     const p = cfg?.theme?.messages?.primary || {};
     const s = cfg?.theme?.messages?.secondary || {};
     $("#theme_p_size_vmin") && ($("#theme_p_size_vmin").value = String(p.size_vmin ?? 6));
@@ -658,14 +611,11 @@
     $("#theme_s_size_vmin") && ($("#theme_s_size_vmin").value = String(s.size_vmin ?? 4));
     $("#theme_s_weight") && ($("#theme_s_weight").value = String(s.weight ?? 400));
     $("#theme_s_color") && ($("#theme_s_color").value = String(s.color ?? "#9aa4b2"));
-
     const d = cfg?.theme?.digits || {};
     const sizeVmin = Number(d.size_vmin ?? 14);
     $("#digits_size_vmin") && ($("#digits_size_vmin").value = String(sizeVmin));
-
     overlaysLocal = Array.isArray(cfg.overlays) ? JSON.parse(JSON.stringify(cfg.overlays)) : [];
     renderOverlaysUI();
-
     const bg = cfg?.theme?.background || {};
     const bgRadio = document.querySelector(`input[name="bg_mode"][value="${bg.mode || "solid"}"]`);
     if (bgRadio) bgRadio.checked = true;
@@ -678,7 +628,6 @@
     $("#bg_img_op") && ($("#bg_img_op").value = bg.image?.opacity ?? 1);
     $("#bg_img_tint") && ($("#bg_img_tint").value = bg.image?.tint?.color || "#000000");
     $("#bg_img_tint_op") && ($("#bg_img_tint_op").value = bg.image?.tint?.opacity ?? 0);
-
     // Dynamic background
     $("#bg_dyn_base") && ($("#bg_dyn_base").value = bg.dynamic?.base_mode || "auto");
     $("#bg_dyn_from") && ($("#bg_dyn_from").value = bg.dynamic?.from || "#16233a");
@@ -687,29 +636,24 @@
     $("#bg_dyn_blur") && ($("#bg_dyn_blur").value = bg.dynamic?.blur_px ?? 18);
     $("#bg_dyn_opacity") && ($("#bg_dyn_opacity").value = bg.dynamic?.opacity ?? 0.9);
     $("#bg_dyn_layer") && ($("#bg_dyn_layer").value = bg.dynamic?.layer || "under");
-
     // Dynamic – avansert
     const dyn = cfg?.theme?.background?.dynamic || {};
     const s1 = dyn.shape1 || {};
     const s2 = dyn.shape2 || {};
-
     $("#bg_dyn_s1_w") && ($("#bg_dyn_s1_w").value = String(s1.size_vmax?.[0] ?? 72));
     $("#bg_dyn_s1_h") && ($("#bg_dyn_s1_h").value = String(s1.size_vmax?.[1] ?? 54));
     $("#bg_dyn_s1_px") && ($("#bg_dyn_s1_px").value = String(s1.pos_pct?.[0] ?? 12));
     $("#bg_dyn_s1_py") && ($("#bg_dyn_s1_py").value = String(s1.pos_pct?.[1] ?? 10));
     $("#bg_dyn_s1_stop") && ($("#bg_dyn_s1_stop").value = String(s1.stop_pct ?? 62));
-
     $("#bg_dyn_s2_w") && ($("#bg_dyn_s2_w").value = String(s2.size_vmax?.[0] ?? 70));
     $("#bg_dyn_s2_h") && ($("#bg_dyn_s2_h").value = String(s2.size_vmax?.[1] ?? 52));
     $("#bg_dyn_s2_px") && ($("#bg_dyn_s2_px").value = String(s2.pos_pct?.[0] ?? 88));
     $("#bg_dyn_s2_py") && ($("#bg_dyn_s2_py").value = String(s2.pos_pct?.[1] ?? 12));
     $("#bg_dyn_s2_stop") && ($("#bg_dyn_s2_stop").value = String(s2.stop_pct ?? 64));
-
     $("#bg_dyn_conic_from") && ($("#bg_dyn_conic_from").value = String(dyn.conic_from_deg ?? 220));
     $("#bg_dyn_scale") && ($("#bg_dyn_scale").value = String(dyn.anim_scale ?? 1.02));
     $("#bg_dyn_z_under") && ($("#bg_dyn_z_under").value = String(dyn.z_under ?? 0));
     $("#bg_dyn_z_over") && ($("#bg_dyn_z_over").value = String(dyn.z_over ?? 15));
-
     // Picsum
     $("#bg_picsum_fit") && ($("#bg_picsum_fit").value = bg.picsum?.fit || "cover");
     $("#bg_picsum_blur") && ($("#bg_picsum_blur").value = bg.picsum?.blur ?? 0);
@@ -719,7 +663,6 @@
     $("#bg_picsum_tint") && ($("#bg_picsum_tint").value = bg.picsum?.tint?.color || "#000000");
     $("#bg_picsum_tint_op") && ($("#bg_picsum_tint_op").value = bg.picsum?.tint?.opacity ?? 0);
     $("#bg_picsum_id") && ($("#bg_picsum_id").value = bg.picsum?.id ?? "");
-
     // Auto-rotate (om UI finnes)
     const ar = cfg?.theme?.background?.picsum?.auto_rotate || {};
     const arEnabledEl = document.getElementById("bg_picsum_auto_enabled");
@@ -739,11 +682,9 @@
       if (typeof window.updatePicsumAutoIntervalConstraints === "function") {
         window.updatePicsumAutoIntervalConstraints();
       }
-
       window.updatePicsumAutoIntervalConstraints && window.updatePicsumAutoIntervalConstraints();
       arStratEl.value = ar.strategy || "shuffle";
     }
-
     const clk = cfg?.clock || {};
     $("#clk_with_seconds") && ($("#clk_with_seconds").checked = !!clk.with_seconds);
     $("#clk_color") && ($("#clk_color").value = clk.color || "#e6edf3");
@@ -754,7 +695,6 @@
     $("#clk_use_own_msgs") && ($("#clk_use_own_msgs").checked = !!cfg?.clock?.use_clock_messages);
     $("#clk_msg_primary") && ($("#clk_msg_primary").value = cfg?.clock?.message_primary || "");
     $("#clk_msg_secondary") && ($("#clk_msg_secondary").value = cfg?.clock?.message_secondary || "");
-
     const sel = ovSel();
     if (sel && !sel._bound) {
       sel.addEventListener("change", () => {
@@ -787,22 +727,18 @@
       $("#ov_del") && $("#ov_del").addEventListener("click", delOverlay);
       sel._bound = true;
     }
-
     picsumCatalogLocal = Array.isArray(cfg?.theme?.picsum_catalog) ? [...cfg.theme.picsum_catalog] : [];
     renderPicsumList();
     bindPicsumListOnce();
-
     updateClockContrastHint();
     lock();
     updateDigitContrastHints();
     updateMessageContrastHints();
   }
-
   // --- Auto-rotate UI (opprett én gang) ---
   (function ensurePicsumAutoRotateUI() {
     const host = document.getElementById("bg_picsum_cfg");
     if (!host || host._autoRotateBound) return;
-
     const wrap = document.createElement("div");
     wrap.id = "picsum_auto_rotate_ui";
     wrap.style.marginTop = "8px";
@@ -833,7 +769,6 @@
       const unitEl = document.getElementById("bg_picsum_auto_unit");
       const intEl = document.getElementById("bg_picsum_auto_interval");
       if (!unitEl || !intEl) return;
-
       if ((unitEl.value || "m") === "m") {
         // Minutter: lov 1 min
         intEl.min = "1";
@@ -845,9 +780,7 @@
         if (Number(intEl.value) < 5) intEl.value = "5";
       }
     };
-
     host.appendChild(wrap);
-
     const syncFromCfg = () => {
       const ar = lastCfg?.theme?.background?.picsum?.auto_rotate || {};
       $("#bg_picsum_auto_enabled").checked = !!ar.enabled;
@@ -861,7 +794,6 @@
       }
       $("#bg_picsum_auto_strategy").value = ar.strategy || "shuffle";
     };
-
     ["#bg_picsum_auto_enabled", "#bg_picsum_auto_interval", "#bg_picsum_auto_unit", "#bg_picsum_auto_strategy"].forEach(
       (s) => {
         const el = $(s);
@@ -870,11 +802,9 @@
         el.addEventListener("change", pushPreviewDebounced);
       },
     );
-
     syncFromCfg();
     host._autoRotateBound = true;
   })();
-
   // === KURATERT PICSUM GALLERI (modal for picsumCatalogLocal) ==================
   function ensureCuratedPicsumUI() {
     // 1) Legg til knapp under Picsum-konfig
@@ -890,7 +820,6 @@
       bar.appendChild(btn);
       host.appendChild(bar);
     }
-
     // 2) Lag modal-dialog om den ikke finnes
     if (!document.getElementById("curated_modal")) {
       const dlg = document.createElement("dialog");
@@ -900,13 +829,11 @@
       dlg.style.maxWidth = "92vw";
       dlg.style.width = "min(1200px, 92vw)";
       dlg.style.maxHeight = "86vh";
-
       dlg.innerHTML = `
   <div style="display:flex; flex-direction:column; height:86vh;">
     <div style="padding:10px 12px; border-bottom:1px solid #2a2f37; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
       <strong style="font-size:1.05rem;">Kuratert Picsum-liste</strong>
       <span id="cur_status" style="opacity:.8;"></span>
-
       <div style="display:flex; gap:8px; align-items:center; margin-left:auto; flex-wrap:wrap;">
         <label style="display:flex; gap:6px; align-items:center;">
           <span style="opacity:.8;">Sorter</span>
@@ -919,24 +846,18 @@
             <option value="desc">Synkende</option>
           </select>
         </label>
-
         <button type="button" id="cur_btn_export">Eksporter JSON</button>
-
         <input type="file" id="cur_import_file" accept="application/json" style="display:none;">
         <button type="button" id="cur_btn_import">Importer JSON…</button>
-
         <button type="button" id="cur_close">Lukk</button>
       </div>
     </div>
-
     <div id="cur_scroll" style="overflow:auto; padding:12px;">
       <div id="cur_grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap:12px;"></div>
     </div>
   </div>
 `;
-
       document.body.appendChild(dlg);
-
       // Bind lukking
       dlg.addEventListener("click", (ev) => {
         if (ev.target === dlg) closeCuratedPicsumPicker(); // klikk utenfor
@@ -962,10 +883,8 @@
         sortByEl.addEventListener("change", applySort);
         sortDirEl.addEventListener("change", applySort);
       }
-
       // Eksport
       dlg.querySelector("#cur_btn_export")?.addEventListener("click", exportCuratedPicsumList);
-
       // Import
       const importInput = dlg.querySelector("#cur_import_file");
       dlg.querySelector("#cur_btn_import")?.addEventListener("click", () => importInput?.click());
@@ -982,7 +901,6 @@
       });
     }
   }
-
   function openCuratedPicsumPicker() {
     ensureCuratedPicsumUI();
     const dlg = document.getElementById("curated_modal");
@@ -991,24 +909,20 @@
     else dlg.setAttribute("open", "");
     renderCuratedGrid();
   }
-
   function closeCuratedPicsumPicker() {
     const dlg = document.getElementById("curated_modal");
     if (!dlg) return;
     if (typeof dlg.close === "function") dlg.close();
     else dlg.removeAttribute("open");
   }
-
   function renderCuratedGrid() {
     const grid = document.getElementById("cur_grid");
     const statusEl = document.getElementById("cur_status");
     if (!grid) return;
-
     grid.innerHTML = "";
     const items = Array.isArray(picsumCatalogLocal) ? picsumCatalogLocal : [];
     if (statusEl)
       statusEl.textContent = items.length ? `(${items.length} bilde${items.length === 1 ? "" : "r"})` : "(tom)";
-
     if (!items.length) {
       const p = document.createElement("p");
       p.textContent = "Kuratert liste er tom. Bruk «Åpne Picsum-galleri…» for å legge til bilder.";
@@ -1016,16 +930,13 @@
       grid.appendChild(p);
       return;
     }
-
     const W = 240,
       H = 160;
     items.forEach((it, idx) => {
       const id = Number(it?.id);
       const label = String(it?.label || "");
       if (!Number.isFinite(id) || id <= 0) return;
-
       const url = `https://picsum.photos/id/${id}/${W}/${H}`;
-
       const tile = document.createElement("div");
       tile.className = "tile curated";
       tile.style.border = "1px solid #2a2f37";
@@ -1048,7 +959,6 @@
         </div>
       </div>
     `;
-
       // Endre navn
       const inp = tile.querySelector('input[data-role="label"]');
       inp?.addEventListener("input", (e) => {
@@ -1056,7 +966,6 @@
         picsumCatalogLocal[idx] = { id, label: v };
         pushPreviewDebounced?.();
       });
-
       // Bruk dette bildet
       tile.querySelector('button[data-role="use"]')?.addEventListener("click", () => {
         const idField = document.getElementById("bg_picsum_id");
@@ -1068,7 +977,6 @@
         }
         pushPreviewDebounced?.();
       });
-
       // Slett fra lista
       tile.querySelector('button[data-role="delete"]')?.addEventListener("click", () => {
         // Fjern valgt entry
@@ -1077,11 +985,9 @@
         renderCuratedGrid(); // re-build modalgrid
         pushPreviewDebounced?.();
       });
-
       grid.appendChild(tile);
     });
   }
-
   function renderPicsumList(selectedIndex) {
     const sel = document.getElementById("bg_picsum_list");
     if (!sel) return;
@@ -1098,7 +1004,6 @@
     const idx = Math.max(0, Math.min(sel.options.length - 1, prev >= 0 ? prev : 0));
     sel.selectedIndex = sel.options.length ? idx : -1;
   }
-
   function bindPicsumListOnce() {
     if (bindPicsumListOnce._bound) return;
     const sel = document.getElementById("bg_picsum_list");
@@ -1107,9 +1012,7 @@
     const btnAdd = document.getElementById("bg_picsum_add");
     const btnDel = document.getElementById("bg_picsum_delete");
     const btnUse = document.getElementById("bg_picsum_use");
-
     if (!sel || !inId || !inLb) return;
-
     sel.addEventListener("change", () => {
       const i = sel.selectedIndex;
       const item = picsumCatalogLocal[i];
@@ -1117,7 +1020,6 @@
       inId.value = item.id ?? "";
       inLb.value = item.label ?? "";
     });
-
     btnAdd &&
       btnAdd.addEventListener("click", () => {
         const id = parseInt((inId.value || "").trim(), 10);
@@ -1126,17 +1028,13 @@
           return;
         }
         const label = (inLb.value || "").trim();
-
         const idx = picsumCatalogLocal.findIndex((x) => Number(x.id) === id);
         if (idx >= 0) picsumCatalogLocal[idx] = { id, label };
         else picsumCatalogLocal.push({ id, label });
-
         picsumCatalogLocal.sort((a, b) => Number(a.id) - Number(b.id));
-
         renderPicsumList();
         pushPreviewDebounced();
       });
-
     btnDel &&
       btnDel.addEventListener("click", () => {
         const i = sel.selectedIndex;
@@ -1145,7 +1043,6 @@
         renderPicsumList(i);
         pushPreviewDebounced();
       });
-
     btnUse &&
       btnUse.addEventListener("click", () => {
         const i = sel.selectedIndex;
@@ -1161,15 +1058,12 @@
         }
         pushPreviewDebounced();
       });
-
     bindPicsumListOnce._bound = true;
   }
-
   // === PICSUM GALLERI (modal + henting + kuratering) ==========================
   const PICSUM_API = "https://picsum.photos/v2/list";
   const PICSUM_THUMB_W = 240;
   const PICSUM_THUMB_H = 160;
-
   const picsumPicker = {
     open: false,
     page: 1,
@@ -1178,7 +1072,6 @@
     selected: new Set(),
     loading: false,
   };
-
   function ensurePicsumBrowseButton() {
     if (document.getElementById("btn_picsum_browse")) return;
     const host = document.getElementById("bg_picsum_cfg") || document.body;
@@ -1192,95 +1085,75 @@
     bar.appendChild(btn);
     host.appendChild(bar);
   }
-
   // --- Picsum modal: bind mot eksisterende <dialog id="picsum_modal"> ---
   function ensurePicsumModal() {
     const dlg = document.getElementById("picsum_modal");
     if (!dlg || dlg._bound) return;
-
     // Lukk ved klikk utenfor boksen
     dlg.addEventListener("click", (ev) => {
       if (ev.target === dlg) closePicsumPicker();
     });
-
     // "Esc" → close (standard), men sørg for å rydde status
     dlg.addEventListener("cancel", (e) => {
       e.preventDefault();
       closePicsumPicker();
     });
-
     // Rydd state når dialog lukkes
     dlg.addEventListener("close", () => {
       picsumPicker.open = false;
       picsumPicker.selected.clear();
     });
-
     // Knapper og inputfelt i dialogen (finnes allerede i admin.html)
     document.getElementById("pg_close")?.addEventListener("click", closePicsumPicker);
-
     document.getElementById("pg_prev")?.addEventListener("click", () => {
       if (picsumPicker.page > 1) {
         picsumPicker.page--;
         fetchPicsumPage();
       }
     });
-
     document.getElementById("pg_next")?.addEventListener("click", () => {
       picsumPicker.page++;
       fetchPicsumPage();
     });
-
     document.getElementById("pg_page")?.addEventListener("change", () => {
       const p = parseInt(document.getElementById("pg_page").value || "1", 10);
       picsumPicker.page = Math.max(1, Number.isFinite(p) ? p : 1);
       fetchPicsumPage();
     });
-
     document.getElementById("pg_per_page")?.addEventListener("change", () => {
       picsumPicker.perPage = parseInt(document.getElementById("pg_per_page").value, 10) || 24;
       fetchPicsumPage();
     });
-
     document.getElementById("pg_add")?.addEventListener("click", () => addSelectedToCurated(false));
     document.getElementById("pg_add_use")?.addEventListener("click", () => addSelectedToCurated(true));
-
     dlg._bound = true;
   }
-
   function openPicsumPicker() {
     ensurePicsumModal();
     const dlg = document.getElementById("picsum_modal");
     if (!dlg) return;
-
     picsumPicker.open = true;
     picsumPicker.selected = new Set();
-
     // Åpne riktig – dette gir korrekt backdrop + scrolling
     if (typeof dlg.showModal === "function") dlg.showModal();
     else dlg.setAttribute("open", ""); // fallback
-
     // Synk UI og last side
     const pg = document.getElementById("pg_page");
     const pp = document.getElementById("pg_per_page");
     if (pg) pg.value = String(picsumPicker.page);
     if (pp) pp.value = String(picsumPicker.perPage);
-
     fetchPicsumPage();
   }
-
   function closePicsumPicker() {
     const dlg = document.getElementById("picsum_modal");
     if (!dlg) return;
     picsumPicker.open = false;
-
     if (typeof dlg.close === "function") dlg.close();
     else dlg.removeAttribute("open"); // fallback
   }
-
   // eksponer for "Åpne Picsum-galleri…" knappen
   window.openPicsumPicker = openPicsumPicker;
   window.closePicsumPicker = closePicsumPicker;
-
   async function fetchPicsumPage() {
     if (!picsumPicker.open) return;
     picsumPicker.loading = true;
@@ -1299,7 +1172,6 @@
       if (s) s.textContent = "Kunne ikke hente fra picsum.photos";
     }
   }
-
   function renderPicsumGrid() {
     const grid = document.getElementById("pg_grid");
     const s = document.getElementById("pg_status");
@@ -1309,12 +1181,10 @@
       s.textContent = picsumPicker.loading
         ? "Laster…"
         : `Side ${picsumPicker.page} · ${picsumPicker.items.length} bilder`;
-
     picsumPicker.items.forEach((it) => {
       const id = Number(it.id);
       const author = String(it.author || "").trim();
       const url = `https://picsum.photos/id/${id}/${PICSUM_THUMB_W}/${PICSUM_THUMB_H}`;
-
       // static/js/admin.js — REPLACE tile building inside renderPicsumGrid()
       const tile = document.createElement("div");
       tile.className = "tile";
@@ -1336,7 +1206,6 @@
       grid.appendChild(tile);
     });
   }
-
   function addSelectedToCurated(useFirst) {
     if (!picsumPicker.selected.size) {
       alert("Ingen bilder valgt.");
@@ -1354,7 +1223,6 @@
     renderPicsumList();
     pushPreviewDebounced();
     showStatusToast(`${picked.length} bilde(r) lagt i kuratert liste`, "ok", 1800);
-
     if (useFirst) {
       const first = picked[0];
       const idField = document.getElementById("bg_picsum_id");
@@ -1368,7 +1236,6 @@
     }
     closePicsumPicker();
   }
-
   // ==== Loading / sync =======================================================
   async function loadAll() {
     const js = await getJSON("/api/config");
@@ -1389,17 +1256,14 @@
       pill.title = "Synk: —";
       host.appendChild(pill);
     }
-
     try {
       const js = await getJSON("/debug/view-heartbeat");
       const hb = js.heartbeat || {};
       const age = hb.age_seconds ?? 9999;
       const viewRev = hb.rev || 0;
       const cfgRev = lastCfg && lastCfg._updated_at ? lastCfg._updated_at : 0;
-
       let tone = "off";
       let title = "Synk: —";
-
       if (age > 30 || !hb.ts_iso) {
         tone = "off";
         title = "Synk: visning offline";
@@ -1410,7 +1274,6 @@
         tone = "warn";
         title = `Synk: venter (view ${viewRev} < cfg ${cfgRev})`;
       }
-
       pill.className = `pill dot ${tone}`;
       pill.title = title;
       pill.textContent = "";
@@ -1420,7 +1283,6 @@
       pill.textContent = "";
     }
   }
-
   // ==== Mode/duration actions ===============================================
   async function patchMode(newMode) {
     await postJSON("/api/config", { mode: newMode });
@@ -1441,11 +1303,9 @@
     await postJSON("/api/stop", {});
     await loadAll();
   }
-
   // ==== Presets ==============================================================
   function applyPreset() {
     const p = (document.querySelector("#bg_preset")?.value || "none").trim();
-
     if (p === "none") {
       // noop
     } else if (p === "dark-solid") {
@@ -1480,14 +1340,12 @@
       $("#bg_img_tint") && ($("#bg_img_tint").value = "#0d4082");
       $("#bg_img_tint_op") && ($("#bg_img_tint_op").value = 0.35);
     }
-
     lock();
     updateDigitContrastHints();
     updateMessageContrastHints();
     updateClockContrastHint?.();
     pushPreview();
   }
-
   // ==== Events ===============================================================
   function bindEvents() {
     $$(`input[name="mode"]`).forEach((el) => el.addEventListener("change", lock));
@@ -1589,7 +1447,6 @@
     <option value="minimal-motion">Minimal motion</option>
   </select>
 </div>
-
     <div class="row" style="display:grid;grid-template-columns:repeat(6, minmax(0,1fr));gap:8px">
       <div style="grid-column: span 3;">
         <label>Shape 1 – størrelse (vmax)</label>
@@ -1609,7 +1466,6 @@
         <label>Shape 1 – stopp (%)</label>
         <input type="number" id="bg_dyn_s1_stop" min="0" max="100" step="0.1" placeholder="62">
       </div>
-
       <div style="grid-column: span 3;">
         <label>Shape 2 – størrelse (vmax)</label>
         <div style="display:flex;gap:6px">
@@ -1628,17 +1484,14 @@
         <label>Shape 2 – stopp (%)</label>
         <input type="number" id="bg_dyn_s2_stop" min="0" max="100" step="0.1" placeholder="64">
       </div>
-
       <div style="grid-column: span 2;">
         <label>Conic – start (grader)</label>
         <input type="number" id="bg_dyn_conic_from" min="0" max="360" step="0.1" placeholder="220">
       </div>
-
       <div style="grid-column: span 2;">
         <label>Animasjonsskala</label>
         <input type="number" id="bg_dyn_scale" min="0.5" max="2" step="0.01" placeholder="1.02">
       </div>
-
       <div style="grid-column: span 2;">
         <label>Z-index (under)</label>
         <input type="number" id="bg_dyn_z_under" min="-9999" max="9999" step="1" placeholder="0">
@@ -1650,7 +1503,6 @@
     </div>
   `;
     host.appendChild(wrap);
-
     // Bind alle inputs til live-preview
     [
       "#bg_dyn_s1_w",
@@ -1678,10 +1530,8 @@
       selPreset.addEventListener("change", () => applyDynamicPreset(selPreset.value));
       selPreset._bound = true;
     }
-
     host._dynAdvBound = true;
   }
-
   // --- Dynamic Presets ---------------------------------------------------------
   const DYN_PRESETS = {
     // Rolig, myk rotasjon – default-aktig
@@ -1700,7 +1550,6 @@
       z_under: 0,
       z_over: 15,
     },
-
     // Litt raskere, litt skarpere farger
     "vibrant-spin": {
       from: "#1b3358",
@@ -1717,7 +1566,6 @@
       z_under: 0,
       z_over: 15,
     },
-
     // Diskret, sakte – passer under bilder (layer=over for subtil film)
     "soft-glow-over": {
       from: "#0b1322",
@@ -1734,7 +1582,6 @@
       z_under: 0,
       z_over: 30, // over innholdets z=10 men under overlays=50
     },
-
     // Høy kontrast, moderat fart
     "deep-contrast": {
       from: "#00111f",
@@ -1751,7 +1598,6 @@
       z_under: 0,
       z_over: 15,
     },
-
     // Minimal bevegelse – nesten statisk
     "minimal-motion": {
       from: "#142033",
@@ -1769,16 +1615,13 @@
       z_over: 15,
     },
   };
-
   function setIfExists(sel, valStr) {
     const el = document.querySelector(sel);
     if (el) el.value = String(valStr);
   }
-
   function applyDynamicPreset(key) {
     const p = DYN_PRESETS[key];
     if (!p) return;
-
     // Grunnfelter
     setIfExists("#bg_dyn_from", p.from);
     setIfExists("#bg_dyn_to", p.to);
@@ -1787,7 +1630,6 @@
     setIfExists("#bg_dyn_opacity", p.opacity);
     setIfExists("#bg_dyn_base", p.base_mode);
     setIfExists("#bg_dyn_layer", p.layer);
-
     // Avansert
     if (p.shape1) {
       setIfExists("#bg_dyn_s1_w", p.shape1.size_vmax?.[0] ?? 72);
@@ -1807,7 +1649,6 @@
     setIfExists("#bg_dyn_scale", p.anim_scale ?? 1.02);
     setIfExists("#bg_dyn_z_under", p.z_under ?? 0);
     setIfExists("#bg_dyn_z_over", p.z_over ?? 15);
-
     // Sørg for at riktig seksjon er synlig og forhåndsvisningen oppdateres
     const radio = document.querySelector(`input[name="bg_mode"][value="dynamic"]`);
     if (radio) radio.checked = true;
@@ -1817,7 +1658,6 @@
     updateClockContrastHint?.();
     pushPreviewDebounced?.();
   }
-
   // --- Sort / Export / Import helpers -----------------------------------------
   function sortPicsumCatalog(by = "id", dir = "asc") {
     const norm = (s) =>
@@ -1841,10 +1681,8 @@
       id: Number(id),
       label: String(label || ""),
     }));
-
     const lines = items.map((o) => "  " + JSON.stringify(o)); // 2-space indent
     const content = "[\n" + lines.map((l, i) => l + (i < lines.length - 1 ? "," : "")).join("\n") + "\n]\n";
-
     const blob = new Blob([content], { type: "application/json" });
     const name = `picsum-curated-${new Date().toISOString().slice(0, 10)}.json`;
     const a = document.createElement("a");
@@ -1857,7 +1695,6 @@
       a.remove();
     }, 0);
   }
-
   // Robust import av kuratert Picsum-liste (JSON array eller JSONL-lignende)
   async function importCuratedPicsumList(fileOrText) {
     const text = typeof fileOrText === "string" ? fileOrText : await fileOrText.text();
@@ -1924,7 +1761,6 @@
       alert("Import feilet:\n" + (e?.message || e));
     }
   }
-
   // Koble til en “Importer”-knapp (og et skjult file input). Kall fra init().
   function bindPicsumImport() {
     const btn = document.getElementById("btn_picsum_import");
@@ -1938,7 +1774,6 @@
       fileIn.style.display = "none";
       document.body.appendChild(fileIn);
     }
-
     btn.addEventListener("click", () => fileIn.click());
     fileIn.addEventListener("change", async (ev) => {
       const f = ev.target.files && ev.target.files[0];
@@ -1952,7 +1787,6 @@
     });
     btn._bound = true;
   }
-
   // ==== Init =================================================================
   async function init() {
     bindEvents();

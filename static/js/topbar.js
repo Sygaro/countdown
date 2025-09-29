@@ -1,13 +1,10 @@
 // static/js/topbar.js
 // Gjenbrukbar sticky topbar: klokke, countdown, service-lys, kontrollknapper (+ selvtest).
 // Bruk: Topbar.init({ el: "#topbar", title: "Diagnose" })
-
 export const Topbar = (() => {
   const qs = (s, r) => (r || document).querySelector(s);
-
   // terskler (timer)
   const NTP_THRESHOLDS_HOURS = { green: 6, yellow: 24 };
-
   function authHeaders() {
     const pwd = localStorage.getItem("admin_password") || qs('meta[name="admin-password"]')?.content || "";
     const h = { Accept: "application/json" };
@@ -28,14 +25,12 @@ export const Topbar = (() => {
     const dot = qs(selector, root);
     if (dot) dot.className = "dot " + (tone || "warn");
   }
-
   function fmtHM(durationMs) {
     const totalMin = Math.floor(Math.abs(durationMs) / 60000);
     const h = Math.floor(totalMin / 60);
     const m = totalMin % 60;
     return `${h}:${String(m).padStart(2, "0")}`;
   }
-
   function ntpStateFrom(about) {
     const ntp = about?.ntp || {};
     // bruk LastContact først
@@ -53,25 +48,20 @@ export const Topbar = (() => {
       const d = Date.parse(ntp.LastSyncISO);
       if (!Number.isNaN(d)) t_ms = d;
     }
-
     const synced = !!(ntp.NTPSynchronized || ntp.SystemClockSynchronized);
     if (!t_ms && !synced) return { tone: "bad", label: "ntp — ikke synk" };
     if (!t_ms) return { tone: "warn", label: "ntp — ukjent" };
-
     const ageMs = Date.now() - t_ms;
     const ageHours = ageMs / 3_600_000;
-
     // terskler
     let tone = "ok";
     if (ageHours > NTP_THRESHOLDS_HOURS.yellow) tone = "bad";
     else if (ageHours > NTP_THRESHOLDS_HOURS.green) tone = "warn";
-
     const server = [ntp.ServerName, ntp.ServerAddress].filter(Boolean).join(" ");
     const label = `ntp ${fmtHM(ageMs)}`; // <— H:MM
     const title = `${server || "ntp"} · ${fmtHM(ageMs)} siden (kilde: ${ntp.LastContactSource || "ukjent"})`;
     return { tone, label, title };
   }
-
   async function call(path, body, method = "POST") {
     const res = await fetch(path, {
       method,
@@ -82,7 +72,6 @@ export const Topbar = (() => {
     if (!res.ok || js.ok === false) throw new Error(js.error || js.stderr || `HTTP ${res.status}`);
     return js;
   }
-
   function renderCompact(root) {
     root.className = "topbar compact";
     root.innerHTML = `
@@ -106,18 +95,15 @@ export const Topbar = (() => {
       </div>
     `;
   }
-
   function init(opts) {
     const root = typeof opts.el === "string" ? qs(opts.el) : opts.el;
     if (!root) throw new Error("Topbar.init: missing el");
     renderCompact(root);
-
     const updateClock = () => {
       qs("#tb_clock", root).textContent = fmtClock(new Date());
     };
     updateClock();
     setInterval(updateClock, 1000);
-
     async function pollTick() {
       try {
         const r = await fetch("/tick", { cache: "no-store" });
@@ -127,7 +113,6 @@ export const Topbar = (() => {
     }
     pollTick();
     setInterval(pollTick, 1000);
-
     async function pollSvcs() {
       try {
         const r = await fetch("/api/sys/about-status", { headers: authHeaders() });
@@ -155,7 +140,6 @@ export const Topbar = (() => {
     }
     pollSvcs();
     setInterval(pollSvcs, 10000);
-
     function bind(btn, fn) {
       const b = qs(btn, root);
       if (!b) return;
@@ -174,7 +158,6 @@ export const Topbar = (() => {
     bind("#tb_restart_app", () => call("/api/sys/service", { action: "restart", name: "app" }));
     bind("#tb_restart_kiosk", () => call("/api/sys/service", { action: "restart", name: "kiosk" }));
     bind("#tb_reboot", () => confirm("Er du sikker på at du vil restarte RPi nå?") && call("/api/sys/reboot", {}));
-
     // Ekstra sikker shutdown: confirm + skriv JA
     bind("#tb_shutdown", async () => {
       if (!confirm("Advarsel: Du er i ferd med å slå av RPi. Fortsette?")) return;
@@ -185,7 +168,6 @@ export const Topbar = (() => {
       }
       await call("/api/sys/shutdown", {});
     });
-
     bind("#tb_selftest", async () => {
       if (typeof window.__runSelftest === "function") {
         await window.__runSelftest();
@@ -196,13 +178,10 @@ export const Topbar = (() => {
         alert(js?.ok ? "Selvtest: OK" : "Selvtest: feil");
       }
     });
-
     return { pollTick, pollSvcs };
   }
-
   return { init };
 })();
-
 try {
   window.Topbar = Topbar;
 } catch {}

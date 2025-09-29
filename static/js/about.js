@@ -1,19 +1,16 @@
 // static/js/about.js
 (function () {
   const qs = (s, r) => (r || document).querySelector(s);
-
   function authHeaders() {
     const pwd = localStorage.getItem("admin_password") || qs('meta[name="admin-password"]')?.content || "";
     const h = { Accept: "application/json" };
     if (pwd) h["X-Admin-Password"] = pwd;
     return h;
   }
-
   function serviceCard(name, svc) {
     const ok = !!svc.active;
     const wrap = document.createElement("div");
     wrap.className = "svc"; // matcher about.css
-
     wrap.innerHTML = `
     <div class="title">
       <span>${name}</span>
@@ -31,7 +28,6 @@
   `;
     return wrap;
   }
-
   async function loadAbout() {
     const boxErr = qs("#about_error");
     const s = qs("#about_status");
@@ -39,7 +35,6 @@
       const r = await fetch("/api/sys/about-status", { headers: authHeaders() });
       const js = await r.json();
       if (!r.ok || js.ok === false) throw new Error(js.error || `HTTP ${r.status}`);
-
       const a = js.about || {};
       const map = {
         version: "#v_version",
@@ -54,7 +49,6 @@
         const el = qs(sel);
         if (el) el.textContent = a[key] || "—";
       }
-
       const wrap = qs("#v_services_wrap");
       if (wrap) {
         wrap.innerHTML = "";
@@ -63,7 +57,6 @@
           if (services[name]) wrap.appendChild(serviceCard(name, services[name]));
         });
       }
-
       s.style.display = "";
       boxErr.style.display = "none";
     } catch (e) {
@@ -74,6 +67,5 @@
       }
     }
   }
-
   document.addEventListener("DOMContentLoaded", loadAbout);
 })();

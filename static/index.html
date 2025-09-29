@@ -13,22 +13,18 @@
   </head>
   <body class="center fill">
     <button id="btn_fullscreen" class="fs-btn" title="Fullskjerm">⛶ Fullskjerm</button>
-
     <!-- Nedtelling -->
     <div id="view_countdown" class="center fill" style="flex-direction: column; gap: 2vh; display: none">
       <div id="msgs_above" class="muted" style="display: none; text-align: center">
         <div id="msg_primary_above"></div>
         <div id="msg_secondary_above"></div>
       </div>
-
       <div id="digits" class="big">00:00</div>
-
       <div id="msgs_below" class="muted" style="display: none; text-align: center">
         <div id="msg_primary_below"></div>
         <div id="msg_secondary_below"></div>
       </div>
     </div>
-
     <!-- Klokke-modus -->
     <div id="view_clock" class="center fill" style="display: none">
       <div id="clock_time" style="font-weight: 800"></div>
@@ -37,11 +33,9 @@
         <div id="clock_msg_secondary"></div>
       </div>
     </div>
-
     <script src="/static/js/view.background.js" defer></script>
     <script src="/static/js/view.overlays.js" defer></script>
     <script src="/static/js/view.js" defer></script>
-
     <!-- Overlays (logo/grafikk) -->
     <div id="overlays" class="overlays" aria-hidden="true"></div>
   </body>
