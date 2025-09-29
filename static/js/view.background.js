@@ -41,6 +41,59 @@
     }
     return { vw, vh };
   }
+    // Bygg nøyaktig Picsum-URL fra bakgrunnskonfig (brukes også for preloading)
+  function buildPicsumUrlFromBg(bg) {
+    const pc = (bg && bg.picsum) || {};
+    const fit = (pc.fit || "cover").toLowerCase();
+    const { vw, vh } = viewportPxForPicsum(fit);
+
+    let base;
+    const idNum = Number(pc.id ?? 0);
+    if (Number.isFinite(idNum) && idNum > 0) {
+      base = `https://picsum.photos/id/${idNum}/${vw}/${vh}`;
+    } else if (pc.lock_seed && (pc.seed || "").trim()) {
+      base = `https://picsum.photos/seed/${encodeURIComponent(pc.seed.trim())}/${vw}/${vh}`;
+    } else {
+      base = `https://picsum.photos/${vw}/${vh}`;
+    }
+    const params = [];
+    if (pc.grayscale) params.push("grayscale");
+    const blurN = Math.max(0, Math.min(10, Number(pc.blur || 0) || 0));
+    if (blurN > 0) params.push(`blur=${blurN}`);
+    return params.length ? `${base}?${params.join("&")}` : base;
+  }
+
+  // Enkelt preloader; løses når bildet er lastet (timeout → reject)
+  function preloadImage(url, timeoutMs = 30000) {
+    return new Promise((resolve, reject) => {
+      if (!url) return reject(new Error("empty url"));
+      const img = new Image();
+      let done = false;
+      const to = setTimeout(() => {
+        if (!done) {
+          done = true;
+          img.src = "";
+          reject(new Error("timeout"));
+        }
+      }, Math.max(1000, timeoutMs));
+      img.onload = () => {
+        if (!done) {
+          done = true;
+          clearTimeout(to);
+          resolve();
+        }
+      };
+      img.onerror = () => {
+        if (!done) {
+          done = true;
+          clearTimeout(to);
+          reject(new Error("error"));
+        }
+      };
+      img.src = url;
+    });
+  }
+
 
   // dynamic helper
   function ensureDynKeyframes() {
@@ -118,25 +171,12 @@
     applyBaseImageLayers(el, fit, url, bg?.image?.tint);
   }
   function applyBgPicsum(el, bg) {
+    const url = buildPicsumUrlFromBg(bg);
     const pc = bg?.picsum || {};
-    const { vw, vh } = viewportPxForPicsum(pc.fit || "cover");
-    let base;
-    const idNum = Number(pc.id ?? 0);
-    if (Number.isFinite(idNum) && idNum > 0) {
-      base = `https://picsum.photos/id/${idNum}/${vw}/${vh}`;
-    } else if (pc.lock_seed && (pc.seed || "").trim()) {
-      base = `https://picsum.photos/seed/${encodeURIComponent(pc.seed.trim())}/${vw}/${vh}`;
-    } else {
-      base = `https://picsum.photos/${vw}/${vh}`;
-    }
-    const params = [];
-    if (pc.grayscale) params.push("grayscale");
-    const blurN = Math.max(0, Math.min(10, Number(pc.blur || 0) || 0));
-    if (blurN > 0) params.push(`blur=${blurN}`);
-    const url = params.length ? `${base}?${params.join("&")}` : base;
-
     applyBaseImageLayers(el, (pc.fit || "cover").toLowerCase(), url, pc.tint);
   }
+    window.ViewBg = { applyBackground, viewportPxForPicsum, buildPicsumUrlFromBg, preloadImage };
+
   function applyBgDynamic(rootEl, bg) {
   const dyn = bg?.dynamic || {};
   const basePref = (dyn.base_mode || "auto").toLowerCase();
@@ -228,5 +268,5 @@
     }
   }
 
-  window.ViewBg = { applyBackground, viewportPxForPicsum };
+  window.ViewBg = { applyBackground, viewportPxForPicsum, buildPicsumUrlFromBg, preloadImage };
 })();

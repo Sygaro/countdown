@@ -118,35 +118,54 @@
       }
 
       // Oppdatér bakgrunn straks når backend sier “updated”
-      if (js.updated && Number.isFinite(js.id) && js.id > 0) {
-        if (js.id !== state.picsum.id) {
-          state.picsum.id = js.id;
-          const bg = state.cfg?.theme?.background || {};
-          state.cfg.theme = state.cfg.theme || {};
-          state.cfg.theme.background = bg;
-          bg.picsum = bg.picsum || {};
-          bg.picsum.id = js.id;
-          window.ViewBg.applyBackground(document.body, bg);
-          ensureForeground();
+            if (js.updated && Number.isFinite(js.id) && js.id > 0) {
+        const curBg = state.cfg?.theme?.background || {};
+        const nextBg = JSON.parse(JSON.stringify(curBg));
+        nextBg.picsum = nextBg.picsum || {};
+        nextBg.picsum.id = js.id;
+
+        // Prøv å forhåndslaste – men UANSETT: bytt etterpå, så vi ikke “stivner”.
+        try {
+          const url = window.ViewBg.buildPicsumUrlFromBg(nextBg);
+          await window.ViewBg.preloadImage(url, 30000);
+        } catch {
+          // Ignorer feil/timeout – vi faller tilbake til umiddelbart bytte
         }
+
+        state.picsum.id = js.id;
+        state.cfg.theme = state.cfg.theme || {};
+        state.cfg.theme.background = nextBg;
+        window.ViewBg.applyBackground(document.body, nextBg);
+        ensureForeground();
+
         const wait = clamp((parseInt(js.interval_seconds, 10) || 5) * 1000, 1000, 24 * 60 * 60 * 1000);
         picsumSchedule(wait);
         return;
       }
+
 
       // Ikke bytte ennå → poll hurtigere nær slutten
       const nextIn = clamp(parseInt(js.next_in_seconds, 10) || 0, 0, 24 * 60 * 60);
       picsumSchedule(nextIn > 3 ? 5000 : 1000);
 
       // Første oppstart: ta id selv om updated=false
-      if (!state.picsum.id && Number.isFinite(js.id) && js.id > 0) {
-        state.picsum.id = js.id;
-        const bg = state.cfg?.theme?.background || {};
-        bg.picsum = bg.picsum || {};
-        bg.picsum.id = js.id;
-        window.ViewBg.applyBackground(document.body, bg);
-        ensureForeground();
+            if (!state.picsum.id && Number.isFinite(js.id) && js.id > 0) {
+        const curBg = state.cfg?.theme?.background || {};
+        const nextBg = JSON.parse(JSON.stringify(curBg));
+        nextBg.picsum = nextBg.picsum || {};
+        nextBg.picsum.id = js.id;
+        try {
+          const url = window.ViewBg.buildPicsumUrlFromBg(nextBg);
+          await window.ViewBg.preloadImage(url, 15000);
+          state.picsum.id = js.id;
+          state.cfg.theme.background = nextBg;
+          window.ViewBg.applyBackground(document.body, nextBg);
+          ensureForeground();
+        } catch {
+          // hopp over bytte nå; prøv igjen ved neste poll
+        }
       }
+
     } catch {
       picsumSchedule(5000);
     }

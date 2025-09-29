@@ -560,7 +560,17 @@
       interval_seconds: intervalSec,
       strategy: val("#bg_picsum_auto_strategy", "shuffle") || "shuffle",
     },
+    
   };
+  const unitSel = document.getElementById("bg_picsum_auto_unit");
+if (unitSel) {
+  unitSel.addEventListener("change", () => {
+  window.updatePicsumAutoIntervalConstraints && window.updatePicsumAutoIntervalConstraints();
+  pushPreviewDebounced?.();
+});
+
+}
+
 }
 
 
@@ -690,6 +700,12 @@
         arUnitEl.value = "s";
         arIntEl.value = String(secs);
       }
+          if (typeof window.updatePicsumAutoIntervalConstraints === "function") {
+    window.updatePicsumAutoIntervalConstraints();
+  }
+
+
+window.updatePicsumAutoIntervalConstraints && window.updatePicsumAutoIntervalConstraints();
       arStratEl.value = ar.strategy || "shuffle";
     }
 
@@ -764,7 +780,7 @@
       </div>
       <div class="row" style="display:flex;gap:8px;align-items:center;margin-top:6px;">
         <label>Intervall</label>
-        <input type="number" id="bg_picsum_auto_interval" min="5" max="${24 * 60 * 60}" step="1" value="300" style="width:110px">
+<input type="number" id="bg_picsum_auto_interval" min="1" max="${24 * 60 * 60}" step="1" value="300" style="width:110px">
         <select id="bg_picsum_auto_unit">
           <option value="s">sekunder</option>
           <option value="m" selected>minutter</option>
@@ -777,6 +793,25 @@
       </div>
       <p style="opacity:.8;margin:6px 0 0;">Kilde: «Kuratert Picsum-liste». Når aktivt, kan visningen kalle <code>/api/picsum/next</code> periodisk.</p>
     `;
+    // Justér min-/step for intervallfeltet basert på valgt enhet (globalt tilgjengelig)
+window.updatePicsumAutoIntervalConstraints = function () {
+  const unitEl = document.getElementById("bg_picsum_auto_unit");
+  const intEl  = document.getElementById("bg_picsum_auto_interval");
+  if (!unitEl || !intEl) return;
+
+  if ((unitEl.value || "m") === "m") {
+    // Minutter: lov 1 min
+    intEl.min = "1";
+    intEl.step = "1";
+  } else {
+    // Sekunder: min 5 sek
+    intEl.min = "5";
+    intEl.step = "1";
+    if (Number(intEl.value) < 5) intEl.value = "5";
+  }
+};
+
+
     host.appendChild(wrap);
 
     const syncFromCfg = () => {
@@ -805,6 +840,206 @@
     syncFromCfg();
     host._autoRotateBound = true;
   })();
+
+  // === KURATERT PICSUM GALLERI (modal for picsumCatalogLocal) ==================
+function ensureCuratedPicsumUI() {
+  // 1) Legg til knapp under Picsum-konfig
+  if (!document.getElementById("btn_picsum_curated")) {
+    const host = document.getElementById("bg_picsum_cfg") || document.body;
+    const bar = document.createElement("div");
+    bar.style.margin = "6px 0";
+    const btn = document.createElement("button");
+    btn.id = "btn_picsum_curated";
+    btn.type = "button";
+    btn.textContent = "Åpne kuratert galleri…";
+    btn.addEventListener("click", openCuratedPicsumPicker);
+    bar.appendChild(btn);
+    host.appendChild(bar);
+  }
+
+  // 2) Lag modal-dialog om den ikke finnes
+  if (!document.getElementById("curated_modal")) {
+    const dlg = document.createElement("dialog");
+    dlg.id = "curated_modal";
+    dlg.style.padding = "0";
+    dlg.style.border = "none";
+    dlg.style.maxWidth = "92vw";
+    dlg.style.width = "min(1200px, 92vw)";
+    dlg.style.maxHeight = "86vh";
+
+    dlg.innerHTML = `
+  <div style="display:flex; flex-direction:column; height:86vh;">
+    <div style="padding:10px 12px; border-bottom:1px solid #2a2f37; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <strong style="font-size:1.05rem;">Kuratert Picsum-liste</strong>
+      <span id="cur_status" style="opacity:.8;"></span>
+
+      <div style="display:flex; gap:8px; align-items:center; margin-left:auto; flex-wrap:wrap;">
+        <label style="display:flex; gap:6px; align-items:center;">
+          <span style="opacity:.8;">Sorter</span>
+          <select id="cur_sort_by">
+            <option value="id">ID</option>
+            <option value="name">Navn</option>
+          </select>
+          <select id="cur_sort_dir">
+            <option value="asc">Stigende</option>
+            <option value="desc">Synkende</option>
+          </select>
+        </label>
+
+        <button type="button" id="cur_btn_export">Eksporter JSON</button>
+
+        <input type="file" id="cur_import_file" accept="application/json" style="display:none;">
+        <button type="button" id="cur_btn_import">Importer JSON…</button>
+
+        <button type="button" id="cur_close">Lukk</button>
+      </div>
+    </div>
+
+    <div id="cur_scroll" style="overflow:auto; padding:12px;">
+      <div id="cur_grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap:12px;"></div>
+    </div>
+  </div>
+`;
+
+    document.body.appendChild(dlg);
+
+    // Bind lukking
+    dlg.addEventListener("click", (ev) => {
+      if (ev.target === dlg) closeCuratedPicsumPicker(); // klikk utenfor
+    });
+    dlg.addEventListener("cancel", (e) => { e.preventDefault(); closeCuratedPicsumPicker(); });
+    dlg.addEventListener("close", () => { /* ingen ekstra state nødvendig */ });
+    dlg.querySelector("#cur_close")?.addEventListener("click", closeCuratedPicsumPicker);
+    // Sorteringsendringer
+const sortByEl  = dlg.querySelector("#cur_sort_by");
+const sortDirEl = dlg.querySelector("#cur_sort_dir");
+if (sortByEl && sortDirEl) {
+  const applySort = () => {
+    sortPicsumCatalog(sortByEl.value || "id", sortDirEl.value || "asc");
+    renderPicsumList();
+    renderCuratedGrid();
+    pushPreviewDebounced?.();
+  };
+  sortByEl.addEventListener("change", applySort);
+  sortDirEl.addEventListener("change", applySort);
+}
+
+// Eksport
+dlg.querySelector("#cur_btn_export")?.addEventListener("click", exportCuratedPicsumList);
+
+// Import
+const importInput = dlg.querySelector("#cur_import_file");
+dlg.querySelector("#cur_btn_import")?.addEventListener("click", () => importInput?.click());
+importInput?.addEventListener("change", async (e) => {
+  const file = e.currentTarget.files?.[0];
+  if (!file) return;
+  // Velg sammenslåing eller erstatting
+  const merge = confirm("Importer: Vil du slå sammen med eksisterende liste? (OK = slå sammen, Cancel = erstatt)");
+  if (!merge) picsumCatalogLocal = []; // blank hvis ikke merge
+  await importCuratedPicsumListFromFile(file, { merge });
+  e.currentTarget.value = ""; // reset file input
+});
+
+  }
+  
+}
+
+function openCuratedPicsumPicker() {
+  ensureCuratedPicsumUI();
+  const dlg = document.getElementById("curated_modal");
+  if (!dlg) return;
+  if (typeof dlg.showModal === "function") dlg.showModal();
+  else dlg.setAttribute("open", "");
+  renderCuratedGrid();
+}
+
+function closeCuratedPicsumPicker() {
+  const dlg = document.getElementById("curated_modal");
+  if (!dlg) return;
+  if (typeof dlg.close === "function") dlg.close();
+  else dlg.removeAttribute("open");
+}
+
+function renderCuratedGrid() {
+  const grid = document.getElementById("cur_grid");
+  const statusEl = document.getElementById("cur_status");
+  if (!grid) return;
+
+  grid.innerHTML = "";
+  const items = Array.isArray(picsumCatalogLocal) ? picsumCatalogLocal : [];
+  if (statusEl) statusEl.textContent = items.length ? `(${items.length} bilde${items.length === 1 ? "" : "r"})` : "(tom)";
+
+  if (!items.length) {
+    const p = document.createElement("p");
+    p.textContent = "Kuratert liste er tom. Bruk «Åpne Picsum-galleri…» for å legge til bilder.";
+    p.style.opacity = ".8";
+    grid.appendChild(p);
+    return;
+  }
+
+  const W = 240, H = 160;
+  items.forEach((it, idx) => {
+    const id = Number(it?.id);
+    const label = String(it?.label || "");
+    if (!Number.isFinite(id) || id <= 0) return;
+
+    const url = `https://picsum.photos/id/${id}/${W}/${H}`;
+
+    const tile = document.createElement("div");
+    tile.className = "tile curated";
+    tile.style.border = "1px solid #2a2f37";
+    tile.style.borderRadius = "6px";
+    tile.style.overflow = "hidden";
+    tile.style.background = "#0d1117";
+    tile.innerHTML = `
+      <div style="position:relative; aspect-ratio:${W}/${H}; background:#0b0f14;">
+        <img src="${url}" alt="Picsum #${id}" style="width:100%; height:100%; object-fit:cover; display:block;">
+        <div style="position:absolute; left:8px; top:8px; font-size:.8rem; background:#111827cc; color:#e5e7eb; padding:2px 6px; border-radius:4px;">#${id}</div>
+      </div>
+      <div style="padding:8px; display:flex; flex-direction:column; gap:6px;">
+        <label style="display:flex; flex-direction:column; gap:4px;">
+          <span style="opacity:.8; font-size:.85rem;">Navn / label</span>
+          <input type="text" data-role="label" value="${label.replace(/"/g, "&quot;")}" style="padding:6px 8px; border:1px solid #2a2f37; background:#0b0f14; color:#e6edf3; border-radius:4px;">
+        </label>
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+          <button type="button" data-role="use">Bruk</button>
+          <button type="button" data-role="delete" style="background:#7f1d1d; color:#fff;">Slett</button>
+        </div>
+      </div>
+    `;
+
+    // Endre navn
+    const inp = tile.querySelector('input[data-role="label"]');
+    inp?.addEventListener("input", (e) => {
+      const v = String(e.currentTarget.value || "");
+      picsumCatalogLocal[idx] = { id, label: v };
+      pushPreviewDebounced?.();
+    });
+
+    // Bruk dette bildet
+    tile.querySelector('button[data-role="use"]')?.addEventListener("click", () => {
+      const idField = document.getElementById("bg_picsum_id");
+      if (idField) idField.value = String(id);
+      const radio = document.querySelector('input[name="bg_mode"][value="picsum"]');
+      if (radio) {
+        radio.checked = true;
+        lock();
+      }
+      pushPreviewDebounced?.();
+    });
+
+    // Slett fra lista
+    tile.querySelector('button[data-role="delete"]')?.addEventListener("click", () => {
+      // Fjern valgt entry
+      picsumCatalogLocal.splice(idx, 1);
+      renderPicsumList();      // oppdater <select>-lista også
+      renderCuratedGrid();     // re-build modalgrid
+      pushPreviewDebounced?.();
+    });
+
+    grid.appendChild(tile);
+  });
+}
 
   function renderPicsumList(selectedIndex) {
     const sel = document.getElementById("bg_picsum_list");
@@ -1291,6 +1526,147 @@
       }
     }
   }
+// --- Sort / Export / Import helpers -----------------------------------------
+function sortPicsumCatalog(by = "id", dir = "asc") {
+  const norm = (s) => String(s || "").trim().toLowerCase();
+  const m = by === "name" ? "label" : "id";
+  picsumCatalogLocal.sort((a, b) => {
+    if (m === "id") {
+      const x = Number(a.id) - Number(b.id);
+      return dir === "desc" ? -x : x;
+    }
+    // name
+    const x = norm(a.label) < norm(b.label) ? -1 : norm(a.label) > norm(b.label) ? 1 : 0;
+    return dir === "desc" ? -x : x;
+  });
+}
+
+function exportCuratedPicsumList() {
+  // Lag én-linje-objekter og pakk dem i en JSON-array med komma mellom linjene
+  const items = picsumCatalogLocal.map(({ id, label }) => ({
+    id: Number(id),
+    label: String(label || ""),
+  }));
+
+  const lines = items.map((o) => "  " + JSON.stringify(o)); // 2-space indent
+  const content = "[\n" + lines.map((l, i) => l + (i < lines.length - 1 ? "," : "")).join("\n") + "\n]\n";
+
+  const blob = new Blob([content], { type: "application/json" });
+  const name = `picsum-curated-${new Date().toISOString().slice(0, 10)}.json`;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(a.href);
+    a.remove();
+  }, 0);
+}
+
+
+
+// Robust import av kuratert Picsum-liste (JSON array eller JSONL-lignende)
+async function importCuratedPicsumList(fileOrText) {
+  const text = typeof fileOrText === "string" ? fileOrText : await fileOrText.text();
+
+  function processItems(items) {
+    if (!Array.isArray(items)) throw new Error("Forventet en JSON-array av {id,label}");
+    const byId = new Map(picsumCatalogLocal.map((x) => [Number(x.id), { id: Number(x.id), label: String(x.label || "") }]));
+    for (const it of items) {
+      if (!it || typeof it !== "object") continue;
+      const id = Number(it.id);
+      if (!Number.isFinite(id) || id <= 0) continue;
+      const label = String(it.label || "");
+      byId.set(id, { id, label });
+    }
+    picsumCatalogLocal = Array.from(byId.values()).sort((a, b) => a.id - b.id);
+    renderPicsumList();
+    pushPreviewDebounced?.();
+  }
+
+  // 1) Prøv ren JSON-array først
+  try {
+    const parsed = JSON.parse(text);
+    processItems(parsed);
+    showStatusToast("Importert kuratert liste ✔", "ok", 1500);
+    return;
+  } catch {
+    // fallthrough
+  }
+
+  // 2) Tolerant parser: JSONL/én-linje-per-objekt, med/uten komma
+  try {
+    const lines = text
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(
+        (l) =>
+          l &&
+          l !== "[" &&
+          l !== "]" &&
+          l !== "," &&
+          !/^\/\/.*/.test(l) && // drop JS-kommentarer
+          !/^#/.test(l), // drop evt. shell-kommentarer
+      );
+
+    const items = [];
+    for (let line of lines) {
+      // Fjern trailing komma og hengende komma etter } eller ]
+      line = line.replace(/,+$/, "");
+      try {
+        items.push(JSON.parse(line));
+      } catch {
+        // prøv å plukke ut {...} i tilfelle linja inneholder “index: {...}”
+        const m = line.match(/\{.*\}/);
+        if (m) {
+          items.push(JSON.parse(m[0]));
+        } else {
+          // ignorer linja hvis den ikke er parsebar
+        }
+      }
+    }
+
+    processItems(items);
+    showStatusToast("Importert kuratert liste ✔", "ok", 1500);
+  } catch (e) {
+    console.error(e);
+    showStatusToast("Kunne ikke importere kuratert liste", "error", 3000);
+    alert("Import feilet:\n" + (e?.message || e));
+  }
+}
+
+// Koble til en “Importer”-knapp (og et skjult file input). Kall fra init().
+function bindPicsumImport() {
+  const btn = document.getElementById("btn_picsum_import");
+  if (!btn || btn._bound) return;
+
+  let fileIn = document.getElementById("picsum_import_file");
+  if (!fileIn) {
+    fileIn = document.createElement("input");
+    fileIn.type = "file";
+    fileIn.accept = ".json,application/json,text/plain";
+    fileIn.id = "picsum_import_file";
+    fileIn.style.display = "none";
+    document.body.appendChild(fileIn);
+  }
+
+  btn.addEventListener("click", () => fileIn.click());
+  fileIn.addEventListener("change", async (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    try {
+      await importCuratedPicsumList(f);
+    } finally {
+      // nullstill for å tillate ny import av samme filnavn
+      fileIn.value = "";
+    }
+  });
+
+  btn._bound = true;
+}
+
+
 
   // ==== Init =================================================================
   async function init() {
@@ -1298,6 +1674,8 @@
     ensureDynamicBaseOptions();
     ensurePicsumBrowseButton();
     ensurePicsumModal();
+    ensureCuratedPicsumUI();
+bindPicsumImport();
     await loadAll().catch(console.error);
     await updateSyncPill().catch(() => {});
     setInterval(updateSyncPill, 3000);
