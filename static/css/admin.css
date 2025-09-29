@@ -4,39 +4,74 @@
    Variabler (single source)
    =========================== */
 :root {
-  --header-h: 56px;   /* sticky header høyde */
-  --actions-h: 1px;   /* sticky actions bar høyde-reservasjon */
-  --preview-w: 38vw;  /* bredde på preview-dock (widescreen) */
+  --header-h: 56px; /* sticky header høyde */
+  --actions-h: 1px; /* sticky actions bar høyde-reservasjon */
+  --preview-w: 38vw; /* bredde på preview-dock (widescreen) */
 }
 
 /* ===========================
    Små hjelpere / badges
    =========================== */
-.ok   { color: #0b0f14; background: #69db7c; border-color: transparent; }
-.warn { color: #0b0f14; background: #ffd166; border-color: transparent; }
-.off  { color: #e6edf3; background: #374151; }
+.ok {
+  color: #0b0f14;
+  background: #69db7c;
+  border-color: transparent;
+}
+.warn {
+  color: #0b0f14;
+  background: #ffd166;
+  border-color: transparent;
+}
+.off {
+  color: #e6edf3;
+  background: #374151;
+}
 
-.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.hint-inline { font-size: .85rem; opacity: .9; margin-left: 6px; }
-.tag { font-size: .8rem; color: var(--muted); border: 1px dashed var(--border); padding: 2px 6px; border-radius: 6px; }
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.hint-inline {
+  font-size: 0.85rem;
+  opacity: 0.9;
+  margin-left: 6px;
+}
+.tag {
+  font-size: 0.8rem;
+  color: var(--muted);
+  border: 1px dashed var(--border);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
 
 /* ===========================
    Sticky actions (robust)
    =========================== */
 .actions {
   position: sticky;
-  top: 0; left: 0; right: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 1200;
   padding: 8px 12px;
-  background: rgba(11,15,20,.85);
+  background: rgba(11, 15, 20, 0.85);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 /* For at sticky skal fungere må ingen forfedre bryte den */
-html, body, main, .grid, .admin {
+html,
+body,
+main,
+.grid,
+.admin {
   overflow: visible !important;
   transform: none !important;
   contain: none !important;
@@ -47,13 +82,13 @@ html, body, main, .grid, .admin {
 .actions button,
 .actions .primary {
   transition:
-    background-color .15s ease,
-    border-color .15s ease,
-    transform .06s ease,
-    box-shadow .15s ease;
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.06s ease,
+    box-shadow 0.15s ease;
   will-change: transform;
   padding: 6px 10px;
-  font-size: .95rem;
+  font-size: 0.95rem;
   border-radius: 12px;
 }
 
@@ -64,28 +99,52 @@ html, body, main, .grid, .admin {
   color: #d6dde8;
 }
 .actions button:not(.primary):hover,
-.actions .mode-btn:hover { background: #17223a; border-color: #36456b; }
-.actions button:focus-visible { outline: 2px solid #2d7ef7; outline-offset: 2px; }
+.actions .mode-btn:hover {
+  background: #17223a;
+  border-color: #36456b;
+}
+.actions button:focus-visible {
+  outline: 2px solid #2d7ef7;
+  outline-offset: 2px;
+}
 .actions button:active,
-.actions .primary:active { transform: translateY(1px); }
+.actions .primary:active {
+  transform: translateY(1px);
+}
 
 .actions .primary {
   background: var(--accent);
-  color: #0b0f14; border-color: transparent; font-weight: 600;
-  box-shadow: 0 2px 10px rgba(106,169,255,.25);
+  color: #0b0f14;
+  border-color: transparent;
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(106, 169, 255, 0.25);
 }
-.actions .primary:hover { filter: brightness(1.05); }
+.actions .primary:hover {
+  filter: brightness(1.05);
+}
 
 /* Hint-tekst: ekspander bare på hover */
 #save_hint {
   display: inline-block;
-  max-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  font-size: .9rem; color: var(--muted);
-  transition: max-width .18s ease, opacity .18s ease;
-  opacity: .75;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.9rem;
+  color: var(--muted);
+  transition:
+    max-width 0.18s ease,
+    opacity 0.18s ease;
+  opacity: 0.75;
 }
-.actions:hover #save_hint { max-width: 180px; }
-@media (max-width: 1100px) { #save_hint { display: none; } }
+.actions:hover #save_hint {
+  max-width: 180px;
+}
+@media (max-width: 1100px) {
+  #save_hint {
+    display: none;
+  }
+}
 
 /* ===========================
    Preview dock
@@ -93,15 +152,23 @@ html, body, main, .grid, .admin {
 #preview_dock {
   position: fixed;
   top: calc(var(--header-h) + var(--actions-h));
-  right: 0; bottom: 0;
+  right: 0;
+  bottom: 0;
   width: var(--preview-w);
   min-width: 420px;
   border-left: 1px solid #1c2436;
   background: #0b0f14;
-  display: grid; grid-template-rows: 1fr;
-  z-index: 50; pointer-events: auto;
+  display: grid;
+  grid-template-rows: 1fr;
+  z-index: 50;
+  pointer-events: auto;
 }
-#preview_dock iframe { width: 100%; height: 100%; border: 0; background: #0b0f14; }
+#preview_dock iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #0b0f14;
+}
 
 /* Widescreen: reserver plass til dock */
 @media (min-width: 1100px) {
@@ -126,90 +193,168 @@ html, body, main, .grid, .admin {
 /* Små skjermer: dock under innholdet */
 @media (max-width: 1099.98px) {
   body.admin {
-    padding-right: 0 !important; margin-right: 0 !important; overflow-x: hidden;
+    padding-right: 0 !important;
+    margin-right: 0 !important;
+    overflow-x: hidden;
     background: #0b0f14 !important;
     background-image: none !important;
   }
   #preview_dock {
-    position: static !important; width: 100% !important; min-width: 0 !important;
+    position: static !important;
+    width: 100% !important;
+    min-width: 0 !important;
     height: min(50vh, 60svh);
     z-index: 1 !important;
-    border-left: 0 !important; border-top: 1px solid #1c2436;
+    border-left: 0 !important;
+    border-top: 1px solid #1c2436;
     margin-top: 8px;
   }
-  #preview_dock iframe { width: 100% !important; height: 100% !important; }
-  body.admin > main.grid, body.admin .grid {
-    width: 100% !important; max-width: 100% !important; padding-right: 0 !important;
+  #preview_dock iframe {
+    width: 100% !important;
+    height: 100% !important;
+  }
+  body.admin > main.grid,
+  body.admin .grid {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-right: 0 !important;
   }
 }
 
 /* ===========================
    Kompakt admin-layout
    =========================== */
-.admin .grid { gap: 1px; }
-.admin .card { margin: 10px; padding: 14px; border-radius: 14px; }
-.admin .card h2 { margin: 0 0 .5rem 0; }
-.admin .row { gap: 8px; }
-.admin label { margin: .2rem .4rem; }
-.admin button, .admin input, .admin select, .admin textarea {
-  padding: 6px 9px; border-radius: 10px; font-size: .95rem;
+.admin .grid {
+  gap: 1px;
+}
+.admin .card {
+  margin: 10px;
+  padding: 14px;
+  border-radius: 14px;
+}
+.admin .card h2 {
+  margin: 0 0 0.5rem 0;
+}
+.admin .row {
+  gap: 8px;
+}
+.admin label {
+  margin: 0.2rem 0.4rem;
+}
+.admin button,
+.admin input,
+.admin select,
+.admin textarea {
+  padding: 6px 9px;
+  border-radius: 10px;
+  font-size: 0.95rem;
 }
 .admin button {
-  transition: background-color .15s ease, box-shadow .15s ease, transform .06s ease;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.06s ease;
 }
-.admin button:hover { box-shadow: 0 4px 14px rgba(0,0,0,.25); transform: translateY(-1px); }
-.admin button:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(0,0,0,.25); }
-.admin button.primary:hover { filter: brightness(1.05); }
+.admin button:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  transform: translateY(-1px);
+}
+.admin button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.admin button.primary:hover {
+  filter: brightness(1.05);
+}
 
 /* ===========================
    Bakgrunn/lag og scroll
    =========================== */
-html, body {
+html,
+body {
   min-height: 100%;
-  background: #0b0f14;  /* fallback; ui.css overstyres i admin */
+  background: #0b0f14; /* fallback; ui.css overstyres i admin */
   background-image: none !important;
-  overflow-y: auto;     /* lar hele siden scrolle */
+  overflow-y: auto; /* lar hele siden scrolle */
 }
 
 /* Dynamisk gradientlag under innholdet */
 #dynbg-layer {
-  position: fixed; inset: 0;
-  z-index: 0; pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
 }
 
 /* Alt vanlig innhold skal være foran bakgrunnslag */
-#app-root, main, header, .card { position: relative; z-index: 1; }
+#app-root,
+main,
+header,
+.card {
+  position: relative;
+  z-index: 1;
+}
 
 /* ===========================
    Picsum – dialog + CSS-only
    =========================== */
 
 /* <dialog> variant */
-.picsum-modal { border: 0; padding: 0; background: transparent; }
-.picsum-modal::backdrop { background: rgba(0,0,0,.55); }
+.picsum-modal {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.picsum-modal::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
 .picsum-modal .box,
-.pm-box { /* deler sammekjerne som fallback-boksen */
-  background: #0f1622; color: #e6edf3;
-  min-width: 70vw; max-width: 92vw;
-  height: auto;                   /* viktig: ikke tving høyde */
-  max-height: min(88vh, 92svh);   /* rammehøyde */
+.pm-box {
+  /* deler sammekjerne som fallback-boksen */
+  background: #0f1622;
+  color: #e6edf3;
+  min-width: 70vw;
+  max-width: 92vw;
+  height: auto; /* viktig: ikke tving høyde */
+  max-height: min(88vh, 92svh); /* rammehøyde */
   border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.4);
-  display: flex; flex-direction: column;
-  overflow: hidden;               /* innhold skal scrolle */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* innhold skal scrolle */
 }
 
 /* Felles header/footer */
-.pm-header, .pm-footer {
-  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+.pm-header,
+.pm-footer {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(255,255,255,.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
-.pm-footer { border-top: 1px solid rgba(255,255,255,.08); border-bottom: 0; }
-.pm-header .left, .pm-header .right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.pm-title { font-size: 14px; }
-.pm-input-number { width: 72px; }
-.pm-status { opacity: .8; font-size: 12px; }
+.pm-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 0;
+}
+.pm-header .left,
+.pm-header .right {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.pm-title {
+  font-size: 14px;
+}
+.pm-input-number {
+  width: 72px;
+}
+.pm-status {
+  opacity: 0.8;
+  font-size: 12px;
+}
 
 /* Selve galleriet – én kilde for sannhet (scroll-fix her) */
 .pm-grid {
@@ -218,13 +363,14 @@ html, body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 12px;
-  flex: 1 1 auto;   /* fyll tilgjengelig plass i .box/.pm-box */
-  min-height: 0;    /* nødvendig for at flex-barn kan scrolle */
-  overflow-y: auto; overflow-x: hidden;
+  flex: 1 1 auto; /* fyll tilgjengelig plass i .box/.pm-box */
+  min-height: 0; /* nødvendig for at flex-barn kan scrolle */
+  overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   grid-auto-rows: auto;
-  align-content: start;          /* ikke fordel rader over hele høyden */
-  overflow-y: auto;              /* scroll skjer her */
+  align-content: start; /* ikke fordel rader over hele høyden */
+  overflow-y: auto; /* scroll skjer her */
   overflow-x: hidden;
   min-height: 0;
 }
@@ -235,9 +381,9 @@ html, body {
   position: relative;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,.07);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   cursor: pointer;
-  min-width: 210px;              /* hindrer kompresjon under minmax */
+  min-width: 210px; /* hindrer kompresjon under minmax */
 }
 .pm-grid .tile img,
 .pm-tile img {
@@ -250,16 +396,23 @@ html, body {
 }
 .pm-grid .tile .meta,
 .pm-meta {
-  position: absolute; left: 0; right: 0; bottom: 0;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   font-size: 12px;
-  background: linear-gradient(transparent, rgba(0,0,0,.65));
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
   padding: 28px 8px 6px;
 }
 .pm-grid .tile .check,
 .pm-check {
-  position: absolute; top: 8px; left: 8px;
-  background: rgba(0,0,0,.55);
-  border-radius: 999px; padding: 4px 6px; font-size: 12px;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 999px;
+  padding: 4px 6px;
+  font-size: 12px;
 }
 
 /* Valgt-flis – tydelig markering */
@@ -271,9 +424,12 @@ html, body {
 
 /* CSS-only backdrop (fallback) */
 .pm-backdrop {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.6);
-  display: flex; align-items: center; justify-content: center;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 9999;
 }
 
@@ -284,15 +440,24 @@ html, body {
 /* pill/dot – brukes av admin-«synk»-indikator */
 .pill.dot {
   display: inline-block;
-  width: 12px; height: 12px;
+  width: 12px;
+  height: 12px;
   border-radius: 999px;
-  border: 2px solid rgba(0,0,0,.35);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.06) inset, 0 0 0 2px rgba(0,0,0,.06);
+  border: 2px solid rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+    0 0 0 2px rgba(0, 0, 0, 0.06);
   vertical-align: middle;
 }
-.pill.dot.ok   { background: #36b37e; }
-.pill.dot.warn { background: #ffd166; }
-.pill.dot.off  { background: #6b7280; }  /* grå = offline/ukjent */
+.pill.dot.ok {
+  background: #36b37e;
+}
+.pill.dot.warn {
+  background: #ffd166;
+}
+.pill.dot.off {
+  background: #6b7280;
+} /* grå = offline/ukjent */
 /* === FIX: Picsum-galleri – ikke komprimer rader; bruk scroll i grid === */
 .picsum-modal .pm-grid {
   /* Sørg for at hver rad får plass til innholdet sitt, ikke "del høyden likt" */
@@ -317,8 +482,8 @@ html, body {
 
 /* Bildene skal ha stabil høyde og aldri "klemmes" vertikalt */
 .picsum-modal .pm-grid .tile img {
-  height: 140px;            /* som før */
-  max-height: none;         /* for sikkerhets skyld */
+  height: 140px; /* som før */
+  max-height: none; /* for sikkerhets skyld */
   object-fit: cover;
   width: 100%;
   display: block;

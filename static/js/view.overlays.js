@@ -137,6 +137,13 @@
   function applyOverlays(cfg) {
     const root = document.getElementById("overlays");
     if (!root) return;
+    // Sørg for at overlays alltid er forankret til viewport
+    Object.assign(root.style, {
+      position: "fixed",
+      inset: "0",
+      zIndex: "50", // over dynbg_layer (som bruker 0/40)
+      pointerEvents: "none", // ikke fang klikk
+    });
     root.innerHTML = "";
 
     const list = Array.isArray(cfg?.overlays) ? cfg.overlays : [];

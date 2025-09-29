@@ -61,7 +61,14 @@
 
   // ---------- Unified Picsum rotate (erstatter picsum-rotate.js) ----------
   function picsumShouldRun() {
-    return (state.cfg?.theme?.background?.mode || "").toLowerCase() === "picsum";
+    const bg = state.cfg?.theme?.background || {};
+    const mode = (bg.mode || "").toLowerCase();
+    if (mode === "picsum") return true;
+    if (mode === "dynamic") {
+      const dyn = bg.dynamic || {};
+      return (dyn.base_mode || "").toLowerCase() === "picsum";
+    }
+    return false;
   }
 
   // HARD teardown når vi ikke er i picsum-modus
@@ -147,23 +154,20 @@
 
   // ---------- Sørg for at innhold alltid ligger foran bakgrunnslag ----------
   function ensureForeground() {
-    [
-      "#view_countdown",
-      "#view_clock",
-      "#screen",
-      "#digits",
-      "#msgs_above",
-      "#msgs_below",
-      "#clock_time",
-      "#clock_msgs",
-    ]
+    ["#view_countdown", "#view_clock", "#screen", "#digits", "#msgs_above", "#msgs_below", "#clock_time", "#clock_msgs"]
       .map((sel) => $(sel))
       .filter(Boolean)
       .forEach((el) => {
         if (!el.style.position) el.style.position = "relative";
-        el.style.zIndex = "1";
+        el.style.zIndex = "10"; // alltid foran base/dyn under, bak dyn over
       });
-
+    // overlays-container (hvis finnes): alltid øverst
+    const ov = $("#overlays");
+    if (ov) {
+      if (!ov.style.position) ov.style.position = "relative";
+      ov.style.zIndex = "40";
+      ov.style.pointerEvents = "none";
+    }
     ["#dynbg-layer", "#bg-layer", ".bg-layer", ".background-layer"].forEach((sel) => {
       $$(sel).forEach((n) => {
         n.style.zIndex = "0";

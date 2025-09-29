@@ -13,13 +13,20 @@
 /* kort */
 #about .card {
   background: var(--panel);
-  border: 1px solid rgba(255,255,255,.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 16px;
   padding: 16px 18px;
-  box-shadow: 0 0 0 1px rgba(0,0,0,.15) inset;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15) inset;
 }
-#about h1 { font-size: 28px; line-height: 1.1; margin: 0 0 14px 0; }
-#about h2 { font-size: 20px; margin: 18px 0 10px 0; }
+#about h1 {
+  font-size: 28px;
+  line-height: 1.1;
+  margin: 0 0 14px 0;
+}
+#about h2 {
+  font-size: 20px;
+  margin: 18px 0 10px 0;
+}
 
 /* Key/Value (bruker <dt>/<dd> direkte) */
 #about dl.kv {
@@ -28,11 +35,16 @@
   gap: 8px 16px;
   margin: 6px 0 14px;
 }
-#about dl.kv dt { color: var(--muted); font-weight: 600; }
-#about dl.kv dd { margin: 0; }
+#about dl.kv dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+#about dl.kv dd {
+  margin: 0;
+}
 #about dl.kv code {
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 2px 6px;
   border-radius: 8px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -47,8 +59,8 @@
   margin-top: 10px;
 }
 #about .svc {
-  background: rgba(255,255,255,.04);
-  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 14px;
   padding: 12px 14px;
 }
@@ -60,8 +72,15 @@
   margin: 0 0 8px 0;
   font-weight: 700;
 }
-#about .svc .role { color: var(--muted); font-weight: 600; }
-#about .svc .desc { color: var(--muted); margin: 4px 0 10px 0; font-size: 90%; }
+#about .svc .role {
+  color: var(--muted);
+  font-weight: 600;
+}
+#about .svc .desc {
+  color: var(--muted);
+  margin: 4px 0 10px 0;
+  font-size: 90%;
+}
 
 /* Badge */
 #about .badge {
@@ -70,22 +89,40 @@
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: .2px;
+  letter-spacing: 0.2px;
   line-height: 1.6;
   border: 1px solid transparent;
 }
-#about .badge.ok    { color: #0c2b1f; background: var(--ok);   border-color: rgba(0,0,0,.1); }
-#about .badge.warn  { color: #3b2f05; background: var(--warn); border-color: rgba(0,0,0,.1); }
-#about .badge.bad   { color: #3b0c0c; background: var(--bad);  border-color: rgba(0,0,0,.1); }
+#about .badge.ok {
+  color: #0c2b1f;
+  background: var(--ok);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+#about .badge.warn {
+  color: #3b2f05;
+  background: var(--warn);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+#about .badge.bad {
+  color: #3b0c0c;
+  background: var(--bad);
+  border-color: rgba(0, 0, 0, 0.1);
+}
 
 /* Små helpers */
-#about .label { color: var(--muted); display: inline-block; min-width: 88px; }
+#about .label {
+  color: var(--muted);
+  display: inline-block;
+  min-width: 88px;
+}
 #about .chip {
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   padding: 2px 6px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 90%;
 }
-#about .muted { color: var(--muted); }
+#about .muted {
+  color: var(--muted);
+}

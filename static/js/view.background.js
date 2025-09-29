@@ -138,51 +138,80 @@
     applyBaseImageLayers(el, (pc.fit || "cover").toLowerCase(), url, pc.tint);
   }
   function applyBgDynamic(rootEl, bg) {
-    const dyn = bg?.dynamic || {};
-    const basePref = (dyn.base_mode || "auto").toLowerCase();
-    if (basePref === "image" && bg?.image?.url) applyBgImage(rootEl, bg);
-    else if (basePref === "gradient" && bg?.gradient) applyBgGradient(rootEl, bg);
-    else if (basePref === "solid" && bg?.solid) applyBgSolid(rootEl, bg);
-    else {
-      if (bg?.image?.url) applyBgImage(rootEl, bg);
-      else if (bg?.gradient) applyBgGradient(rootEl, bg);
-      else applyBgSolid(rootEl, bg);
-    }
-
-    ensureDynKeyframes();
-    const layer = ensureDynLayer();
-
-    const clampNum = (v, lo, hi, def) => Math.max(lo, Math.min(hi, Number(v ?? def)));
-    const from = dyn.from || "#16233a";
-    const to = dyn.to || "#0e1a2f";
-    const rotateS = clampNum(dyn.rotate_s, 5, 600, 60);
-    const blurPx = clampNum(dyn.blur_px, 0, 90, 18);
-    const opacity = clampNum(dyn.opacity, 0, 1, 0.9);
-    const layerPos = (dyn.layer || "under").toLowerCase();
-
-    Object.assign(layer.style, {
-      zIndex: layerPos === "over" ? "40" : "0",
-      filter: `blur(${blurPx}px)`,
-      opacity: String(opacity),
-      animation: `dynbg-rotate ${rotateS}s linear infinite`,
-      background:
-        `radial-gradient(72vmax 54vmax at 12% 10%, ${from} 0%, transparent 62%),` +
-        `radial-gradient(70vmax 52vmax at 88% 12%, ${to} 0%, transparent 64%),` +
-        `conic-gradient(from 220deg at 50% 50%, #0000 0%, #0000 100%)`,
-    });
+  const dyn = bg?.dynamic || {};
+  const basePref = (dyn.base_mode || "auto").toLowerCase();
+  if (basePref === "image" && bg?.image?.url) applyBgImage(rootEl, bg);
+  else if (basePref === "gradient" && bg?.gradient) applyBgGradient(rootEl, bg);
+  else if (basePref === "solid" && bg?.solid) applyBgSolid(rootEl, bg);
+  else if (basePref === "picsum" && bg?.picsum) applyBgPicsum(rootEl, bg);
+  else {
+    if (bg?.image?.url) applyBgImage(rootEl, bg);
+    else if (bg?.gradient) applyBgGradient(rootEl, bg);
+    else if (bg?.picsum) applyBgPicsum(rootEl, bg);
+    else applyBgSolid(rootEl, bg);
   }
+
+  ensureDynKeyframes();
+  const layer = ensureDynLayer();
+
+  const clampNum = (v, lo, hi, def) => Math.max(lo, Math.min(hi, Number(v ?? def)));
+  const from = dyn.from || "#16233a";
+  const to = dyn.to || "#0e1a2f";
+  const rotateS = clampNum(dyn.rotate_s, 5, 600, 60);
+  const blurPx = clampNum(dyn.blur_px, 0, 80, 18);
+  const opacity = clampNum(dyn.opacity, 0, 1, 0.9);
+  const layerPos = (dyn.layer || "under").toLowerCase();
+
+  // Les tidligere signatur FØR vi setter den nye
+  const prevSig = layer.dataset.dynsig || "";
+  const sig = JSON.stringify({ from, to, rotateS, blurPx, opacity, layerPos });
+  const changed = prevSig !== sig;
+
+  // Alltid oppdater disse stilene
+  Object.assign(layer.style, {
+    zIndex: layerPos === "over" ? "15" : "0",
+    filter: `blur(${blurPx}px)`,
+    opacity: String(opacity),
+    background:
+      `radial-gradient(72vmax 54vmax at 12% 10%, ${from} 0%, transparent 62%),` +
+      `radial-gradient(70vmax 52vmax at 88% 12%, ${to} 0%, transparent 64%),` +
+      `conic-gradient(from 220deg at 50% 50%, #0000 0%, #0000 100%)`,
+  });
+
+  // Oppdater / restart animasjon KUN når signatur endres (inkl. rotate_s)
+  if (changed) {
+    const anim = `dynbg-rotate ${rotateS}s linear infinite`;
+    // Tving restart slik at ny varighet trer i kraft i alle browsere
+    layer.style.animation = "none";
+    void layer.offsetWidth; // reflow
+    layer.style.animation = anim;
+  } else if (!layer.style.animation) {
+    // Første init
+    layer.style.animation = `dynbg-rotate ${rotateS}s linear infinite`;
+  }
+
+  // Til slutt: sett ny signatur
+  layer.dataset.dynsig = sig;
+}
+
 
   function applyBackground(rootEl, bg) {
     if (!rootEl) return;
+    const mode = (bg?.mode || "solid").toLowerCase();
+
+    // Nullstill base-bakgrunnsegenskaper som før …
     rootEl.style.background = "";
     rootEl.style.backgroundColor = "";
     rootEl.style.backgroundImage = "";
     rootEl.style.backgroundRepeat = "";
     rootEl.style.backgroundSize = "";
     rootEl.style.backgroundPosition = "";
-    removeDynLayer();
 
-    const mode = (bg?.mode || "solid").toLowerCase();
+    // … men IKKE fjern det dynamiske laget hvis vi fortsatt er i dynamic-modus.
+    if (mode !== "dynamic") {
+      removeDynLayer();
+    }
+
     switch (mode) {
       case "solid":
         return applyBgSolid(rootEl, bg);

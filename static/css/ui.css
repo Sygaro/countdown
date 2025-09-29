@@ -330,9 +330,15 @@ body.admin main.grid-auto {
   vertical-align: -1px;
   background: #c7c7c7; /* default/unknown */
 }
-.dot.ok   { background: #38b000; } /* grønn */
-.dot.warn { background: #f4c430; } /* gul  */
-.dot.bad  { background: #e03131; } /* rød  */
+.dot.ok {
+  background: #38b000;
+} /* grønn */
+.dot.warn {
+  background: #f4c430;
+} /* gul  */
+.dot.bad {
+  background: #e03131;
+} /* rød  */
 
 /* Liten “pill” med bare dot i seg (eks. sync/host) */
 .pill.dot {
@@ -341,7 +347,7 @@ body.admin main.grid-auto {
   gap: 6px;
   padding: 2px 8px;
   border-radius: 999px;
-  border: 1px solid rgba(0,0,0,.08);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   background: var(--surface, #fff);
   line-height: 1;
   font-size: 12px;
@@ -354,22 +360,41 @@ body.admin main.grid-auto {
   transform: translateX(-50%);
   bottom: 20px;
   padding: 8px 12px;
-  background: rgba(0,0,0,.80);
+  background: rgba(0, 0, 0, 0.8);
   color: #fff;
   border-radius: 10px;
-  font: 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  font:
+    14px/1.2 system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Arial;
   z-index: 9999;
-  transition: opacity .25s ease;
+  transition: opacity 0.25s ease;
   opacity: 0;
-  border: 1px solid rgba(255,255,255,.35);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   pointer-events: none;
-  display: inline-block;          /* <- viktig for innholdsbredden */
+  display: inline-block; /* <- viktig for innholdsbredden */
 }
 
 /* synlighet */
-.toast.show { opacity: 0.95; }
+.toast.show {
+  opacity: 0.95;
+}
 
 /* valgfri tone-farge (svak tint) */
-.toast.ok    { background: rgba(54,179,126,.95); color: #0b0f14; border-color: rgba(0,0,0,.2); }
-.toast.warn  { background: rgba(255,209,102,.95); color: #0b0f14; border-color: rgba(0,0,0,.2); }
-.toast.error { background: rgba(255,107,107,.95); color: #0b0f14; border-color: rgba(0,0,0,.2); }
+.toast.ok {
+  background: rgba(54, 179, 126, 0.95);
+  color: #0b0f14;
+  border-color: rgba(0, 0, 0, 0.2);
+}
+.toast.warn {
+  background: rgba(255, 209, 102, 0.95);
+  color: #0b0f14;
+  border-color: rgba(0, 0, 0, 0.2);
+}
+.toast.error {
+  background: rgba(255, 107, 107, 0.95);
+  color: #0b0f14;
+  border-color: rgba(0, 0, 0, 0.2);
+}

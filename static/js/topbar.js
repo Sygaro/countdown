@@ -63,9 +63,8 @@ export const Topbar = (() => {
 
     // terskler
     let tone = "ok";
-if (ageHours > NTP_THRESHOLDS_HOURS.yellow) tone = "bad";
-else if (ageHours > NTP_THRESHOLDS_HOURS.green) tone = "warn";
-
+    if (ageHours > NTP_THRESHOLDS_HOURS.yellow) tone = "bad";
+    else if (ageHours > NTP_THRESHOLDS_HOURS.green) tone = "warn";
 
     const server = [ntp.ServerName, ntp.ServerAddress].filter(Boolean).join(" ");
     const label = `ntp ${fmtHM(ageMs)}`; // <— H:MM

@@ -217,7 +217,9 @@ def _pick_next_picsum_id(cfg: Dict[str, Any]) -> tuple[int | None, int | None]:
 
     ar = bg.get("auto_rotate") or {}
     strategy = str(ar.get("strategy", "shuffle")).lower()
-    last_index: int | None = ar.get("last_index") if isinstance(ar.get("last_index"), int) else None
+    last_index: int | None = (
+        ar.get("last_index") if isinstance(ar.get("last_index"), int) else None
+    )
 
     if strategy == "sequential":
         if last_index is None:
@@ -369,7 +371,6 @@ def sys_service():
         ),
         status_code,
     )
-
 
 # ── alias-endepunkt (bakoverkomp) ─────────────────────────────────────────────
 @bp.post("/sys/restart-app")
@@ -657,7 +658,7 @@ def api_reset_visual() -> Response:
         "visual": dict(
             phase_colors=True,
             ui_messages_text=False,
-            theme_messages=True,
+            theme_messages=False,
             digits=True,
             clock_color=True,
             clock_texts=True,
@@ -674,7 +675,7 @@ def api_reset_visual() -> Response:
         "minimal": dict(
             phase_colors=True,
             ui_messages_text=False,
-            theme_messages=True,
+            theme_messages=False,
             digits=False,
             clock_color=True,
             clock_texts=False,
@@ -760,6 +761,8 @@ def api_picsum_next() -> Response:
         last_switch_ms = int(ar.get("last_switch_ms") or 0)
         now_ms = int(time.time() * 1000)
         mode = (bg_all.get("mode") or "").lower()
+        dyn = bg_all.get("dynamic") or {}
+        base_mode = str(dyn.get("base_mode") or "").lower()
         cur_id = bg.get("id") if isinstance(bg.get("id"), int) else None
 
         # standard svar dersom vi ikke skal endre noe
@@ -771,8 +774,11 @@ def api_picsum_next() -> Response:
             "next_in_seconds": None,
         }
 
-        # If active background is not Picsum, hard-disable at the API layer
-        if (mode != "picsum") or (not enabled):
+        # Tillat også når dynamic.base_mode = "picsum"
+        is_picsum_active = (mode == "picsum") or (
+            mode == "dynamic" and base_mode == "picsum"
+        )
+        if (not is_picsum_active) or (not enabled):
             payload["enabled"] = False
             payload["next_in_seconds"] = None
             return _json_ok(payload)
@@ -780,7 +786,6 @@ def api_picsum_next() -> Response:
         if not enabled:
             # beholde dagens oppførsel når picsum er aktiv, men auto-rotate er av
             return _json_ok(payload)
-
 
         elapsed_ms = now_ms - last_switch_ms
         if elapsed_ms < interval * 1000:

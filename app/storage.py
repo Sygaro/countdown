@@ -521,7 +521,7 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     dyn["blur_px"] = max(
         0,
         min(
-            60,
+            80,
             _i(
                 dyn.get("blur_px"),
                 _DEFAULTS["theme"]["background"]["dynamic"]["blur_px"],
@@ -533,7 +533,7 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         _DEFAULTS["theme"]["background"]["dynamic"]["opacity"],
     )
     bm = str(dyn.get("base_mode", "auto")).lower()
-    if bm not in ("auto", "solid", "gradient", "image"):
+    if bm not in ("auto", "solid", "gradient", "image", "picsum"):
         bm = "auto"
     dyn["base_mode"] = bm
     layer = str(dyn.get("layer", "under")).lower()
@@ -560,18 +560,22 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         "color": str(tint.get("color") or "#000000"),
         "opacity": max(0.0, min(1.0, float(tint.get("opacity") or 0.0))),
     }
-        # --- auto-rotate ---
+    # --- auto-rotate ---
     ar = pc.get("auto_rotate") or {}
     ar_enabled = bool(ar.get("enabled", False))
     try:
         ar_interval = int(
             ar.get(
                 "interval_seconds",
-                _DEFAULTS["theme"]["background"]["picsum"]["auto_rotate"]["interval_seconds"],
+                _DEFAULTS["theme"]["background"]["picsum"]["auto_rotate"][
+                    "interval_seconds"
+                ],
             )
         )
     except Exception:
-        ar_interval = _DEFAULTS["theme"]["background"]["picsum"]["auto_rotate"]["interval_seconds"]
+        ar_interval = _DEFAULTS["theme"]["background"]["picsum"]["auto_rotate"][
+            "interval_seconds"
+        ]
 
     ar_interval = max(5, min(24 * 60 * 60, ar_interval))  # clamp 5s..24h
     strategy = str(ar.get("strategy", "shuffle")).lower()
@@ -583,7 +587,6 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     except Exception:
         last_switch_ms = 0
     last_index = _int_or_none(ar.get("last_index"))
-
 
     pc["auto_rotate"] = {
         "enabled": ar_enabled,
@@ -604,22 +607,19 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
         except Exception:
             pc.pop("id", None)
 
-    # >>> HARD RULE: if active mode is NOT 'picsum', force-disable picsum <<<
-    if mode != "picsum":
-        # id har ingen effekt uten picsum, fjern den for å unngå “heng”
-        pc.pop("id", None)
-        # og sørg for at auto-rotate er av
-        pc["auto_rotate"]["enabled"] = False
-        # Hvis vi ikke er i picsum-modus: slå av auto-rotate og fjern aktiv id
-    if (bg.get("mode") or "solid").lower() != "picsum":
-        ar = pc.get("auto_rotate") or {}
-        ar["enabled"] = False
-        ar["last_switch_ms"] = 0
-        ar["last_index"] = None
-        pc["auto_rotate"] = ar
-        pc.pop("id", None)
-
-
+    # Bruk picsum hvis bakgrunn er 'picsum' ELLER hvis dynamic.base_mode er 'picsum'
+    use_picsum_base = (mode == "picsum") or (
+        mode == "dynamic" and dyn.get("base_mode") == "picsum"
+    )
+    if not use_picsum_base:
+        # Ikke aktiv – deaktiver auto-rotate,
+     # men behold historikk (last_switch_ms / last_index) slik at timing bevares.
+     ar = pc.get("auto_rotate") or {}
+     ar["enabled"] = False
+     pc["auto_rotate"] = ar
+     # valgfritt: la id bli stående (slik at forrige bilde brukes igjen når man aktiverer)
+     # hvis du vil fortsette å «rydde» id når ikke aktiv, behold pc.pop("id", None) her:
+     # pc.pop("id", None)
     bg["picsum"] = pc
     th["background"] = bg
     cfg["theme"] = th

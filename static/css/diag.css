@@ -199,7 +199,6 @@ main.grid {
   border-color: rgba(255, 255, 255, 0.08);
 }
 
-
 /* NTP-boksen – skal være en "container", ikke en pill */
 #ntp_status {
   display: inline-block;

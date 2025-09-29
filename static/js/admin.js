@@ -33,27 +33,29 @@
 
   // ==== Toast/status =========================================================
   function showStatusToast(msg, tone = "info", ms = 2500) {
-  const el = document.getElementById("status_toast");
-  if (!el) return;
+    const el = document.getElementById("status_toast");
+    if (!el) return;
 
-  // Behold base-klassen "toast" for posisjonering/styling
-  el.className = "toast";
-  el.textContent = String(msg || "");
-  el.hidden = false;
+    // Behold base-klassen "toast" for posisjonering/styling
+    el.className = "toast";
+    el.textContent = String(msg || "");
+    el.hidden = false;
 
-  // tone = "ok" | "warn" | "error" | "info" → legg som ekstra klasse
-  if (tone) el.classList.add(String(tone));
+    // tone = "ok" | "warn" | "error" | "info" → legg som ekstra klasse
+    if (tone) el.classList.add(String(tone));
 
-  // Vis (styres av .toast.show i CSS)
-  el.classList.add("show");
+    // Vis (styres av .toast.show i CSS)
+    el.classList.add("show");
 
-  clearTimeout(el._hideTimer);
-  el._hideTimer = setTimeout(() => {
-    el.classList.remove("show", "ok", "warn", "error", "info");
-    // behold "toast" videre
-  }, Math.max(600, Number(ms) || 1600));
-}
-
+    clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(
+      () => {
+        el.classList.remove("show", "ok", "warn", "error", "info");
+        // behold "toast" videre
+      },
+      Math.max(600, Number(ms) || 1600),
+    );
+  }
 
   // ==== Helpers ==============================================================
   const debounce = (fn, ms = 600) => {
@@ -77,43 +79,40 @@
   }
 
   function headers() {
-const pwd =
-     ($("#admin_password")?.value || "").trim() ||
-     (localStorage.getItem("admin_password") || "").trim();    const h = { "Content-Type": "application/json" };
+    const pwd = ($("#admin_password")?.value || "").trim() || (localStorage.getItem("admin_password") || "").trim();
+    const h = { "Content-Type": "application/json" };
     if (pwd) h["X-Admin-Password"] = pwd;
     return h;
   }
 
   async function getJSON(url) {
-  try {
-    if (window.ui?.get) return await window.ui.get(url);
-  } catch {
-    /* fallback */
+    try {
+      if (window.ui?.get) return await window.ui.get(url);
+    } catch {
+      /* fallback */
+    }
+    const r = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
+    const js = await r.json().catch(() => ({}));
+    if (!r.ok || js.ok === false) throw new Error(js.error || `HTTP ${r.status}`);
+    return js;
   }
-  const r = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
-  const js = await r.json().catch(() => ({}));
-  if (!r.ok || js.ok === false) throw new Error(js.error || `HTTP ${r.status}`);
-  return js;
-}
 
-async function postJSON(url, body) {
-  try {
-    if (window.ui?.post) return await window.ui.post(url, body);
-  } catch {
-    /* fallback */
+  async function postJSON(url, body) {
+    try {
+      if (window.ui?.post) return await window.ui.post(url, body);
+    } catch {
+      /* fallback */
+    }
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { ...headers(), Accept: "application/json" },
+      body: JSON.stringify(body || {}),
+      credentials: "same-origin",
+    });
+    const js = await r.json().catch(() => ({}));
+    if (!r.ok || js.ok === false) throw new Error(js.error || `HTTP ${r.status}`);
+    return js;
   }
-  const r = await fetch(url, {
-    method: "POST",
-    headers: { ...headers(), Accept: "application/json" },
-    body: JSON.stringify(body || {}),
-    credentials: "same-origin",
-  });
-  const js = await r.json().catch(() => ({}));
-  if (!r.ok || js.ok === false) throw new Error(js.error || `HTTP ${r.status}`);
-  return js;
-}
-
-
 
   // ==== State ================================================================
   let lastCfg = null;
@@ -177,12 +176,22 @@ async function postJSON(url, body) {
     }
     if (bg === "dynamic") {
       const base = val("#bg_dyn_base", "auto");
-      if (base === "solid") return val("#bg_solid_color", "#0b0f14");
-      if (base === "gradient") return val("#bg_grad_to", "#0b0f14");
+      if (base === "solid") {
+        return val("#bg_solid_color", "#0b0f14");
+      }
+      if (base === "gradient") {
+        return val("#bg_grad_to", "#0b0f14");
+      }
       if (base === "image") {
         const op = Number(val("#bg_img_tint_op", "0"));
         return op > 0 ? val("#bg_img_tint", "#000000") : "#0b0f14";
       }
+      if (base === "picsum") {
+        // NEW: use picsum tint color if present to compute contrast hints
+        const op = Number(val("#bg_picsum_tint_op", "0"));
+        return op > 0 ? val("#bg_picsum_tint", "#000000") : "#0b0f14";
+      }
+      // auto → fall back heuristics (image → gradient → solid)
       const hasImg = val("#bg_img_url", "").trim().length > 0;
       if (hasImg) {
         const op = Number(val("#bg_img_tint_op", "0"));
@@ -261,13 +270,17 @@ async function postJSON(url, body) {
   const selMode = () => $$(`input[name="mode"]:checked`)[0]?.value || "daily";
   function lock() {
     const bg = selBgMode();
-    const onceAt = $("#once_at");
-    if (onceAt) onceAt.disabled = selMode() !== "once";
+    const base = val("#bg_dyn_base", "auto");
+
+    // Basic mode toggles
     $("#bg_solid_cfg") && ($("#bg_solid_cfg").style.display = bg === "solid" ? "block" : "none");
     $("#bg_grad_cfg") && ($("#bg_grad_cfg").style.display = bg === "gradient" ? "block" : "none");
     $("#bg_img_cfg") && ($("#bg_img_cfg").style.display = bg === "image" ? "block" : "none");
-    $("#bg_picsum_cfg") && ($("#bg_picsum_cfg").style.display = bg === "picsum" ? "block" : "none");
+    $("#bg_picsum_cfg") &&
+      ($("#bg_picsum_cfg").style.display =
+        bg === "picsum" || (bg === "dynamic" && base === "picsum") ? "block" : "none");
     $("#bg_dyn_cfg") && ($("#bg_dyn_cfg").style.display = bg === "dynamic" ? "block" : "none");
+
     const own = !!$("#clk_use_own_msgs")?.checked;
     $("#clk_with_seconds") && ($("#clk_with_seconds").disabled = false);
     $("#clk_color") && ($("#clk_color").disabled = false);
@@ -506,61 +519,73 @@ async function postJSON(url, body) {
       },
       clock,
     };
+    // 🔧 VIKTIG: behold aktiv varighets-state i preview
+  if (m === "duration") {
+    const dm = Number.isFinite(lastCfg?.duration_minutes) ? lastCfg.duration_minutes : undefined;
+    const ds = Number.isFinite(lastCfg?.duration_started_ms) ? lastCfg.duration_started_ms : undefined;
+    if (dm != null) out.duration_minutes = dm;
+    if (ds != null && ds > 0) out.duration_started_ms = ds;
+  }
+
+  // 🔧 (valgfritt, men nyttig) – behold _updated_at i simulasjonen
+  if (Number.isFinite(lastCfg?._updated_at)) out._updated_at = lastCfg._updated_at;
+
 
     // Picsum spesial
-    if (out.theme.background.mode === "picsum") {
-      const idStr = (val("#bg_picsum_id", "") || "").trim();
-      const idNum = idStr ? parseInt(idStr, 10) : NaN;
-      const idVal = Number.isFinite(idNum) && idNum > 0 ? idNum : null;
+    // Picsum – alltid persister verdiene fra UI (backend slår dem av når mode != picsum)
+{
+  const idStr = (val("#bg_picsum_id", "") || "").trim();
+  const idNum = idStr ? parseInt(idStr, 10) : NaN;
+  const idVal = Number.isFinite(idNum) && idNum > 0 ? idNum : null;
 
-      const arEnabled = !!$("#bg_picsum_auto_enabled")?.checked;
-      const rawVal = parseInt(val("#bg_picsum_auto_interval", "5") || "5", 10);
-      const unit = (val("#bg_picsum_auto_unit", "m") || "m").toLowerCase();
-      let intervalSec = Number.isFinite(rawVal) ? rawVal : 5;
-      intervalSec = Math.max(5, Math.min(24 * 60 * 60, unit === "m" ? intervalSec * 60 : intervalSec));
+  const arEnabled = !!$("#bg_picsum_auto_enabled")?.checked;
+  const rawVal = parseInt(val("#bg_picsum_auto_interval", "5") || "5", 10);
+  const unit = (val("#bg_picsum_auto_unit", "m") || "m").toLowerCase();
+  let intervalSec = Number.isFinite(rawVal) ? rawVal : 5;
+  intervalSec = Math.max(5, Math.min(24 * 60 * 60, unit === "m" ? intervalSec * 60 : intervalSec));
 
-      out.theme.background.picsum = {
-        fit: val("#bg_picsum_fit", "cover"),
-        blur: Math.max(0, Math.min(10, Number(val("#bg_picsum_blur", "0")))),
-        grayscale: !!$("#bg_picsum_gray")?.checked,
-        lock_seed: !!$("#bg_picsum_lock")?.checked,
-        seed: (val("#bg_picsum_seed", "") || "").trim(),
-        tint: {
-          color: normalizeHex6(val("#bg_picsum_tint", "#000000"), "#000000"),
-          opacity: Math.max(0, Math.min(1, Number(val("#bg_picsum_tint_op", "0")))),
-        },
-        id: idVal,
-        auto_rotate: {
-          enabled: arEnabled,
-          interval_seconds: intervalSec,
-          strategy: val("#bg_picsum_auto_strategy", "shuffle") || "shuffle",
-        },
-      };
-    }
+  out.theme.background.picsum = {
+    fit: val("#bg_picsum_fit", "cover"),
+    blur: Math.max(0, Math.min(10, Number(val("#bg_picsum_blur", "0")))),
+    grayscale: !!$("#bg_picsum_gray")?.checked,
+    lock_seed: !!$("#bg_picsum_lock")?.checked,
+    seed: (val("#bg_picsum_seed", "") || "").trim(),
+    tint: {
+      color: normalizeHex6(val("#bg_picsum_tint", "#000000"), "#000000"),
+      opacity: Math.max(0, Math.min(1, Number(val("#bg_picsum_tint_op", "0")))),
+    },
+    id: idVal,
+    auto_rotate: {
+      enabled: arEnabled,
+      interval_seconds: intervalSec,
+      strategy: val("#bg_picsum_auto_strategy", "shuffle") || "shuffle",
+    },
+  };
+}
+
 
     return out;
   }
 
   // ==== Save config ==========================================================
   async function saveAll() {
-  try {
-    const body = buildPatch();
-    await postJSON("/api/config", body);
+    try {
+      const body = buildPatch();
+      await postJSON("/api/config", body);
 
-    // VIKTIG: alltid les tilbake persistert config etter lagring,
-    // så vi får med backend-normalisering (f.eks. auto-rotate OFF når mode != picsum).
-    await loadAll();
+      // VIKTIG: alltid les tilbake persistert config etter lagring,
+      // så vi får med backend-normalisering (f.eks. auto-rotate OFF når mode != picsum).
+      await loadAll();
 
-    showStatusToast("Lagret ✔", "ok", 1400);
-    // Push preview (konfig er allerede oppdatert i loadAll → apply → pushPreview)
-    pushPreview();
-  } catch (e) {
-    console.error(e);
-    showStatusToast(`Kunne ikke lagre: ${e.message}`, "error", 3500);
-    alert("Lagring feilet:\n" + (e?.message || e));
+      showStatusToast("Lagret ✔", "ok", 1400);
+      // Push preview (konfig er allerede oppdatert i loadAll → apply → pushPreview)
+      pushPreview();
+    } catch (e) {
+      console.error(e);
+      showStatusToast(`Kunne ikke lagre: ${e.message}`, "error", 3500);
+      alert("Lagring feilet:\n" + (e?.message || e));
+    }
   }
-}
-
 
   // ==== Apply config to form =================================================
   function setVal(sel, value) {
@@ -893,88 +918,88 @@ async function postJSON(url, body) {
   }
 
   // --- Picsum modal: bind mot eksisterende <dialog id="picsum_modal"> ---
-function ensurePicsumModal() {
-  const dlg = document.getElementById("picsum_modal");
-  if (!dlg || dlg._bound) return;
+  function ensurePicsumModal() {
+    const dlg = document.getElementById("picsum_modal");
+    if (!dlg || dlg._bound) return;
 
-  // Lukk ved klikk utenfor boksen
-  dlg.addEventListener("click", (ev) => {
-    if (ev.target === dlg) closePicsumPicker();
-  });
+    // Lukk ved klikk utenfor boksen
+    dlg.addEventListener("click", (ev) => {
+      if (ev.target === dlg) closePicsumPicker();
+    });
 
-  // "Esc" → close (standard), men sørg for å rydde status
-  dlg.addEventListener("cancel", (e) => {
-    e.preventDefault();
-    closePicsumPicker();
-  });
+    // "Esc" → close (standard), men sørg for å rydde status
+    dlg.addEventListener("cancel", (e) => {
+      e.preventDefault();
+      closePicsumPicker();
+    });
 
-  // Rydd state når dialog lukkes
-  dlg.addEventListener("close", () => {
-    picsumPicker.open = false;
-    picsumPicker.selected.clear();
-  });
+    // Rydd state når dialog lukkes
+    dlg.addEventListener("close", () => {
+      picsumPicker.open = false;
+      picsumPicker.selected.clear();
+    });
 
-  // Knapper og inputfelt i dialogen (finnes allerede i admin.html)
-  document.getElementById("pg_close")?.addEventListener("click", closePicsumPicker);
+    // Knapper og inputfelt i dialogen (finnes allerede i admin.html)
+    document.getElementById("pg_close")?.addEventListener("click", closePicsumPicker);
 
-  document.getElementById("pg_prev")?.addEventListener("click", () => {
-    if (picsumPicker.page > 1) {
-      picsumPicker.page--;
+    document.getElementById("pg_prev")?.addEventListener("click", () => {
+      if (picsumPicker.page > 1) {
+        picsumPicker.page--;
+        fetchPicsumPage();
+      }
+    });
+
+    document.getElementById("pg_next")?.addEventListener("click", () => {
+      picsumPicker.page++;
       fetchPicsumPage();
-    }
-  });
+    });
 
-  document.getElementById("pg_next")?.addEventListener("click", () => {
-    picsumPicker.page++;
+    document.getElementById("pg_page")?.addEventListener("change", () => {
+      const p = parseInt(document.getElementById("pg_page").value || "1", 10);
+      picsumPicker.page = Math.max(1, Number.isFinite(p) ? p : 1);
+      fetchPicsumPage();
+    });
+
+    document.getElementById("pg_per_page")?.addEventListener("change", () => {
+      picsumPicker.perPage = parseInt(document.getElementById("pg_per_page").value, 10) || 24;
+      fetchPicsumPage();
+    });
+
+    document.getElementById("pg_add")?.addEventListener("click", () => addSelectedToCurated(false));
+    document.getElementById("pg_add_use")?.addEventListener("click", () => addSelectedToCurated(true));
+
+    dlg._bound = true;
+  }
+
+  function openPicsumPicker() {
+    ensurePicsumModal();
+    const dlg = document.getElementById("picsum_modal");
+    if (!dlg) return;
+
+    picsumPicker.open = true;
+    picsumPicker.selected = new Set();
+
+    // Åpne riktig – dette gir korrekt backdrop + scrolling
+    if (typeof dlg.showModal === "function") dlg.showModal();
+    else dlg.setAttribute("open", ""); // fallback
+
+    // Synk UI og last side
+    const pg = document.getElementById("pg_page");
+    const pp = document.getElementById("pg_per_page");
+    if (pg) pg.value = String(picsumPicker.page);
+    if (pp) pp.value = String(picsumPicker.perPage);
+
     fetchPicsumPage();
-  });
+  }
 
-  document.getElementById("pg_page")?.addEventListener("change", () => {
-    const p = parseInt(document.getElementById("pg_page").value || "1", 10);
-    picsumPicker.page = Math.max(1, Number.isFinite(p) ? p : 1);
-    fetchPicsumPage();
-  });
+  function closePicsumPicker() {
+    const dlg = document.getElementById("picsum_modal");
+    if (!dlg) return;
+    picsumPicker.open = false;
 
-  document.getElementById("pg_per_page")?.addEventListener("change", () => {
-    picsumPicker.perPage = parseInt(document.getElementById("pg_per_page").value, 10) || 24;
-    fetchPicsumPage();
-  });
-
-  document.getElementById("pg_add")?.addEventListener("click", () => addSelectedToCurated(false));
-  document.getElementById("pg_add_use")?.addEventListener("click", () => addSelectedToCurated(true));
-
-  dlg._bound = true;
-}
-
-function openPicsumPicker() {
-  ensurePicsumModal();
-  const dlg = document.getElementById("picsum_modal");
-  if (!dlg) return;
-
-  picsumPicker.open = true;
-  picsumPicker.selected = new Set();
-
-  // Åpne riktig – dette gir korrekt backdrop + scrolling
-  if (typeof dlg.showModal === "function") dlg.showModal();
-  else dlg.setAttribute("open", ""); // fallback
-
-  // Synk UI og last side
-  const pg = document.getElementById("pg_page");
-  const pp = document.getElementById("pg_per_page");
-  if (pg) pg.value = String(picsumPicker.page);
-  if (pp) pp.value = String(picsumPicker.perPage);
-
-  fetchPicsumPage();
-}
-
-function closePicsumPicker() {
-  const dlg = document.getElementById("picsum_modal");
-  if (!dlg) return;
-  picsumPicker.open = false;
-
-  if (typeof dlg.close === "function") dlg.close();
-  else dlg.removeAttribute("open"); // fallback
-}
+    if (typeof dlg.close === "function") dlg.close();
+    else dlg.removeAttribute("open"); // fallback
+  }
 
   // eksponer for "Åpne Picsum-galleri…" knappen
   window.openPicsumPicker = openPicsumPicker;
@@ -1016,24 +1041,23 @@ function closePicsumPicker() {
 
       // static/js/admin.js — REPLACE tile building inside renderPicsumGrid()
       const tile = document.createElement("div");
-tile.className = "tile";
-tile.innerHTML = `
+      tile.className = "tile";
+      tile.innerHTML = `
   <img src="${url}" alt="Picsum #${id}">
   <div class="check">#${id}</div>
   <div class="meta"><strong>${author || "Ukjent"}</strong></div>
 `;
-const mark = () => {
-  if (picsumPicker.selected.has(id)) {
-    picsumPicker.selected.delete(id);
-    tile.classList.remove("selected");
-  } else {
-    picsumPicker.selected.add(id);
-    tile.classList.add("selected");
-  }
-};
-tile.addEventListener("click", mark);
-grid.appendChild(tile);
-
+      const mark = () => {
+        if (picsumPicker.selected.has(id)) {
+          picsumPicker.selected.delete(id);
+          tile.classList.remove("selected");
+        } else {
+          picsumPicker.selected.add(id);
+          tile.classList.add("selected");
+        }
+      };
+      tile.addEventListener("click", mark);
+      grid.appendChild(tile);
     });
   }
 
@@ -1078,50 +1102,48 @@ grid.appendChild(tile);
     showStatusToast("Status oppdatert", "info", 1200);
   }
   // ==== Sync-pill (robust) =====================================================
-async function updateSyncPill() {
-  // Sørg for at elementet finnes
-  let pill = document.getElementById("sync_pill");
-  if (!pill) {
-    const host = document.getElementById("admin_toolbar") || document.body;
-    pill = document.createElement("span");
-    pill.id = "sync_pill";
-    pill.className = "pill dot off";
-    pill.title = "Synk: —";
-    host.appendChild(pill);
-  }
-
-  try {
-    const js = await getJSON("/debug/view-heartbeat");
-    const hb = js.heartbeat || {};
-    const age = hb.age_seconds ?? 9999;
-    const viewRev = hb.rev || 0;
-    const cfgRev = lastCfg && lastCfg._updated_at ? lastCfg._updated_at : 0;
-
-    let tone = "off";
-    let title = "Synk: —";
-
-    if (age > 30 || !hb.ts_iso) {
-      tone = "off";
-      title = "Synk: visning offline";
-    } else if (viewRev >= cfgRev) {
-      tone = "ok";
-      title = `Synk: OK (rev ${viewRev})`;
-    } else {
-      tone = "warn";
-      title = `Synk: venter (view ${viewRev} < cfg ${cfgRev})`;
+  async function updateSyncPill() {
+    // Sørg for at elementet finnes
+    let pill = document.getElementById("sync_pill");
+    if (!pill) {
+      const host = document.getElementById("admin_toolbar") || document.body;
+      pill = document.createElement("span");
+      pill.id = "sync_pill";
+      pill.className = "pill dot off";
+      pill.title = "Synk: —";
+      host.appendChild(pill);
     }
 
-    pill.className = `pill dot ${tone}`;
-    pill.title = title;
-    pill.textContent = "";
-  } catch {
-    pill.className = "pill dot off";
-    pill.title = "Synk: —";
-    pill.textContent = "";
+    try {
+      const js = await getJSON("/debug/view-heartbeat");
+      const hb = js.heartbeat || {};
+      const age = hb.age_seconds ?? 9999;
+      const viewRev = hb.rev || 0;
+      const cfgRev = lastCfg && lastCfg._updated_at ? lastCfg._updated_at : 0;
+
+      let tone = "off";
+      let title = "Synk: —";
+
+      if (age > 30 || !hb.ts_iso) {
+        tone = "off";
+        title = "Synk: visning offline";
+      } else if (viewRev >= cfgRev) {
+        tone = "ok";
+        title = `Synk: OK (rev ${viewRev})`;
+      } else {
+        tone = "warn";
+        title = `Synk: venter (view ${viewRev} < cfg ${cfgRev})`;
+      }
+
+      pill.className = `pill dot ${tone}`;
+      pill.title = title;
+      pill.textContent = "";
+    } catch {
+      pill.className = "pill dot off";
+      pill.title = "Synk: —";
+      pill.textContent = "";
+    }
   }
-}
-
-
 
   // ==== Mode/duration actions ===============================================
   async function patchMode(newMode) {
@@ -1201,6 +1223,16 @@ async function updateSyncPill() {
         updateClockContrastHint();
       }),
     );
+    const baseSel = $("#bg_dyn_base");
+  if (baseSel) {
+    baseSel.addEventListener("change", () => {
+      lock();                           // vis/skjul korrekt konfigseksjon
+      updateDigitContrastHints();       // korrekt kontrast mot valgt base
+      updateMessageContrastHints();
+      updateClockContrastHint();
+      pushPreviewDebounced?.();         // (valgfritt) oppdater live preview
+    });
+  }
     ["color_normal", "color_warn", "color_alert", "color_over", "theme_p_color", "theme_s_color"].forEach((id) => {
       const e = document.getElementById(id);
       e &&
@@ -1239,15 +1271,35 @@ async function updateSyncPill() {
     if (f) f.addEventListener("load", () => setTimeout(pushPreview, 50), { once: true });
     setTimeout(pushPreview, 80);
   }
+  function ensureDynamicBaseOptions() {
+    const sel = document.getElementById("bg_dyn_base");
+    if (!sel) return;
+    const wanted = [
+      ["auto", "(auto: bilde → gradient → ensfarget)"],
+      ["solid", "Ensfarget"],
+      ["gradient", "Gradient"],
+      ["image", "Bilde"],
+      ["picsum", "Picsum (kuratert)"], // NEW
+    ];
+    const have = new Set(Array.from(sel.options).map((o) => o.value));
+    for (const [val, label] of wanted) {
+      if (!have.has(val)) {
+        const opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = label;
+        sel.appendChild(opt);
+      }
+    }
+  }
 
   // ==== Init =================================================================
   async function init() {
     bindEvents();
+    ensureDynamicBaseOptions();
     ensurePicsumBrowseButton();
     ensurePicsumModal();
     await loadAll().catch(console.error);
-        await updateSyncPill().catch(() => {});    // <-- nytt: første oppdatering
-
+    await updateSyncPill().catch(() => {});
     setInterval(updateSyncPill, 3000);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });

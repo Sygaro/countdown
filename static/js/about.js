@@ -10,11 +10,11 @@
   }
 
   function serviceCard(name, svc) {
-  const ok = !!svc.active;
-  const wrap = document.createElement("div");
-  wrap.className = "svc"; // matcher about.css
+    const ok = !!svc.active;
+    const wrap = document.createElement("div");
+    wrap.className = "svc"; // matcher about.css
 
-  wrap.innerHTML = `
+    wrap.innerHTML = `
     <div class="title">
       <span>${name}</span>
       <span class="role">(${svc.scope || "—"})</span>
@@ -29,9 +29,8 @@
         : ""
     }
   `;
-  return wrap;
-}
-
+    return wrap;
+  }
 
   async function loadAbout() {
     const boxErr = qs("#about_error");
