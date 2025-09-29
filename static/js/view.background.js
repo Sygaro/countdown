@@ -15,6 +15,21 @@
     return `rgba(${r},${g},${b},${a})`;
   }
 
+  // Enkel URL-sikringsvakt: tillat http(s) og relative URLer. Avvis javascript:, data:, file:, etc.
+  function safeUrl(u) {
+    const s = String(u || "").trim();
+    if (!s) return "";
+    try {
+      const url = new URL(s, location.origin);
+      const allowed = url.protocol === "http:" || url.protocol === "https:";
+      const sameOriginRel = !/^[a-z]+:/i.test(s); // relative eller root-relative
+      return allowed || sameOriginRel ? url.href : "";
+    } catch {
+      // Hvis ikke gyldig URL, forsøk å bruke den som relativ path (lar browseren validere videre)
+      return s.startsWith("/") ? s : "";
+    }
+  }
+
   function viewportPxForPicsum(fit) {
     const dpr = clamp(window.devicePixelRatio || 1, 1, 2);
     let vw = Math.max(1, Math.round((window.innerWidth || 1280) * dpr));
@@ -36,13 +51,14 @@
     document.head.appendChild(st);
   }
   function getDynLayer() {
-    return document.getElementById("dynbg_layer");
+    // Standardiser: bruk bindestrek-versjonen overalt
+    return document.getElementById("dynbg-layer");
   }
   function ensureDynLayer() {
     let el = getDynLayer();
     if (!el) {
       el = document.createElement("div");
-      el.id = "dynbg_layer";
+      el.id = "dynbg-layer";
       Object.assign(el.style, {
         position: "fixed",
         inset: "0",
@@ -59,12 +75,13 @@
   }
 
   function applyBaseImageLayers(el, fit, url, tint) {
+    const safe = safeUrl(url);
     const layers = [];
     if (tint?.color && Number(tint.opacity) > 0) {
       const rgba = hexToRgba(tint.color, tint.opacity);
       layers.push(`linear-gradient(${rgba}, ${rgba})`);
     }
-    if (url) layers.push(`url("${url}")`);
+    if (safe) layers.push(`url("${safe}")`);
     if (!layers.length) return false;
 
     el.style.backgroundImage = layers.join(", ");
@@ -94,6 +111,7 @@
     const url = (bg?.image?.url || "").trim();
     if (!url) {
       el.style.backgroundColor = "#0b0f14";
+      el.style.backgroundImage = "none";
       return;
     }
     const fit = (bg?.image?.fit || "cover").toLowerCase();

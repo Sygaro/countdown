@@ -732,7 +732,7 @@ def _sanitize_overlays(seq: Any) -> List[Dict[str, Any]]:
         "bottom-right",
     }
     ALLOWED_VISIBLE = {"countdown", "clock"}
-    ALLOWED_URL_SCHEMES = ("http://", "https://", "data:")
+    ALLOWED_URL_SCHEMES = ("http://", "https://")
 
     for idx, it in enumerate(seq, start=1):
         if not isinstance(it, dict):

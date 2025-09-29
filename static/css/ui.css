@@ -53,7 +53,7 @@ body.bg-dyn::before {
   filter: blur(var(--bgdyn-blur));
   opacity: var(--bgdyn-opacity);
   will-change: transform;
-  animation: bg-rotate var(--bgdyn-rotate-s) s linear infinite;
+  animation: bg-rotate calc(var(--bgdyn-rotate-s) * 1s) linear infinite;
   pointer-events: none;
 }
 @keyframes bg-rotate {

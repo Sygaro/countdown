@@ -4,7 +4,8 @@
   "use strict";
 
   function readPassword() {
-    const inp = document.getElementById("admin-password");
+    // Match admin.html: id="admin_password" (underscore)
+    const inp = document.getElementById("admin_password");
     return (inp && inp.value) || localStorage.getItem("admin_password") || "";
   }
 

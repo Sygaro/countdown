@@ -6,7 +6,7 @@ import subprocess
 import time
 import random
 from datetime import datetime
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, cast
 from flask import Blueprint, request, jsonify, Response, current_app
 from ..settings import TZ
 from ..countdown import compute_tick
@@ -204,31 +204,27 @@ def _pick_next_picsum_id(cfg: Dict[str, Any]) -> tuple[int | None, int | None]:
     cur_id = bg.get("id") if isinstance(bg.get("id"), int) else None
     if not catalog:
         return None, None
-    raw = theme.get("picsum_catalog") or []
+    raw: list[Any] = theme.get("picsum_catalog") or []
     ids: list[int] = []
     for x in raw:
         if isinstance(x, dict):
-            iv = x.get("id")
-            try:
-                iv = int(iv)
-            except Exception:
-                iv = None
-            if isinstance(iv, int) and iv > 0:
-                ids.append(iv)
+            iv = _coerce_int_or_none(x.get("id"))
+            if iv is not None and iv > 0:
+                ids.append(int(iv))
 
     if not ids:
         return None, None
 
     ar = bg.get("auto_rotate") or {}
     strategy = str(ar.get("strategy", "shuffle")).lower()
-    last_index = ar.get("last_index") if isinstance(ar.get("last_index"), int) else None
+    last_index: int | None = ar.get("last_index") if isinstance(ar.get("last_index"), int) else None
 
     if strategy == "sequential":
         if last_index is None:
             # start fra 0, men hvis samme som cur_id – hopp til neste
             idx = 0
         else:
-            idx = (last_index + 1) % len(ids)
+            idx = (cast(int, last_index) + 1) % len(ids)
         nxt = ids[idx]
         # unngå no-op hvis eneste element = cur_id
         if len(ids) > 1 and nxt == cur_id:
@@ -314,16 +310,20 @@ def _run_user_systemctl(cmd: list[str], timeout: int = 8) -> Tuple[bool, str, st
 @bp.post("/sys/service")
 @require_password
 def sys_service():
-    """POST { action: restart|reload|start|stop|status, name: app|web|kiosk }
-    Bakoverkompatibel: støtter både JSON og form-encoded."""
-    # Les først fra form/query (typisk for eldre frontend), deretter JSON
+    """
+    POST { action: restart|reload|start|stop|status, name: app|web|kiosk }
+    Bakoverkompatibel: støtter både JSON og form-encoded.
+    """
+    # 1) Les fra form/query først (legacy), deretter JSON hvis noe mangler
     action = (request.values.get("action") or "").strip().lower()
     name = (request.values.get("name") or "").strip().lower()
     if (not action or not name) and _is_json_request():
         data = request.get_json(silent=True) or {}
         if isinstance(data, dict):
-            action = action or str(data.get("action") or "").strip().lower()
-            name = name or str(data.get("name") or "").strip().lower()
+            if not action:
+                action = str(data.get("action") or "").strip().lower()
+            if not name:
+                name = str(data.get("name") or "").strip().lower()
 
     services = _svc_map()
     if name not in services:
@@ -342,15 +342,20 @@ def sys_service():
     unit = meta["unit"]
     scope = meta["scope"]
 
-    base = ["systemctl"] + (["--user"] if scope == "user" else [])
-    # --no-block for å ikke henge API-responsen
-    args = list(base)
-    if action in {"restart", "start", "stop", "reload"}:
-        args += [action, "--no-block", unit]
+    # 2) Kjør riktig scope:
+    if scope == "user":
+        # Bruk direkte user-systemctl (aldri via sudo)
+        cmd = [action, unit] if action == "status" else [action, "--no-block", unit]
+        ok, out, err, rc = _run_user_systemctl(cmd)
     else:
-        args += [action, unit]
+        # System-scope kan gå via sudo-fallback
+        args = ["systemctl"]
+        if action in {"restart", "start", "stop", "reload"}:
+            args += [action, "--no-block", unit]
+        else:
+            args += [action, unit]
+        ok, out, err, rc = _run_cmd(args)
 
-    ok, out, err, rc = _run_cmd(args)
     status_code = 200 if rc == 0 else 202  # 202 = accepted/igangsatt
     return (
         jsonify(
@@ -364,6 +369,7 @@ def sys_service():
         ),
         status_code,
     )
+
 
 # ── alias-endepunkt (bakoverkomp) ─────────────────────────────────────────────
 @bp.post("/sys/restart-app")

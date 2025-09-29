@@ -10,6 +10,20 @@
     return mode === "clock" ? v.includes("clock") : v.includes("countdown");
   }
 
+  // Enkel URL-sikringsvakt
+  function safeUrl(u) {
+    const s = String(u || "").trim();
+    if (!s) return "";
+    try {
+      const url = new URL(s, location.origin);
+      const allowed = url.protocol === "http:" || url.protocol === "https:";
+      const sameOriginRel = !/^[a-z]+:/i.test(s);
+      return allowed || sameOriginRel ? url.href : "";
+    } catch {
+      return s.startsWith("/") ? s : "";
+    }
+  }
+
   function placeOverlay(wrap, o) {
     const pos = String(o.position || "top-right").toLowerCase();
     const offVW = Number(o.offset_vw ?? 2);
@@ -87,7 +101,9 @@
 
     placeOverlay(wrap, o);
 
-    const url = (o.url || "").trim();
+    const url = safeUrl(o.url);
+    if (!url) return wrap; // ingenting å vise
+
     const img = document.createElement("img");
     img.src = url;
     img.alt = o.id || "overlay";
@@ -130,9 +146,9 @@
     for (const o of list) {
       if (o.type !== "image") continue;
       if (!overlayIsVisible(o, mode)) continue;
-      const url = (o.url || "").trim();
+      const url = safeUrl(o.url);
       if (!url) continue;
-      root.appendChild(buildOverlayEl(o));
+      root.appendChild(buildOverlayEl({ ...o, url }));
     }
   }
 
