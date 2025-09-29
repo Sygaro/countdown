@@ -41,7 +41,7 @@
     }
     return { vw, vh };
   }
-    // Bygg nøyaktig Picsum-URL fra bakgrunnskonfig (brukes også for preloading)
+  // Bygg nøyaktig Picsum-URL fra bakgrunnskonfig (brukes også for preloading)
   function buildPicsumUrlFromBg(bg) {
     const pc = (bg && bg.picsum) || {};
     const fit = (pc.fit || "cover").toLowerCase();
@@ -69,13 +69,16 @@
       if (!url) return reject(new Error("empty url"));
       const img = new Image();
       let done = false;
-      const to = setTimeout(() => {
-        if (!done) {
-          done = true;
-          img.src = "";
-          reject(new Error("timeout"));
-        }
-      }, Math.max(1000, timeoutMs));
+      const to = setTimeout(
+        () => {
+          if (!done) {
+            done = true;
+            img.src = "";
+            reject(new Error("timeout"));
+          }
+        },
+        Math.max(1000, timeoutMs),
+      );
       img.onload = () => {
         if (!done) {
           done = true;
@@ -94,15 +97,21 @@
     });
   }
 
-
   // dynamic helper
   function ensureDynKeyframes() {
     if (document.getElementById("dynbg_keyframes")) return;
     const st = document.createElement("style");
     st.id = "dynbg_keyframes";
-    st.textContent = `@keyframes dynbg-rotate{0%{transform:rotate(0deg) scale(1.02)}100%{transform:rotate(360deg) scale(1.02)}}`;
+    // Bruk CSS-variabel --dynbg-scale (fallback 1.02) for skala
+    st.textContent = `
+    @keyframes dynbg-rotate {
+      0%   { transform: rotate(0deg)   scale(var(--dynbg-scale, 1.02)); }
+      100% { transform: rotate(360deg) scale(var(--dynbg-scale, 1.02)); }
+    }
+  `;
     document.head.appendChild(st);
   }
+
   function getDynLayer() {
     // Standardiser: bruk bindestrek-versjonen overalt
     return document.getElementById("dynbg-layer");
@@ -175,65 +184,82 @@
     const pc = bg?.picsum || {};
     applyBaseImageLayers(el, (pc.fit || "cover").toLowerCase(), url, pc.tint);
   }
-    window.ViewBg = { applyBackground, viewportPxForPicsum, buildPicsumUrlFromBg, preloadImage };
+  window.ViewBg = { applyBackground, viewportPxForPicsum, buildPicsumUrlFromBg, preloadImage };
 
   function applyBgDynamic(rootEl, bg) {
-  const dyn = bg?.dynamic || {};
-  const basePref = (dyn.base_mode || "auto").toLowerCase();
-  if (basePref === "image" && bg?.image?.url) applyBgImage(rootEl, bg);
-  else if (basePref === "gradient" && bg?.gradient) applyBgGradient(rootEl, bg);
-  else if (basePref === "solid" && bg?.solid) applyBgSolid(rootEl, bg);
-  else if (basePref === "picsum" && bg?.picsum) applyBgPicsum(rootEl, bg);
-  else {
-    if (bg?.image?.url) applyBgImage(rootEl, bg);
-    else if (bg?.gradient) applyBgGradient(rootEl, bg);
-    else if (bg?.picsum) applyBgPicsum(rootEl, bg);
-    else applyBgSolid(rootEl, bg);
+    const dyn = bg?.dynamic || {};
+    const basePref = (dyn.base_mode || "auto").toLowerCase();
+    if (basePref === "image" && bg?.image?.url) applyBgImage(rootEl, bg);
+    else if (basePref === "gradient" && bg?.gradient) applyBgGradient(rootEl, bg);
+    else if (basePref === "solid" && bg?.solid) applyBgSolid(rootEl, bg);
+    else if (basePref === "picsum" && bg?.picsum) applyBgPicsum(rootEl, bg);
+    else {
+      if (bg?.image?.url) applyBgImage(rootEl, bg);
+      else if (bg?.gradient) applyBgGradient(rootEl, bg);
+      else if (bg?.picsum) applyBgPicsum(rootEl, bg);
+      else applyBgSolid(rootEl, bg);
+    }
+
+    ensureDynKeyframes();
+    const layer = ensureDynLayer();
+
+    const num = (v, lo, hi, d) => Math.max(lo, Math.min(hi, Number.isFinite(+v) ? +v : d));
+    const from = dyn.from || "#16233a";
+    const to = dyn.to || "#0e1a2f";
+
+    const rotateS = num(dyn.rotate_s, 0.1, 3600, 60);
+    const blurPx = num(dyn.blur_px, 0, 500, 18);
+    const opacity = num(dyn.opacity, 0, 1, 0.9);
+    const layerPos = (dyn.layer || "under").toLowerCase();
+
+    const zUnder = Number.isFinite(+dyn.z_under) ? String(+dyn.z_under) : "0";
+    const zOver = Number.isFinite(+dyn.z_over) ? String(+dyn.z_over) : "15";
+    const zIndex = layerPos === "over" ? zOver : zUnder;
+
+    const s1 = dyn.shape1 || {};
+    const s2 = dyn.shape2 || {};
+    const [s1x, s1y] = Array.isArray(s1.size_vmax) ? s1.size_vmax : [72, 54];
+    const [p1x, p1y] = Array.isArray(s1.pos_pct) ? s1.pos_pct : [12, 10];
+    const st1 = Number.isFinite(+s1.stop_pct) ? +s1.stop_pct : 62;
+
+    const [s2x, s2y] = Array.isArray(s2.size_vmax) ? s2.size_vmax : [70, 52];
+    const [p2x, p2y] = Array.isArray(s2.pos_pct) ? s2.pos_pct : [88, 12];
+    const st2 = Number.isFinite(+s2.stop_pct) ? +s2.stop_pct : 64;
+
+    const cdeg = Number.isFinite(+dyn.conic_from_deg) ? +dyn.conic_from_deg : 220;
+    const animScale = Number.isFinite(+dyn.anim_scale) ? +dyn.anim_scale : 1.02;
+
+    // Signatur for å unngå unødvendig restart av animasjonen
+    const sig = JSON.stringify({ from, to, rotateS, blurPx, opacity, layerPos, s1, s2, cdeg, zUnder, zOver });
+    const prevSig = layer.dataset.dynsig || "";
+
+    // Oppdater statiske stiler
+    Object.assign(layer.style, {
+      zIndex,
+      filter: `blur(${blurPx}px)`,
+      opacity: String(opacity),
+      // bakgrunnsmønster basert på config
+      background:
+        `radial-gradient(${s1x}vmax ${s1y}vmax at ${p1x}% ${p1y}%, ${from} 0%, transparent ${st1}%),` +
+        `radial-gradient(${s2x}vmax ${s2y}vmax at ${p2x}% ${p2y}%, ${to} 0%, transparent ${st2}%),` +
+        `conic-gradient(from ${cdeg}deg at 50% 50%, #0000 0%, #0000 100%)`,
+    });
+
+    // Anim-skala via CSS-variabel (endringer krever ikke restart)
+    layer.style.setProperty("--dynbg-scale", String(animScale));
+
+    // Restart kun når signatur endres (inkl. rotate_s, blur, posisjoner, osv.)
+    if (prevSig !== sig) {
+      layer.style.animation = "none";
+      void layer.offsetWidth; // reflow
+      layer.style.animation = `dynbg-rotate ${rotateS}s linear infinite`;
+      layer.dataset.dynsig = sig;
+    } else if (!layer.style.animation) {
+      // Første init
+      layer.style.animation = `dynbg-rotate ${rotateS}s linear infinite`;
+      layer.dataset.dynsig = sig;
+    }
   }
-
-  ensureDynKeyframes();
-  const layer = ensureDynLayer();
-
-  const clampNum = (v, lo, hi, def) => Math.max(lo, Math.min(hi, Number(v ?? def)));
-  const from = dyn.from || "#16233a";
-  const to = dyn.to || "#0e1a2f";
-  const rotateS = clampNum(dyn.rotate_s, 5, 600, 60);
-  const blurPx = clampNum(dyn.blur_px, 0, 80, 18);
-  const opacity = clampNum(dyn.opacity, 0, 1, 0.9);
-  const layerPos = (dyn.layer || "under").toLowerCase();
-
-  // Les tidligere signatur FØR vi setter den nye
-  const prevSig = layer.dataset.dynsig || "";
-  const sig = JSON.stringify({ from, to, rotateS, blurPx, opacity, layerPos });
-  const changed = prevSig !== sig;
-
-  // Alltid oppdater disse stilene
-  Object.assign(layer.style, {
-    zIndex: layerPos === "over" ? "15" : "0",
-    filter: `blur(${blurPx}px)`,
-    opacity: String(opacity),
-    background:
-      `radial-gradient(72vmax 54vmax at 12% 10%, ${from} 0%, transparent 62%),` +
-      `radial-gradient(70vmax 52vmax at 88% 12%, ${to} 0%, transparent 64%),` +
-      `conic-gradient(from 220deg at 50% 50%, #0000 0%, #0000 100%)`,
-  });
-
-  // Oppdater / restart animasjon KUN når signatur endres (inkl. rotate_s)
-  if (changed) {
-    const anim = `dynbg-rotate ${rotateS}s linear infinite`;
-    // Tving restart slik at ny varighet trer i kraft i alle browsere
-    layer.style.animation = "none";
-    void layer.offsetWidth; // reflow
-    layer.style.animation = anim;
-  } else if (!layer.style.animation) {
-    // Første init
-    layer.style.animation = `dynbg-rotate ${rotateS}s linear infinite`;
-  }
-
-  // Til slutt: sett ny signatur
-  layer.dataset.dynsig = sig;
-}
-
 
   function applyBackground(rootEl, bg) {
     if (!rootEl) return;

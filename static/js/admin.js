@@ -503,7 +503,24 @@
             opacity: Number(val("#bg_dyn_opacity", "0.9")),
             base_mode: val("#bg_dyn_base", "auto"),
             layer: val("#bg_dyn_layer", "under"),
+
+            // Avansert:
+            shape1: {
+              size_vmax: [Number(val("#bg_dyn_s1_w", "72")), Number(val("#bg_dyn_s1_h", "54"))],
+              pos_pct: [Number(val("#bg_dyn_s1_px", "12")), Number(val("#bg_dyn_s1_py", "10"))],
+              stop_pct: Number(val("#bg_dyn_s1_stop", "62")),
+            },
+            shape2: {
+              size_vmax: [Number(val("#bg_dyn_s2_w", "70")), Number(val("#bg_dyn_s2_h", "52"))],
+              pos_pct: [Number(val("#bg_dyn_s2_px", "88")), Number(val("#bg_dyn_s2_py", "12"))],
+              stop_pct: Number(val("#bg_dyn_s2_stop", "64")),
+            },
+            conic_from_deg: Number(val("#bg_dyn_conic_from", "220")),
+            anim_scale: Number(val("#bg_dyn_scale", "1.02")),
+            z_under: Number(val("#bg_dyn_z_under", "0")),
+            z_over: Number(val("#bg_dyn_z_over", "15")),
           },
+
           image: {
             url: val("#bg_img_url", ""),
             fit: val("#bg_img_fit", "cover"),
@@ -520,59 +537,54 @@
       clock,
     };
     // 🔧 VIKTIG: behold aktiv varighets-state i preview
-  if (m === "duration") {
-    const dm = Number.isFinite(lastCfg?.duration_minutes) ? lastCfg.duration_minutes : undefined;
-    const ds = Number.isFinite(lastCfg?.duration_started_ms) ? lastCfg.duration_started_ms : undefined;
-    if (dm != null) out.duration_minutes = dm;
-    if (ds != null && ds > 0) out.duration_started_ms = ds;
-  }
+    if (m === "duration") {
+      const dm = Number.isFinite(lastCfg?.duration_minutes) ? lastCfg.duration_minutes : undefined;
+      const ds = Number.isFinite(lastCfg?.duration_started_ms) ? lastCfg.duration_started_ms : undefined;
+      if (dm != null) out.duration_minutes = dm;
+      if (ds != null && ds > 0) out.duration_started_ms = ds;
+    }
 
-  // 🔧 (valgfritt, men nyttig) – behold _updated_at i simulasjonen
-  if (Number.isFinite(lastCfg?._updated_at)) out._updated_at = lastCfg._updated_at;
-
+    // 🔧 (valgfritt, men nyttig) – behold _updated_at i simulasjonen
+    if (Number.isFinite(lastCfg?._updated_at)) out._updated_at = lastCfg._updated_at;
 
     // Picsum spesial
     // Picsum – alltid persister verdiene fra UI (backend slår dem av når mode != picsum)
-{
-  const idStr = (val("#bg_picsum_id", "") || "").trim();
-  const idNum = idStr ? parseInt(idStr, 10) : NaN;
-  const idVal = Number.isFinite(idNum) && idNum > 0 ? idNum : null;
+    {
+      const idStr = (val("#bg_picsum_id", "") || "").trim();
+      const idNum = idStr ? parseInt(idStr, 10) : NaN;
+      const idVal = Number.isFinite(idNum) && idNum > 0 ? idNum : null;
 
-  const arEnabled = !!$("#bg_picsum_auto_enabled")?.checked;
-  const rawVal = parseInt(val("#bg_picsum_auto_interval", "5") || "5", 10);
-  const unit = (val("#bg_picsum_auto_unit", "m") || "m").toLowerCase();
-  let intervalSec = Number.isFinite(rawVal) ? rawVal : 5;
-  intervalSec = Math.max(5, Math.min(24 * 60 * 60, unit === "m" ? intervalSec * 60 : intervalSec));
+      const arEnabled = !!$("#bg_picsum_auto_enabled")?.checked;
+      const rawVal = parseInt(val("#bg_picsum_auto_interval", "5") || "5", 10);
+      const unit = (val("#bg_picsum_auto_unit", "m") || "m").toLowerCase();
+      let intervalSec = Number.isFinite(rawVal) ? rawVal : 5;
+      intervalSec = Math.max(5, Math.min(24 * 60 * 60, unit === "m" ? intervalSec * 60 : intervalSec));
 
-  out.theme.background.picsum = {
-    fit: val("#bg_picsum_fit", "cover"),
-    blur: Math.max(0, Math.min(10, Number(val("#bg_picsum_blur", "0")))),
-    grayscale: !!$("#bg_picsum_gray")?.checked,
-    lock_seed: !!$("#bg_picsum_lock")?.checked,
-    seed: (val("#bg_picsum_seed", "") || "").trim(),
-    tint: {
-      color: normalizeHex6(val("#bg_picsum_tint", "#000000"), "#000000"),
-      opacity: Math.max(0, Math.min(1, Number(val("#bg_picsum_tint_op", "0")))),
-    },
-    id: idVal,
-    auto_rotate: {
-      enabled: arEnabled,
-      interval_seconds: intervalSec,
-      strategy: val("#bg_picsum_auto_strategy", "shuffle") || "shuffle",
-    },
-    
-  };
-  const unitSel = document.getElementById("bg_picsum_auto_unit");
-if (unitSel) {
-  unitSel.addEventListener("change", () => {
-  window.updatePicsumAutoIntervalConstraints && window.updatePicsumAutoIntervalConstraints();
-  pushPreviewDebounced?.();
-});
-
-}
-
-}
-
+      out.theme.background.picsum = {
+        fit: val("#bg_picsum_fit", "cover"),
+        blur: Math.max(0, Math.min(10, Number(val("#bg_picsum_blur", "0")))),
+        grayscale: !!$("#bg_picsum_gray")?.checked,
+        lock_seed: !!$("#bg_picsum_lock")?.checked,
+        seed: (val("#bg_picsum_seed", "") || "").trim(),
+        tint: {
+          color: normalizeHex6(val("#bg_picsum_tint", "#000000"), "#000000"),
+          opacity: Math.max(0, Math.min(1, Number(val("#bg_picsum_tint_op", "0")))),
+        },
+        id: idVal,
+        auto_rotate: {
+          enabled: arEnabled,
+          interval_seconds: intervalSec,
+          strategy: val("#bg_picsum_auto_strategy", "shuffle") || "shuffle",
+        },
+      };
+      const unitSel = document.getElementById("bg_picsum_auto_unit");
+      if (unitSel) {
+        unitSel.addEventListener("change", () => {
+          window.updatePicsumAutoIntervalConstraints && window.updatePicsumAutoIntervalConstraints();
+          pushPreviewDebounced?.();
+        });
+      }
+    }
 
     return out;
   }
@@ -666,6 +678,8 @@ if (unitSel) {
     $("#bg_img_op") && ($("#bg_img_op").value = bg.image?.opacity ?? 1);
     $("#bg_img_tint") && ($("#bg_img_tint").value = bg.image?.tint?.color || "#000000");
     $("#bg_img_tint_op") && ($("#bg_img_tint_op").value = bg.image?.tint?.opacity ?? 0);
+
+    // Dynamic background
     $("#bg_dyn_base") && ($("#bg_dyn_base").value = bg.dynamic?.base_mode || "auto");
     $("#bg_dyn_from") && ($("#bg_dyn_from").value = bg.dynamic?.from || "#16233a");
     $("#bg_dyn_to") && ($("#bg_dyn_to").value = bg.dynamic?.to || "#0e1a2f");
@@ -673,6 +687,28 @@ if (unitSel) {
     $("#bg_dyn_blur") && ($("#bg_dyn_blur").value = bg.dynamic?.blur_px ?? 18);
     $("#bg_dyn_opacity") && ($("#bg_dyn_opacity").value = bg.dynamic?.opacity ?? 0.9);
     $("#bg_dyn_layer") && ($("#bg_dyn_layer").value = bg.dynamic?.layer || "under");
+
+    // Dynamic – avansert
+    const dyn = cfg?.theme?.background?.dynamic || {};
+    const s1 = dyn.shape1 || {};
+    const s2 = dyn.shape2 || {};
+
+    $("#bg_dyn_s1_w") && ($("#bg_dyn_s1_w").value = String(s1.size_vmax?.[0] ?? 72));
+    $("#bg_dyn_s1_h") && ($("#bg_dyn_s1_h").value = String(s1.size_vmax?.[1] ?? 54));
+    $("#bg_dyn_s1_px") && ($("#bg_dyn_s1_px").value = String(s1.pos_pct?.[0] ?? 12));
+    $("#bg_dyn_s1_py") && ($("#bg_dyn_s1_py").value = String(s1.pos_pct?.[1] ?? 10));
+    $("#bg_dyn_s1_stop") && ($("#bg_dyn_s1_stop").value = String(s1.stop_pct ?? 62));
+
+    $("#bg_dyn_s2_w") && ($("#bg_dyn_s2_w").value = String(s2.size_vmax?.[0] ?? 70));
+    $("#bg_dyn_s2_h") && ($("#bg_dyn_s2_h").value = String(s2.size_vmax?.[1] ?? 52));
+    $("#bg_dyn_s2_px") && ($("#bg_dyn_s2_px").value = String(s2.pos_pct?.[0] ?? 88));
+    $("#bg_dyn_s2_py") && ($("#bg_dyn_s2_py").value = String(s2.pos_pct?.[1] ?? 12));
+    $("#bg_dyn_s2_stop") && ($("#bg_dyn_s2_stop").value = String(s2.stop_pct ?? 64));
+
+    $("#bg_dyn_conic_from") && ($("#bg_dyn_conic_from").value = String(dyn.conic_from_deg ?? 220));
+    $("#bg_dyn_scale") && ($("#bg_dyn_scale").value = String(dyn.anim_scale ?? 1.02));
+    $("#bg_dyn_z_under") && ($("#bg_dyn_z_under").value = String(dyn.z_under ?? 0));
+    $("#bg_dyn_z_over") && ($("#bg_dyn_z_over").value = String(dyn.z_over ?? 15));
 
     // Picsum
     $("#bg_picsum_fit") && ($("#bg_picsum_fit").value = bg.picsum?.fit || "cover");
@@ -700,12 +736,11 @@ if (unitSel) {
         arUnitEl.value = "s";
         arIntEl.value = String(secs);
       }
-          if (typeof window.updatePicsumAutoIntervalConstraints === "function") {
-    window.updatePicsumAutoIntervalConstraints();
-  }
+      if (typeof window.updatePicsumAutoIntervalConstraints === "function") {
+        window.updatePicsumAutoIntervalConstraints();
+      }
 
-
-window.updatePicsumAutoIntervalConstraints && window.updatePicsumAutoIntervalConstraints();
+      window.updatePicsumAutoIntervalConstraints && window.updatePicsumAutoIntervalConstraints();
       arStratEl.value = ar.strategy || "shuffle";
     }
 
@@ -794,23 +829,22 @@ window.updatePicsumAutoIntervalConstraints && window.updatePicsumAutoIntervalCon
       <p style="opacity:.8;margin:6px 0 0;">Kilde: «Kuratert Picsum-liste». Når aktivt, kan visningen kalle <code>/api/picsum/next</code> periodisk.</p>
     `;
     // Justér min-/step for intervallfeltet basert på valgt enhet (globalt tilgjengelig)
-window.updatePicsumAutoIntervalConstraints = function () {
-  const unitEl = document.getElementById("bg_picsum_auto_unit");
-  const intEl  = document.getElementById("bg_picsum_auto_interval");
-  if (!unitEl || !intEl) return;
+    window.updatePicsumAutoIntervalConstraints = function () {
+      const unitEl = document.getElementById("bg_picsum_auto_unit");
+      const intEl = document.getElementById("bg_picsum_auto_interval");
+      if (!unitEl || !intEl) return;
 
-  if ((unitEl.value || "m") === "m") {
-    // Minutter: lov 1 min
-    intEl.min = "1";
-    intEl.step = "1";
-  } else {
-    // Sekunder: min 5 sek
-    intEl.min = "5";
-    intEl.step = "1";
-    if (Number(intEl.value) < 5) intEl.value = "5";
-  }
-};
-
+      if ((unitEl.value || "m") === "m") {
+        // Minutter: lov 1 min
+        intEl.min = "1";
+        intEl.step = "1";
+      } else {
+        // Sekunder: min 5 sek
+        intEl.min = "5";
+        intEl.step = "1";
+        if (Number(intEl.value) < 5) intEl.value = "5";
+      }
+    };
 
     host.appendChild(wrap);
 
@@ -842,32 +876,32 @@ window.updatePicsumAutoIntervalConstraints = function () {
   })();
 
   // === KURATERT PICSUM GALLERI (modal for picsumCatalogLocal) ==================
-function ensureCuratedPicsumUI() {
-  // 1) Legg til knapp under Picsum-konfig
-  if (!document.getElementById("btn_picsum_curated")) {
-    const host = document.getElementById("bg_picsum_cfg") || document.body;
-    const bar = document.createElement("div");
-    bar.style.margin = "6px 0";
-    const btn = document.createElement("button");
-    btn.id = "btn_picsum_curated";
-    btn.type = "button";
-    btn.textContent = "Åpne kuratert galleri…";
-    btn.addEventListener("click", openCuratedPicsumPicker);
-    bar.appendChild(btn);
-    host.appendChild(bar);
-  }
+  function ensureCuratedPicsumUI() {
+    // 1) Legg til knapp under Picsum-konfig
+    if (!document.getElementById("btn_picsum_curated")) {
+      const host = document.getElementById("bg_picsum_cfg") || document.body;
+      const bar = document.createElement("div");
+      bar.style.margin = "6px 0";
+      const btn = document.createElement("button");
+      btn.id = "btn_picsum_curated";
+      btn.type = "button";
+      btn.textContent = "Åpne kuratert galleri…";
+      btn.addEventListener("click", openCuratedPicsumPicker);
+      bar.appendChild(btn);
+      host.appendChild(bar);
+    }
 
-  // 2) Lag modal-dialog om den ikke finnes
-  if (!document.getElementById("curated_modal")) {
-    const dlg = document.createElement("dialog");
-    dlg.id = "curated_modal";
-    dlg.style.padding = "0";
-    dlg.style.border = "none";
-    dlg.style.maxWidth = "92vw";
-    dlg.style.width = "min(1200px, 92vw)";
-    dlg.style.maxHeight = "86vh";
+    // 2) Lag modal-dialog om den ikke finnes
+    if (!document.getElementById("curated_modal")) {
+      const dlg = document.createElement("dialog");
+      dlg.id = "curated_modal";
+      dlg.style.padding = "0";
+      dlg.style.border = "none";
+      dlg.style.maxWidth = "92vw";
+      dlg.style.width = "min(1200px, 92vw)";
+      dlg.style.maxHeight = "86vh";
 
-    dlg.innerHTML = `
+      dlg.innerHTML = `
   <div style="display:flex; flex-direction:column; height:86vh;">
     <div style="padding:10px 12px; border-bottom:1px solid #2a2f37; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
       <strong style="font-size:1.05rem;">Kuratert Picsum-liste</strong>
@@ -901,97 +935,104 @@ function ensureCuratedPicsumUI() {
   </div>
 `;
 
-    document.body.appendChild(dlg);
+      document.body.appendChild(dlg);
 
-    // Bind lukking
-    dlg.addEventListener("click", (ev) => {
-      if (ev.target === dlg) closeCuratedPicsumPicker(); // klikk utenfor
-    });
-    dlg.addEventListener("cancel", (e) => { e.preventDefault(); closeCuratedPicsumPicker(); });
-    dlg.addEventListener("close", () => { /* ingen ekstra state nødvendig */ });
-    dlg.querySelector("#cur_close")?.addEventListener("click", closeCuratedPicsumPicker);
-    // Sorteringsendringer
-const sortByEl  = dlg.querySelector("#cur_sort_by");
-const sortDirEl = dlg.querySelector("#cur_sort_dir");
-if (sortByEl && sortDirEl) {
-  const applySort = () => {
-    sortPicsumCatalog(sortByEl.value || "id", sortDirEl.value || "asc");
-    renderPicsumList();
+      // Bind lukking
+      dlg.addEventListener("click", (ev) => {
+        if (ev.target === dlg) closeCuratedPicsumPicker(); // klikk utenfor
+      });
+      dlg.addEventListener("cancel", (e) => {
+        e.preventDefault();
+        closeCuratedPicsumPicker();
+      });
+      dlg.addEventListener("close", () => {
+        /* ingen ekstra state nødvendig */
+      });
+      dlg.querySelector("#cur_close")?.addEventListener("click", closeCuratedPicsumPicker);
+      // Sorteringsendringer
+      const sortByEl = dlg.querySelector("#cur_sort_by");
+      const sortDirEl = dlg.querySelector("#cur_sort_dir");
+      if (sortByEl && sortDirEl) {
+        const applySort = () => {
+          sortPicsumCatalog(sortByEl.value || "id", sortDirEl.value || "asc");
+          renderPicsumList();
+          renderCuratedGrid();
+          pushPreviewDebounced?.();
+        };
+        sortByEl.addEventListener("change", applySort);
+        sortDirEl.addEventListener("change", applySort);
+      }
+
+      // Eksport
+      dlg.querySelector("#cur_btn_export")?.addEventListener("click", exportCuratedPicsumList);
+
+      // Import
+      const importInput = dlg.querySelector("#cur_import_file");
+      dlg.querySelector("#cur_btn_import")?.addEventListener("click", () => importInput?.click());
+      importInput?.addEventListener("change", async (e) => {
+        const file = e.currentTarget.files?.[0];
+        if (!file) return;
+        // Velg sammenslåing eller erstatting
+        const merge = confirm(
+          "Importer: Vil du slå sammen med eksisterende liste? (OK = slå sammen, Cancel = erstatt)",
+        );
+        if (!merge) picsumCatalogLocal = []; // blank hvis ikke merge
+        await importCuratedPicsumListFromFile(file, { merge });
+        e.currentTarget.value = ""; // reset file input
+      });
+    }
+  }
+
+  function openCuratedPicsumPicker() {
+    ensureCuratedPicsumUI();
+    const dlg = document.getElementById("curated_modal");
+    if (!dlg) return;
+    if (typeof dlg.showModal === "function") dlg.showModal();
+    else dlg.setAttribute("open", "");
     renderCuratedGrid();
-    pushPreviewDebounced?.();
-  };
-  sortByEl.addEventListener("change", applySort);
-  sortDirEl.addEventListener("change", applySort);
-}
-
-// Eksport
-dlg.querySelector("#cur_btn_export")?.addEventListener("click", exportCuratedPicsumList);
-
-// Import
-const importInput = dlg.querySelector("#cur_import_file");
-dlg.querySelector("#cur_btn_import")?.addEventListener("click", () => importInput?.click());
-importInput?.addEventListener("change", async (e) => {
-  const file = e.currentTarget.files?.[0];
-  if (!file) return;
-  // Velg sammenslåing eller erstatting
-  const merge = confirm("Importer: Vil du slå sammen med eksisterende liste? (OK = slå sammen, Cancel = erstatt)");
-  if (!merge) picsumCatalogLocal = []; // blank hvis ikke merge
-  await importCuratedPicsumListFromFile(file, { merge });
-  e.currentTarget.value = ""; // reset file input
-});
-
-  }
-  
-}
-
-function openCuratedPicsumPicker() {
-  ensureCuratedPicsumUI();
-  const dlg = document.getElementById("curated_modal");
-  if (!dlg) return;
-  if (typeof dlg.showModal === "function") dlg.showModal();
-  else dlg.setAttribute("open", "");
-  renderCuratedGrid();
-}
-
-function closeCuratedPicsumPicker() {
-  const dlg = document.getElementById("curated_modal");
-  if (!dlg) return;
-  if (typeof dlg.close === "function") dlg.close();
-  else dlg.removeAttribute("open");
-}
-
-function renderCuratedGrid() {
-  const grid = document.getElementById("cur_grid");
-  const statusEl = document.getElementById("cur_status");
-  if (!grid) return;
-
-  grid.innerHTML = "";
-  const items = Array.isArray(picsumCatalogLocal) ? picsumCatalogLocal : [];
-  if (statusEl) statusEl.textContent = items.length ? `(${items.length} bilde${items.length === 1 ? "" : "r"})` : "(tom)";
-
-  if (!items.length) {
-    const p = document.createElement("p");
-    p.textContent = "Kuratert liste er tom. Bruk «Åpne Picsum-galleri…» for å legge til bilder.";
-    p.style.opacity = ".8";
-    grid.appendChild(p);
-    return;
   }
 
-  const W = 240, H = 160;
-  items.forEach((it, idx) => {
-    const id = Number(it?.id);
-    const label = String(it?.label || "");
-    if (!Number.isFinite(id) || id <= 0) return;
+  function closeCuratedPicsumPicker() {
+    const dlg = document.getElementById("curated_modal");
+    if (!dlg) return;
+    if (typeof dlg.close === "function") dlg.close();
+    else dlg.removeAttribute("open");
+  }
 
-    const url = `https://picsum.photos/id/${id}/${W}/${H}`;
+  function renderCuratedGrid() {
+    const grid = document.getElementById("cur_grid");
+    const statusEl = document.getElementById("cur_status");
+    if (!grid) return;
 
-    const tile = document.createElement("div");
-    tile.className = "tile curated";
-    tile.style.border = "1px solid #2a2f37";
-    tile.style.borderRadius = "6px";
-    tile.style.overflow = "hidden";
-    tile.style.background = "#0d1117";
-    tile.innerHTML = `
+    grid.innerHTML = "";
+    const items = Array.isArray(picsumCatalogLocal) ? picsumCatalogLocal : [];
+    if (statusEl)
+      statusEl.textContent = items.length ? `(${items.length} bilde${items.length === 1 ? "" : "r"})` : "(tom)";
+
+    if (!items.length) {
+      const p = document.createElement("p");
+      p.textContent = "Kuratert liste er tom. Bruk «Åpne Picsum-galleri…» for å legge til bilder.";
+      p.style.opacity = ".8";
+      grid.appendChild(p);
+      return;
+    }
+
+    const W = 240,
+      H = 160;
+    items.forEach((it, idx) => {
+      const id = Number(it?.id);
+      const label = String(it?.label || "");
+      if (!Number.isFinite(id) || id <= 0) return;
+
+      const url = `https://picsum.photos/id/${id}/${W}/${H}`;
+
+      const tile = document.createElement("div");
+      tile.className = "tile curated";
+      tile.style.border = "1px solid #2a2f37";
+      tile.style.borderRadius = "6px";
+      tile.style.overflow = "hidden";
+      tile.style.background = "#0d1117";
+      tile.innerHTML = `
       <div style="position:relative; aspect-ratio:${W}/${H}; background:#0b0f14;">
         <img src="${url}" alt="Picsum #${id}" style="width:100%; height:100%; object-fit:cover; display:block;">
         <div style="position:absolute; left:8px; top:8px; font-size:.8rem; background:#111827cc; color:#e5e7eb; padding:2px 6px; border-radius:4px;">#${id}</div>
@@ -1008,38 +1049,38 @@ function renderCuratedGrid() {
       </div>
     `;
 
-    // Endre navn
-    const inp = tile.querySelector('input[data-role="label"]');
-    inp?.addEventListener("input", (e) => {
-      const v = String(e.currentTarget.value || "");
-      picsumCatalogLocal[idx] = { id, label: v };
-      pushPreviewDebounced?.();
-    });
+      // Endre navn
+      const inp = tile.querySelector('input[data-role="label"]');
+      inp?.addEventListener("input", (e) => {
+        const v = String(e.currentTarget.value || "");
+        picsumCatalogLocal[idx] = { id, label: v };
+        pushPreviewDebounced?.();
+      });
 
-    // Bruk dette bildet
-    tile.querySelector('button[data-role="use"]')?.addEventListener("click", () => {
-      const idField = document.getElementById("bg_picsum_id");
-      if (idField) idField.value = String(id);
-      const radio = document.querySelector('input[name="bg_mode"][value="picsum"]');
-      if (radio) {
-        radio.checked = true;
-        lock();
-      }
-      pushPreviewDebounced?.();
-    });
+      // Bruk dette bildet
+      tile.querySelector('button[data-role="use"]')?.addEventListener("click", () => {
+        const idField = document.getElementById("bg_picsum_id");
+        if (idField) idField.value = String(id);
+        const radio = document.querySelector('input[name="bg_mode"][value="picsum"]');
+        if (radio) {
+          radio.checked = true;
+          lock();
+        }
+        pushPreviewDebounced?.();
+      });
 
-    // Slett fra lista
-    tile.querySelector('button[data-role="delete"]')?.addEventListener("click", () => {
-      // Fjern valgt entry
-      picsumCatalogLocal.splice(idx, 1);
-      renderPicsumList();      // oppdater <select>-lista også
-      renderCuratedGrid();     // re-build modalgrid
-      pushPreviewDebounced?.();
-    });
+      // Slett fra lista
+      tile.querySelector('button[data-role="delete"]')?.addEventListener("click", () => {
+        // Fjern valgt entry
+        picsumCatalogLocal.splice(idx, 1);
+        renderPicsumList(); // oppdater <select>-lista også
+        renderCuratedGrid(); // re-build modalgrid
+        pushPreviewDebounced?.();
+      });
 
-    grid.appendChild(tile);
-  });
-}
+      grid.appendChild(tile);
+    });
+  }
 
   function renderPicsumList(selectedIndex) {
     const sel = document.getElementById("bg_picsum_list");
@@ -1459,15 +1500,15 @@ function renderCuratedGrid() {
       }),
     );
     const baseSel = $("#bg_dyn_base");
-  if (baseSel) {
-    baseSel.addEventListener("change", () => {
-      lock();                           // vis/skjul korrekt konfigseksjon
-      updateDigitContrastHints();       // korrekt kontrast mot valgt base
-      updateMessageContrastHints();
-      updateClockContrastHint();
-      pushPreviewDebounced?.();         // (valgfritt) oppdater live preview
-    });
-  }
+    if (baseSel) {
+      baseSel.addEventListener("change", () => {
+        lock(); // vis/skjul korrekt konfigseksjon
+        updateDigitContrastHints(); // korrekt kontrast mot valgt base
+        updateMessageContrastHints();
+        updateClockContrastHint();
+        pushPreviewDebounced?.(); // (valgfritt) oppdater live preview
+      });
+    }
     ["color_normal", "color_warn", "color_alert", "color_over", "theme_p_color", "theme_s_color"].forEach((id) => {
       const e = document.getElementById(id);
       e &&
@@ -1526,156 +1567,401 @@ function renderCuratedGrid() {
       }
     }
   }
-// --- Sort / Export / Import helpers -----------------------------------------
-function sortPicsumCatalog(by = "id", dir = "asc") {
-  const norm = (s) => String(s || "").trim().toLowerCase();
-  const m = by === "name" ? "label" : "id";
-  picsumCatalogLocal.sort((a, b) => {
-    if (m === "id") {
-      const x = Number(a.id) - Number(b.id);
-      return dir === "desc" ? -x : x;
+  // --- Dynamic Advanced UI ----------------------------------------------------
+  function ensureDynamicAdvancedUI() {
+    const host = document.getElementById("bg_dyn_cfg");
+    if (!host || host._dynAdvBound) return;
+    const wrap = document.createElement("fieldset");
+    wrap.id = "bg_dyn_advanced";
+    wrap.style.marginTop = "10px";
+    wrap.style.border = "1px solid rgba(255,255,255,.1)";
+    wrap.style.padding = "10px";
+    wrap.style.borderRadius = "8px";
+    wrap.innerHTML = `
+    <legend style="padding:0 6px;opacity:.85">Avansert (dynamic)</legend>
+   <div class="row" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+  <label for="bg_dyn_preset" style="min-width:140px;">Dynamic preset</label>
+  <select id="bg_dyn_preset" style="min-width:220px;">
+    <option value="calm-orbit">Calm orbit (rolig)</option>
+    <option value="vibrant-spin">Vibrant spin</option>
+    <option value="soft-glow-over">Soft glow (over)</option>
+    <option value="deep-contrast">Deep contrast</option>
+    <option value="minimal-motion">Minimal motion</option>
+  </select>
+</div>
+
+    <div class="row" style="display:grid;grid-template-columns:repeat(6, minmax(0,1fr));gap:8px">
+      <div style="grid-column: span 3;">
+        <label>Shape 1 – størrelse (vmax)</label>
+        <div style="display:flex;gap:6px">
+          <input type="number" id="bg_dyn_s1_w" min="1" max="300" step="1" placeholder="72">
+          <input type="number" id="bg_dyn_s1_h" min="1" max="300" step="1" placeholder="54">
+        </div>
+      </div>
+      <div style="grid-column: span 3;">
+        <label>Shape 1 – posisjon (%)</label>
+        <div style="display:flex;gap:6px">
+          <input type="number" id="bg_dyn_s1_px" min="0" max="100" step="0.1" placeholder="12">
+          <input type="number" id="bg_dyn_s1_py" min="0" max="100" step="0.1" placeholder="10">
+        </div>
+      </div>
+      <div style="grid-column: span 2;">
+        <label>Shape 1 – stopp (%)</label>
+        <input type="number" id="bg_dyn_s1_stop" min="0" max="100" step="0.1" placeholder="62">
+      </div>
+
+      <div style="grid-column: span 3;">
+        <label>Shape 2 – størrelse (vmax)</label>
+        <div style="display:flex;gap:6px">
+          <input type="number" id="bg_dyn_s2_w" min="1" max="300" step="1" placeholder="70">
+          <input type="number" id="bg_dyn_s2_h" min="1" max="300" step="1" placeholder="52">
+        </div>
+      </div>
+      <div style="grid-column: span 3;">
+        <label>Shape 2 – posisjon (%)</label>
+        <div style="display:flex;gap:6px">
+          <input type="number" id="bg_dyn_s2_px" min="0" max="100" step="0.1" placeholder="88">
+          <input type="number" id="bg_dyn_s2_py" min="0" max="100" step="0.1" placeholder="12">
+        </div>
+      </div>
+      <div style="grid-column: span 2;">
+        <label>Shape 2 – stopp (%)</label>
+        <input type="number" id="bg_dyn_s2_stop" min="0" max="100" step="0.1" placeholder="64">
+      </div>
+
+      <div style="grid-column: span 2;">
+        <label>Conic – start (grader)</label>
+        <input type="number" id="bg_dyn_conic_from" min="0" max="360" step="0.1" placeholder="220">
+      </div>
+
+      <div style="grid-column: span 2;">
+        <label>Animasjonsskala</label>
+        <input type="number" id="bg_dyn_scale" min="0.5" max="2" step="0.01" placeholder="1.02">
+      </div>
+
+      <div style="grid-column: span 2;">
+        <label>Z-index (under)</label>
+        <input type="number" id="bg_dyn_z_under" min="-9999" max="9999" step="1" placeholder="0">
+      </div>
+      <div style="grid-column: span 2;">
+        <label>Z-index (over)</label>
+        <input type="number" id="bg_dyn_z_over" min="-9999" max="9999" step="1" placeholder="15">
+      </div>
+    </div>
+  `;
+    host.appendChild(wrap);
+
+    // Bind alle inputs til live-preview
+    [
+      "#bg_dyn_s1_w",
+      "#bg_dyn_s1_h",
+      "#bg_dyn_s1_px",
+      "#bg_dyn_s1_py",
+      "#bg_dyn_s1_stop",
+      "#bg_dyn_s2_w",
+      "#bg_dyn_s2_h",
+      "#bg_dyn_s2_px",
+      "#bg_dyn_s2_py",
+      "#bg_dyn_s2_stop",
+      "#bg_dyn_conic_from",
+      "#bg_dyn_scale",
+      "#bg_dyn_z_under",
+      "#bg_dyn_z_over",
+    ].forEach((sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return;
+      el.addEventListener("input", pushPreviewDebounced);
+      el.addEventListener("change", pushPreviewDebounced);
+    });
+    const selPreset = document.getElementById("bg_dyn_preset");
+    if (selPreset && !selPreset._bound) {
+      selPreset.addEventListener("change", () => applyDynamicPreset(selPreset.value));
+      selPreset._bound = true;
     }
-    // name
-    const x = norm(a.label) < norm(b.label) ? -1 : norm(a.label) > norm(b.label) ? 1 : 0;
-    return dir === "desc" ? -x : x;
-  });
-}
 
-function exportCuratedPicsumList() {
-  // Lag én-linje-objekter og pakk dem i en JSON-array med komma mellom linjene
-  const items = picsumCatalogLocal.map(({ id, label }) => ({
-    id: Number(id),
-    label: String(label || ""),
-  }));
+    host._dynAdvBound = true;
+  }
 
-  const lines = items.map((o) => "  " + JSON.stringify(o)); // 2-space indent
-  const content = "[\n" + lines.map((l, i) => l + (i < lines.length - 1 ? "," : "")).join("\n") + "\n]\n";
+  // --- Dynamic Presets ---------------------------------------------------------
+  const DYN_PRESETS = {
+    // Rolig, myk rotasjon – default-aktig
+    "calm-orbit": {
+      from: "#16233a",
+      to: "#0e1a2f",
+      rotate_s: 40,
+      blur_px: 25,
+      opacity: 0.85,
+      base_mode: "auto",
+      layer: "under",
+      shape1: { size_vmax: [72, 54], pos_pct: [12, 10], stop_pct: 62 },
+      shape2: { size_vmax: [70, 52], pos_pct: [88, 12], stop_pct: 64 },
+      conic_from_deg: 220,
+      anim_scale: 1.02,
+      z_under: 0,
+      z_over: 15,
+    },
 
-  const blob = new Blob([content], { type: "application/json" });
-  const name = `picsum-curated-${new Date().toISOString().slice(0, 10)}.json`;
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => {
-    URL.revokeObjectURL(a.href);
-    a.remove();
-  }, 0);
-}
+    // Litt raskere, litt skarpere farger
+    "vibrant-spin": {
+      from: "#1b3358",
+      to: "#8a2be2",
+      rotate_s: 18,
+      blur_px: 16,
+      opacity: 0.9,
+      base_mode: "auto",
+      layer: "under",
+      shape1: { size_vmax: [80, 58], pos_pct: [18, 12], stop_pct: 58 },
+      shape2: { size_vmax: [78, 56], pos_pct: [82, 15], stop_pct: 60 },
+      conic_from_deg: 180,
+      anim_scale: 1.03,
+      z_under: 0,
+      z_over: 15,
+    },
 
+    // Diskret, sakte – passer under bilder (layer=over for subtil film)
+    "soft-glow-over": {
+      from: "#0b1322",
+      to: "#10233f",
+      rotate_s: 60,
+      blur_px: 45,
+      opacity: 0.35,
+      base_mode: "image", // eller "picsum" hvis du vil
+      layer: "over",
+      shape1: { size_vmax: [90, 70], pos_pct: [20, 18], stop_pct: 68 },
+      shape2: { size_vmax: [86, 68], pos_pct: [76, 14], stop_pct: 70 },
+      conic_from_deg: 210,
+      anim_scale: 1.01,
+      z_under: 0,
+      z_over: 30, // over innholdets z=10 men under overlays=50
+    },
 
+    // Høy kontrast, moderat fart
+    "deep-contrast": {
+      from: "#00111f",
+      to: "#0f4c81",
+      rotate_s: 24,
+      blur_px: 30,
+      opacity: 0.9,
+      base_mode: "gradient",
+      layer: "under",
+      shape1: { size_vmax: [76, 58], pos_pct: [14, 12], stop_pct: 60 },
+      shape2: { size_vmax: [74, 56], pos_pct: [86, 16], stop_pct: 62 },
+      conic_from_deg: 240,
+      anim_scale: 1.02,
+      z_under: 0,
+      z_over: 15,
+    },
 
-// Robust import av kuratert Picsum-liste (JSON array eller JSONL-lignende)
-async function importCuratedPicsumList(fileOrText) {
-  const text = typeof fileOrText === "string" ? fileOrText : await fileOrText.text();
+    // Minimal bevegelse – nesten statisk
+    "minimal-motion": {
+      from: "#142033",
+      to: "#0b0f14",
+      rotate_s: 300,
+      blur_px: 20,
+      opacity: 0.8,
+      base_mode: "solid",
+      layer: "under",
+      shape1: { size_vmax: [70, 52], pos_pct: [12, 10], stop_pct: 60 },
+      shape2: { size_vmax: [68, 50], pos_pct: [88, 12], stop_pct: 62 },
+      conic_from_deg: 220,
+      anim_scale: 1.005,
+      z_under: 0,
+      z_over: 15,
+    },
+  };
 
-  function processItems(items) {
-    if (!Array.isArray(items)) throw new Error("Forventet en JSON-array av {id,label}");
-    const byId = new Map(picsumCatalogLocal.map((x) => [Number(x.id), { id: Number(x.id), label: String(x.label || "") }]));
-    for (const it of items) {
-      if (!it || typeof it !== "object") continue;
-      const id = Number(it.id);
-      if (!Number.isFinite(id) || id <= 0) continue;
-      const label = String(it.label || "");
-      byId.set(id, { id, label });
+  function setIfExists(sel, valStr) {
+    const el = document.querySelector(sel);
+    if (el) el.value = String(valStr);
+  }
+
+  function applyDynamicPreset(key) {
+    const p = DYN_PRESETS[key];
+    if (!p) return;
+
+    // Grunnfelter
+    setIfExists("#bg_dyn_from", p.from);
+    setIfExists("#bg_dyn_to", p.to);
+    setIfExists("#bg_dyn_rotate", p.rotate_s);
+    setIfExists("#bg_dyn_blur", p.blur_px);
+    setIfExists("#bg_dyn_opacity", p.opacity);
+    setIfExists("#bg_dyn_base", p.base_mode);
+    setIfExists("#bg_dyn_layer", p.layer);
+
+    // Avansert
+    if (p.shape1) {
+      setIfExists("#bg_dyn_s1_w", p.shape1.size_vmax?.[0] ?? 72);
+      setIfExists("#bg_dyn_s1_h", p.shape1.size_vmax?.[1] ?? 54);
+      setIfExists("#bg_dyn_s1_px", p.shape1.pos_pct?.[0] ?? 12);
+      setIfExists("#bg_dyn_s1_py", p.shape1.pos_pct?.[1] ?? 10);
+      setIfExists("#bg_dyn_s1_stop", p.shape1.stop_pct ?? 62);
     }
-    picsumCatalogLocal = Array.from(byId.values()).sort((a, b) => a.id - b.id);
-    renderPicsumList();
+    if (p.shape2) {
+      setIfExists("#bg_dyn_s2_w", p.shape2.size_vmax?.[0] ?? 70);
+      setIfExists("#bg_dyn_s2_h", p.shape2.size_vmax?.[1] ?? 52);
+      setIfExists("#bg_dyn_s2_px", p.shape2.pos_pct?.[0] ?? 88);
+      setIfExists("#bg_dyn_s2_py", p.shape2.pos_pct?.[1] ?? 12);
+      setIfExists("#bg_dyn_s2_stop", p.shape2.stop_pct ?? 64);
+    }
+    setIfExists("#bg_dyn_conic_from", p.conic_from_deg ?? 220);
+    setIfExists("#bg_dyn_scale", p.anim_scale ?? 1.02);
+    setIfExists("#bg_dyn_z_under", p.z_under ?? 0);
+    setIfExists("#bg_dyn_z_over", p.z_over ?? 15);
+
+    // Sørg for at riktig seksjon er synlig og forhåndsvisningen oppdateres
+    const radio = document.querySelector(`input[name="bg_mode"][value="dynamic"]`);
+    if (radio) radio.checked = true;
+    lock();
+    updateDigitContrastHints();
+    updateMessageContrastHints();
+    updateClockContrastHint?.();
     pushPreviewDebounced?.();
   }
 
-  // 1) Prøv ren JSON-array først
-  try {
-    const parsed = JSON.parse(text);
-    processItems(parsed);
-    showStatusToast("Importert kuratert liste ✔", "ok", 1500);
-    return;
-  } catch {
-    // fallthrough
+  // --- Sort / Export / Import helpers -----------------------------------------
+  function sortPicsumCatalog(by = "id", dir = "asc") {
+    const norm = (s) =>
+      String(s || "")
+        .trim()
+        .toLowerCase();
+    const m = by === "name" ? "label" : "id";
+    picsumCatalogLocal.sort((a, b) => {
+      if (m === "id") {
+        const x = Number(a.id) - Number(b.id);
+        return dir === "desc" ? -x : x;
+      }
+      // name
+      const x = norm(a.label) < norm(b.label) ? -1 : norm(a.label) > norm(b.label) ? 1 : 0;
+      return dir === "desc" ? -x : x;
+    });
+  }
+  function exportCuratedPicsumList() {
+    // Lag én-linje-objekter og pakk dem i en JSON-array med komma mellom linjene
+    const items = picsumCatalogLocal.map(({ id, label }) => ({
+      id: Number(id),
+      label: String(label || ""),
+    }));
+
+    const lines = items.map((o) => "  " + JSON.stringify(o)); // 2-space indent
+    const content = "[\n" + lines.map((l, i) => l + (i < lines.length - 1 ? "," : "")).join("\n") + "\n]\n";
+
+    const blob = new Blob([content], { type: "application/json" });
+    const name = `picsum-curated-${new Date().toISOString().slice(0, 10)}.json`;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }, 0);
   }
 
-  // 2) Tolerant parser: JSONL/én-linje-per-objekt, med/uten komma
-  try {
-    const lines = text
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(
-        (l) =>
-          l &&
-          l !== "[" &&
-          l !== "]" &&
-          l !== "," &&
-          !/^\/\/.*/.test(l) && // drop JS-kommentarer
-          !/^#/.test(l), // drop evt. shell-kommentarer
+  // Robust import av kuratert Picsum-liste (JSON array eller JSONL-lignende)
+  async function importCuratedPicsumList(fileOrText) {
+    const text = typeof fileOrText === "string" ? fileOrText : await fileOrText.text();
+    function processItems(items) {
+      if (!Array.isArray(items)) throw new Error("Forventet en JSON-array av {id,label}");
+      const byId = new Map(
+        picsumCatalogLocal.map((x) => [Number(x.id), { id: Number(x.id), label: String(x.label || "") }]),
       );
-
-    const items = [];
-    for (let line of lines) {
-      // Fjern trailing komma og hengende komma etter } eller ]
-      line = line.replace(/,+$/, "");
-      try {
-        items.push(JSON.parse(line));
-      } catch {
-        // prøv å plukke ut {...} i tilfelle linja inneholder “index: {...}”
-        const m = line.match(/\{.*\}/);
-        if (m) {
-          items.push(JSON.parse(m[0]));
-        } else {
-          // ignorer linja hvis den ikke er parsebar
+      for (const it of items) {
+        if (!it || typeof it !== "object") continue;
+        const id = Number(it.id);
+        if (!Number.isFinite(id) || id <= 0) continue;
+        const label = String(it.label || "");
+        byId.set(id, { id, label });
+      }
+      picsumCatalogLocal = Array.from(byId.values()).sort((a, b) => a.id - b.id);
+      renderPicsumList();
+      pushPreviewDebounced?.();
+    }
+    // 1) Prøv ren JSON-array først
+    try {
+      const parsed = JSON.parse(text);
+      processItems(parsed);
+      showStatusToast("Importert kuratert liste ✔", "ok", 1500);
+      return;
+    } catch {
+      // fallthrough
+    }
+    // 2) Tolerant parser: JSONL/én-linje-per-objekt, med/uten komma
+    try {
+      const lines = text
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(
+          (l) =>
+            l &&
+            l !== "[" &&
+            l !== "]" &&
+            l !== "," &&
+            !/^\/\/.*/.test(l) && // drop JS-kommentarer
+            !/^#/.test(l), // drop evt. shell-kommentarer
+        );
+      const items = [];
+      for (let line of lines) {
+        // Fjern trailing komma og hengende komma etter } eller ]
+        line = line.replace(/,+$/, "");
+        try {
+          items.push(JSON.parse(line));
+        } catch {
+          // prøv å plukke ut {...} i tilfelle linja inneholder “index: {...}”
+          const m = line.match(/\{.*\}/);
+          if (m) {
+            items.push(JSON.parse(m[0]));
+          } else {
+            // ignorer linja hvis den ikke er parsebar
+          }
         }
       }
+      processItems(items);
+      showStatusToast("Importert kuratert liste ✔", "ok", 1500);
+    } catch (e) {
+      console.error(e);
+      showStatusToast("Kunne ikke importere kuratert liste", "error", 3000);
+      alert("Import feilet:\n" + (e?.message || e));
     }
-
-    processItems(items);
-    showStatusToast("Importert kuratert liste ✔", "ok", 1500);
-  } catch (e) {
-    console.error(e);
-    showStatusToast("Kunne ikke importere kuratert liste", "error", 3000);
-    alert("Import feilet:\n" + (e?.message || e));
-  }
-}
-
-// Koble til en “Importer”-knapp (og et skjult file input). Kall fra init().
-function bindPicsumImport() {
-  const btn = document.getElementById("btn_picsum_import");
-  if (!btn || btn._bound) return;
-
-  let fileIn = document.getElementById("picsum_import_file");
-  if (!fileIn) {
-    fileIn = document.createElement("input");
-    fileIn.type = "file";
-    fileIn.accept = ".json,application/json,text/plain";
-    fileIn.id = "picsum_import_file";
-    fileIn.style.display = "none";
-    document.body.appendChild(fileIn);
   }
 
-  btn.addEventListener("click", () => fileIn.click());
-  fileIn.addEventListener("change", async (ev) => {
-    const f = ev.target.files && ev.target.files[0];
-    if (!f) return;
-    try {
-      await importCuratedPicsumList(f);
-    } finally {
-      // nullstill for å tillate ny import av samme filnavn
-      fileIn.value = "";
+  // Koble til en “Importer”-knapp (og et skjult file input). Kall fra init().
+  function bindPicsumImport() {
+    const btn = document.getElementById("btn_picsum_import");
+    if (!btn || btn._bound) return;
+    let fileIn = document.getElementById("picsum_import_file");
+    if (!fileIn) {
+      fileIn = document.createElement("input");
+      fileIn.type = "file";
+      fileIn.accept = ".json,application/json,text/plain";
+      fileIn.id = "picsum_import_file";
+      fileIn.style.display = "none";
+      document.body.appendChild(fileIn);
     }
-  });
 
-  btn._bound = true;
-}
-
-
+    btn.addEventListener("click", () => fileIn.click());
+    fileIn.addEventListener("change", async (ev) => {
+      const f = ev.target.files && ev.target.files[0];
+      if (!f) return;
+      try {
+        await importCuratedPicsumList(f);
+      } finally {
+        // nullstill for å tillate ny import av samme filnavn
+        fileIn.value = "";
+      }
+    });
+    btn._bound = true;
+  }
 
   // ==== Init =================================================================
   async function init() {
     bindEvents();
     ensureDynamicBaseOptions();
+    ensureDynamicAdvancedUI();
     ensurePicsumBrowseButton();
     ensurePicsumModal();
     ensureCuratedPicsumUI();
-bindPicsumImport();
+    bindPicsumImport();
     await loadAll().catch(console.error);
     await updateSyncPill().catch(() => {});
     setInterval(updateSyncPill, 3000);

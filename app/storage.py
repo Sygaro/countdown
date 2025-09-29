@@ -61,6 +61,28 @@ _DEFAULTS: Dict[str, Any] = {
                 "opacity": 0.8,
                 "base_mode": "auto",
                 "layer": "under",  # viktig: denne skal alltid persisteres
+                "shape1": {  # radial 1
+                    "size_vmax": [72, 54],  # [xRadius_vmax, yRadius_vmax]
+                    "pos_pct": [12, 10],  # [x%, y%]
+                    "stop_pct": 62,  # fargestopp (%)
+                },
+                "shape2": {  # radial 2
+                    "size_vmax": [70, 52],
+                    "pos_pct": [88, 12],
+                    "stop_pct": 64,
+                },
+                "conic_from_deg": 220,  # startvinkel for conic-gradient
+                "anim_scale": 1.02,  # scale() i keyframes
+                "z_under": 0,
+                "z_over": 15,
+                "limits": {  # justerbare clampgrenser (brukes i _coerce)
+                    "rotate_min_s": 5,
+                    "rotate_max_s": 600,
+                    "blur_min_px": 0,
+                    "blur_max_px": 80,
+                    "opacity_min": 0.0,
+                    "opacity_max": 1.0,
+                },
             },
             "picsum": {
                 "fit": "cover",  # 'cover' | 'contain'
@@ -503,43 +525,149 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     bg["image"] = im
 
     # dynamic
+    # dynamic
     dyn = bg.get("dynamic") or {}
     if not isinstance(dyn.get("from"), str) or not dyn.get("from"):
         dyn["from"] = _DEFAULTS["theme"]["background"]["dynamic"]["from"]
     if not isinstance(dyn.get("to"), str) or not dyn.get("to"):
         dyn["to"] = _DEFAULTS["theme"]["background"]["dynamic"]["to"]
-    dyn["rotate_s"] = max(
-        5,
-        min(
-            600,
-            _i(
-                dyn.get("rotate_s"),
-                _DEFAULTS["theme"]["background"]["dynamic"]["rotate_s"],
-            ),
-        ),
+
+    # limits (tillat å mangle → bruk defaults)
+    lim_def = _DEFAULTS["theme"]["background"]["dynamic"]["limits"]
+    limits = dyn.get("limits") or {}
+
+    def _lim(k):
+        try:
+            return float(limits.get(k, lim_def[k]))
+        except Exception:
+            return float(lim_def[k])
+
+    rot_min = max(0.1, _lim("rotate_min_s"))
+    rot_max = max(rot_min, _lim("rotate_max_s"))
+    blur_min = max(0.0, _lim("blur_min_px"))
+    blur_max = max(blur_min, _lim("blur_max_px"))
+    op_min = max(0.0, _lim("opacity_min"))
+    op_max = max(op_min, _lim("opacity_max"))
+    limits = {
+        "rotate_min_s": rot_min,
+        "rotate_max_s": rot_max,
+        "blur_min_px": blur_min,
+        "blur_max_px": blur_max,
+        "opacity_min": op_min,
+        "opacity_max": op_max,
+    }
+    dyn["limits"] = limits
+
+    # numeriske felt, klampet iht. limits
+    def _clamp(v, lo, hi, d):
+        try:
+            x = float(v)
+        except Exception:
+            x = float(d)
+        return max(lo, min(hi, x))
+
+    dyn["rotate_s"] = int(
+        _clamp(
+            dyn.get("rotate_s"),
+            limits["rotate_min_s"],
+            limits["rotate_max_s"],
+            _DEFAULTS["theme"]["background"]["dynamic"]["rotate_s"],
+        )
     )
-    dyn["blur_px"] = max(
-        0,
-        min(
-            80,
-            _i(
-                dyn.get("blur_px"),
-                _DEFAULTS["theme"]["background"]["dynamic"]["blur_px"],
-            ),
-        ),
+    dyn["blur_px"] = int(
+        _clamp(
+            dyn.get("blur_px"),
+            limits["blur_min_px"],
+            limits["blur_max_px"],
+            _DEFAULTS["theme"]["background"]["dynamic"]["blur_px"],
+        )
     )
-    dyn["opacity"] = _clamp01(
-        dyn.get("opacity", _DEFAULTS["theme"]["background"]["dynamic"]["opacity"]),
+    dyn["opacity"] = _clamp(
+        dyn.get("opacity"),
+        limits["opacity_min"],
+        limits["opacity_max"],
         _DEFAULTS["theme"]["background"]["dynamic"]["opacity"],
     )
+
     bm = str(dyn.get("base_mode", "auto")).lower()
     if bm not in ("auto", "solid", "gradient", "image", "picsum"):
         bm = "auto"
     dyn["base_mode"] = bm
+
     layer = str(dyn.get("layer", "under")).lower()
     if layer not in ("under", "over"):
         layer = "under"
     dyn["layer"] = layer
+
+    # NYTT: z-index verdier
+    try:
+        dyn["z_under"] = int(
+            dyn.get("z_under", _DEFAULTS["theme"]["background"]["dynamic"]["z_under"])
+        )
+    except Exception:
+        dyn["z_under"] = _DEFAULTS["theme"]["background"]["dynamic"]["z_under"]
+    try:
+        dyn["z_over"] = int(
+            dyn.get("z_over", _DEFAULTS["theme"]["background"]["dynamic"]["z_over"])
+        )
+    except Exception:
+        dyn["z_over"] = _DEFAULTS["theme"]["background"]["dynamic"]["z_over"]
+
+    # NYTT: animasjonsskala
+    try:
+        s = float(
+            dyn.get(
+                "anim_scale", _DEFAULTS["theme"]["background"]["dynamic"]["anim_scale"]
+            )
+        )
+    except Exception:
+        s = _DEFAULTS["theme"]["background"]["dynamic"]["anim_scale"]
+    dyn["anim_scale"] = max(0.5, min(2.0, s))
+
+    # NYTT: geometri for radialene + conic-start
+    def _pair_floats(v, dflt):
+        v = v if isinstance(v, (list, tuple)) and len(v) == 2 else dflt
+        out = []
+        for i, x in enumerate(v):
+            try:
+                out.append(float(x))
+            except Exception:
+                out.append(float(dflt[i]))
+        return out
+
+    sh1 = dyn.get("shape1") or {}
+    sh2 = dyn.get("shape2") or {}
+    d_sh1 = _DEFAULTS["theme"]["background"]["dynamic"]["shape1"]
+    d_sh2 = _DEFAULTS["theme"]["background"]["dynamic"]["shape2"]
+
+    dyn["shape1"] = {
+        "size_vmax": _pair_floats(sh1.get("size_vmax"), d_sh1["size_vmax"]),
+        "pos_pct": [
+            max(0.0, min(100.0, v))
+            for v in _pair_floats(sh1.get("pos_pct"), d_sh1["pos_pct"])
+        ],
+        "stop_pct": max(0.0, min(100.0, float(sh1.get("stop_pct", d_sh1["stop_pct"])))),
+    }
+    dyn["shape2"] = {
+        "size_vmax": _pair_floats(sh2.get("size_vmax"), d_sh2["size_vmax"]),
+        "pos_pct": [
+            max(0.0, min(100.0, v))
+            for v in _pair_floats(sh2.get("pos_pct"), d_sh2["pos_pct"])
+        ],
+        "stop_pct": max(0.0, min(100.0, float(sh2.get("stop_pct", d_sh2["stop_pct"])))),
+    }
+
+    try:
+        cdeg = float(
+            dyn.get(
+                "conic_from_deg",
+                _DEFAULTS["theme"]["background"]["dynamic"]["conic_from_deg"],
+            )
+        )
+    except Exception:
+        cdeg = _DEFAULTS["theme"]["background"]["dynamic"]["conic_from_deg"]
+    dyn["conic_from_deg"] = max(0.0, min(360.0, cdeg))
+
     bg["dynamic"] = dyn
 
     # picsum
@@ -613,13 +741,13 @@ def _coerce(cfg: Dict[str, Any]) -> Dict[str, Any]:
     )
     if not use_picsum_base:
         # Ikke aktiv – deaktiver auto-rotate,
-     # men behold historikk (last_switch_ms / last_index) slik at timing bevares.
-     ar = pc.get("auto_rotate") or {}
-     ar["enabled"] = False
-     pc["auto_rotate"] = ar
-     # valgfritt: la id bli stående (slik at forrige bilde brukes igjen når man aktiverer)
-     # hvis du vil fortsette å «rydde» id når ikke aktiv, behold pc.pop("id", None) her:
-     # pc.pop("id", None)
+        # men behold historikk (last_switch_ms / last_index) slik at timing bevares.
+        ar = pc.get("auto_rotate") or {}
+        ar["enabled"] = False
+        pc["auto_rotate"] = ar
+        # valgfritt: la id bli stående (slik at forrige bilde brukes igjen når man aktiverer)
+        # hvis du vil fortsette å «rydde» id når ikke aktiv, behold pc.pop("id", None) her:
+        # pc.pop("id", None)
     bg["picsum"] = pc
     th["background"] = bg
     cfg["theme"] = th

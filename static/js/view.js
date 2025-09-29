@@ -118,7 +118,7 @@
       }
 
       // Oppdatér bakgrunn straks når backend sier “updated”
-            if (js.updated && Number.isFinite(js.id) && js.id > 0) {
+      if (js.updated && Number.isFinite(js.id) && js.id > 0) {
         const curBg = state.cfg?.theme?.background || {};
         const nextBg = JSON.parse(JSON.stringify(curBg));
         nextBg.picsum = nextBg.picsum || {};
@@ -143,13 +143,12 @@
         return;
       }
 
-
       // Ikke bytte ennå → poll hurtigere nær slutten
       const nextIn = clamp(parseInt(js.next_in_seconds, 10) || 0, 0, 24 * 60 * 60);
       picsumSchedule(nextIn > 3 ? 5000 : 1000);
 
       // Første oppstart: ta id selv om updated=false
-            if (!state.picsum.id && Number.isFinite(js.id) && js.id > 0) {
+      if (!state.picsum.id && Number.isFinite(js.id) && js.id > 0) {
         const curBg = state.cfg?.theme?.background || {};
         const nextBg = JSON.parse(JSON.stringify(curBg));
         nextBg.picsum = nextBg.picsum || {};
@@ -165,7 +164,6 @@
           // hopp over bytte nå; prøv igjen ved neste poll
         }
       }
-
     } catch {
       picsumSchedule(5000);
     }
