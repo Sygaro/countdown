@@ -268,3 +268,51 @@
   }
   window.ViewBg = { applyBackground, viewportPxForPicsum, buildPicsumUrlFromBg, preloadImage };
 })();
+// static/js/view.background.js
+(function () {
+  // Behold eksisterende logikk – vi pakker den bare inn i en fade.
+  if (!window.ViewBg || typeof window.ViewBg.applyBackground !== "function") return;
+
+  const originalApply = window.ViewBg.applyBackground;
+  let isFading = false;
+
+  // Ny wrapper med fade. Backwards compatible: kalles med (el, bg[, opts]).
+  window.ViewBg.applyBackground = async function fadeApply(el, bg, opts = {}) {
+    const duration = Number(opts.durationMs ?? 250); // ~0.25s rask, myk
+    // Hvis vi ikke skal fade, eller det allerede pågår en fade → bruk original
+    if (duration <= 0 || isFading) {
+      return originalApply.call(this, el, bg);
+    }
+
+    isFading = true;
+    try {
+      // Overlegg som dekker hele viewport
+      const overlay = document.createElement("div");
+      overlay.style.position = "fixed";
+      overlay.style.left = "0";
+      overlay.style.top = "0";
+      overlay.style.right = "0";
+      overlay.style.bottom = "0";
+      overlay.style.pointerEvents = "none";
+      overlay.style.opacity = "0";
+      overlay.style.transition = `opacity ${duration}ms ease`;
+      overlay.style.zIndex = "0"; // ligger over bakgrunnen, men under eventuell UI pga pointer-events:none
+
+      document.body.appendChild(overlay);
+
+      // Mal den nye bakgrunnen på overlay ved å bruke eksisterende logikk
+      originalApply.call(this, overlay, bg);
+
+      // Tving reflow, fade inn
+      void overlay.offsetHeight;
+      overlay.style.opacity = "1";
+
+      // Vent på fade, så sett ny bakgrunn "ordentlig" og fjern overlay
+      await new Promise((res) => setTimeout(res, duration));
+      originalApply.call(this, el, bg);
+      overlay.remove();
+    } finally {
+      isFading = false;
+    }
+  };
+})();

@@ -113,19 +113,26 @@
         nextBg.picsum = nextBg.picsum || {};
         nextBg.picsum.id = js.id;
         // Prøv å forhåndslaste – men UANSETT: bytt etterpå, så vi ikke “stivner”.
-        try {
-          const url = window.ViewBg.buildPicsumUrlFromBg(nextBg);
-          await window.ViewBg.preloadImage(url, 30000);
-        } catch {
-          // Ignorer feil/timeout – vi faller tilbake til umiddelbart bytte
-        }
-        state.picsum.id = js.id;
-        state.cfg.theme = state.cfg.theme || {};
-        state.cfg.theme.background = nextBg;
-        window.ViewBg.applyBackground(document.body, nextBg);
-        ensureForeground();
-        const wait = clamp((parseInt(js.interval_seconds, 10) || 5) * 1000, 1000, 24 * 60 * 60 * 1000);
-        picsumSchedule(wait);
+        let applied = false;
+try {
+  const url = window.ViewBg.buildPicsumUrlFromBg(nextBg);
+  await window.ViewBg.preloadImage(url, 30000);
+  window.ViewBg.applyBackground(document.body, nextBg, { durationMs: 1000 });
+  applied = true;
+} catch {
+  // Behold nåværende bakgrunn; vi forsøker på nytt ved neste poll
+}
+if (applied) {
+  state.picsum.id = js.id;
+  state.cfg.theme = state.cfg.theme || {};
+  state.cfg.theme.background = nextBg;
+  ensureForeground();
+}
+
+        let wait = clamp((parseInt(js.interval_seconds, 10) || 60), 5, 3600);
+if (!applied) wait = Math.min(wait, 5);
+picsumSchedule(wait * 1000);
+
         return;
       }
       // Ikke bytte ennå → poll hurtigere nær slutten
@@ -137,19 +144,26 @@
         const nextBg = JSON.parse(JSON.stringify(curBg));
         nextBg.picsum = nextBg.picsum || {};
         nextBg.picsum.id = js.id;
-        try {
-          const url = window.ViewBg.buildPicsumUrlFromBg(nextBg);
-          await window.ViewBg.preloadImage(url, 15000);
-          state.picsum.id = js.id;
-          state.cfg.theme.background = nextBg;
-          window.ViewBg.applyBackground(document.body, nextBg);
-          ensureForeground();
-        } catch {
-          // hopp over bytte nå; prøv igjen ved neste poll
-        }
+        let applied = false;
+try {
+  const url = window.ViewBg.buildPicsumUrlFromBg(nextBg);
+  await window.ViewBg.preloadImage(url, 15000);
+  window.ViewBg.applyBackground(document.body, nextBg, { durationMs: 1000 });
+  applied = true;
+} catch {
+  // hopp over bytte nå; prøv igjen ved neste poll
+}
+if (applied) {
+  state.picsum.id = js.id;
+  state.cfg.theme.background = nextBg;
+  ensureForeground();
+}
+
       }
     } catch {
-      picsumSchedule(5000);
+let wait = clamp((parseInt(js.interval_seconds, 10) || 60), 5, 3600);
+if (!applied) wait = Math.min(wait, 5);
+picsumSchedule(wait * 1000);
     }
   }
   // ---------- Sørg for at innhold alltid ligger foran bakgrunnslag ----------

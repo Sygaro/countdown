@@ -226,3 +226,4 @@ README_DEV.md
 requirements-dev.txt
 .vscode/
 .gitattributes
+**/__pycache__

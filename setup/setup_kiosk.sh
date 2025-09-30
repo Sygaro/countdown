@@ -146,9 +146,12 @@ After=network-online.target time-sync.target
 [Service]
 Environment=COUNTDOWN_VERSION=1.0.0
 Environment=COUNTDOWN_COMMIT=%h
+Environment=FLASK_ENV=production
+Environment=PYTHONPATH=__APP_DIR__
+
 WorkingDirectory=__APP_DIR__
 ExecStart=__APP_DIR__/venv/bin/gunicorn wsgi:app \
-  --bind 0.0.0.0:__PORT__ --workers 2 --threads 4 --timeout 0 \
+  --bind 0.0.0.0:__PORT__ --workers 2 --threads 4 -k gthread --timeout 0 \
   --access-logfile - --error-logfile -
 Environment=PYTHONUNBUFFERED=1
 StandardOutput=null

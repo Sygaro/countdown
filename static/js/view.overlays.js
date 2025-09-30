@@ -134,7 +134,7 @@
       zIndex: "50", // over dynbg_layer (som bruker 0/40)
       pointerEvents: "none", // ikke fang klikk
     });
-    root.innerHTML = "";
+    while (root.firstChild) root.removeChild(root.firstChild);
     const list = Array.isArray(cfg?.overlays) ? cfg.overlays : [];
     if (!list.length) return;
     const mode = cfg?.mode || "daily";

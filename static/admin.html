@@ -494,9 +494,6 @@
         </div>
       </section>
     </main>
-    <!-- Scripts (ekstrahert) -->
-    <script src="/static/js/contrast.js" defer></script>
-    <script src="/static/js/admin.js" defer></script>
     <!-- Live forhåndsvisning -->
     <aside id="preview_dock" aria-label="Live forhåndsvisning">
       <iframe id="preview_frame" src="/?preview=1" title="Live preview" loading="eager"></iframe>
@@ -534,5 +531,11 @@
         </footer>
       </div>
     </dialog>
+    <!-- 1) Vakt først (fanger feil i admin) -->
+    <script src="/static/js/admin/error-guard.js"></script>
+    <!-- 2) Dagens monolitt (behold) -->
+    <script src="/static/js/admin.js"></script>
+    <!-- 3) Modul-inngangen vår -->
+    <script type="module" src="/static/js/admin/init.js"></script>
   </body>
 </html>

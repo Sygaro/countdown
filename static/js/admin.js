@@ -253,6 +253,10 @@
     $("#bg_picsum_cfg") &&
       ($("#bg_picsum_cfg").style.display =
         bg === "picsum" || (bg === "dynamic" && base === "picsum") ? "block" : "none");
+        if (bg === "picsum" || (bg === "dynamic" && base === "picsum")) {
+  ensurePicsumAutoRotateUI();
+}
+
     $("#bg_dyn_cfg") && ($("#bg_dyn_cfg").style.display = bg === "dynamic" ? "block" : "none");
     const own = !!$("#clk_use_own_msgs")?.checked;
     $("#clk_with_seconds") && ($("#clk_with_seconds").disabled = false);
@@ -312,10 +316,12 @@
     return overlaysLocal[ovIdx()] || null;
   }
   function renderOverlaysUI(desiredIndex) {
+    // static/js/admin.js — REPLACE clearing of select in renderOverlaysUI()
     const sel = ovSel();
     if (!sel) return;
     const prev = Number.isInteger(desiredIndex) ? desiredIndex : sel.selectedIndex;
-    sel.innerHTML = "";
+    // sel.innerHTML = "";
+    while (sel.firstChild) sel.removeChild(sel.firstChild);
     overlaysLocal.forEach((o, i) => {
       const opt = document.createElement("option");
       opt.value = String(i);
@@ -736,171 +742,268 @@
     updateMessageContrastHints();
   }
   // --- Auto-rotate UI (opprett én gang) ---
-  (function ensurePicsumAutoRotateUI() {
+  function ensurePicsumAutoRotateUI() {
     const host = document.getElementById("bg_picsum_cfg");
     if (!host || host._autoRotateBound) return;
     const wrap = document.createElement("div");
     wrap.id = "picsum_auto_rotate_ui";
     wrap.style.marginTop = "8px";
-    wrap.innerHTML = `
-      <div class="row">
-        <label style="display:flex;align-items:center;gap:8px;">
-          <input type="checkbox" id="bg_picsum_auto_enabled">
-          <span>Bytt bilde automatisk</span>
-        </label>
-      </div>
-      <div class="row" style="display:flex;gap:8px;align-items:center;margin-top:6px;">
-        <label>Intervall</label>
-<input type="number" id="bg_picsum_auto_interval" min="1" max="${24 * 60 * 60}" step="1" value="300" style="width:110px">
-        <select id="bg_picsum_auto_unit">
-          <option value="s">sekunder</option>
-          <option value="m" selected>minutter</option>
-        </select>
-        <label>Strategi</label>
-        <select id="bg_picsum_auto_strategy">
-          <option value="shuffle">Tilfeldig</option>
-          <option value="sequential">Sekvensielt</option>
-        </select>
-      </div>
-      <p style="opacity:.8;margin:6px 0 0;">Kilde: «Kuratert Picsum-liste». Når aktivt, kan visningen kalle <code>/api/picsum/next</code> periodisk.</p>
-    `;
-    // Justér min-/step for intervallfeltet basert på valgt enhet (globalt tilgjengelig)
-    window.updatePicsumAutoIntervalConstraints = function () {
-      const unitEl = document.getElementById("bg_picsum_auto_unit");
-      const intEl = document.getElementById("bg_picsum_auto_interval");
-      if (!unitEl || !intEl) return;
-      if ((unitEl.value || "m") === "m") {
-        // Minutter: lov 1 min
-        intEl.min = "1";
-        intEl.step = "1";
-      } else {
-        // Sekunder: min 5 sek
-        intEl.min = "5";
-        intEl.step = "1";
-        if (Number(intEl.value) < 5) intEl.value = "5";
-      }
-    };
+    wrap.style.display = "grid";
+    wrap.style.gridTemplateColumns = "auto 1fr auto auto";
+    wrap.style.gap = "8px";
+    wrap.style.alignItems = "center";
+    // Enable
+    const enableLabel = document.createElement("label");
+    enableLabel.style.display = "flex";
+    enableLabel.style.alignItems = "center";
+    enableLabel.style.gap = "8px";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.id = "bg_picsum_auto_enabled";
+    const enableText = document.createElement("span");
+    enableText.textContent = "Bytt bilde automatisk";
+    enableLabel.appendChild(cb);
+    enableLabel.appendChild(enableText);
+    // Interval
+    const intervalWrap = document.createElement("div");
+    intervalWrap.style.display = "flex";
+    intervalWrap.style.alignItems = "center";
+    intervalWrap.style.gap = "6px";
+    const intervalInput = document.createElement("input");
+    intervalInput.type = "number";
+    intervalInput.min = "1";
+    intervalInput.step = "1";
+    intervalInput.id = "bg_picsum_auto_interval";
+    intervalInput.style.width = "6.5rem";
+    const intervalText = document.createElement("span");
+    intervalText.textContent = "intervall";
+    // Unit (s/m)
+    const unitSelect = document.createElement("select");
+    unitSelect.id = "bg_picsum_auto_unit";
+    const optS = document.createElement("option");
+    optS.value = "s";
+    optS.textContent = "sek";
+    const optM = document.createElement("option");
+    optM.value = "m";
+    optM.textContent = "min";
+    unitSelect.appendChild(optS);
+    unitSelect.appendChild(optM);
+    // Strategy
+    const strategySelect = document.createElement("select");
+    strategySelect.id = "bg_picsum_auto_strategy";
+    ["shuffle", "sequential", "random"].forEach((v) => {
+      const o = document.createElement("option");
+      o.value = v;
+      o.textContent = v;
+      strategySelect.appendChild(o);
+    });
+    intervalWrap.appendChild(intervalInput);
+    intervalWrap.appendChild(intervalText);
+    wrap.appendChild(enableLabel);
+    wrap.appendChild(intervalWrap);
+    wrap.appendChild(unitSelect);
+    wrap.appendChild(strategySelect);
     host.appendChild(wrap);
-    const syncFromCfg = () => {
-      const ar = lastCfg?.theme?.background?.picsum?.auto_rotate || {};
-      $("#bg_picsum_auto_enabled").checked = !!ar.enabled;
-      const secs = Number(ar.interval_seconds ?? 300);
-      if (secs % 60 === 0) {
-        $("#bg_picsum_auto_unit").value = "m";
-        $("#bg_picsum_auto_interval").value = String(secs / 60);
-      } else {
-        $("#bg_picsum_auto_unit").value = "s";
-        $("#bg_picsum_auto_interval").value = String(secs);
-      }
-      $("#bg_picsum_auto_strategy").value = ar.strategy || "shuffle";
-    };
-    ["#bg_picsum_auto_enabled", "#bg_picsum_auto_interval", "#bg_picsum_auto_unit", "#bg_picsum_auto_strategy"].forEach(
-      (s) => {
-        const el = $(s);
-        if (!el) return;
-        el.addEventListener("input", pushPreviewDebounced);
-        el.addEventListener("change", pushPreviewDebounced);
-      },
-    );
-    syncFromCfg();
     host._autoRotateBound = true;
-  })();
+  }
+  const syncFromCfg = () => {
+    const ar =
+      (lastCfg &&
+        lastCfg.theme &&
+        lastCfg.theme.background &&
+        lastCfg.theme.background.picsum &&
+        lastCfg.theme.background.picsum.auto_rotate) ||
+      {};
+    const enabledEl = document.getElementById("bg_picsum_auto_enabled");
+    const unitEl = document.getElementById("bg_picsum_auto_unit");
+    const intervalEl = document.getElementById("bg_picsum_auto_interval");
+    const strategyEl = document.getElementById("bg_picsum_auto_strategy");
+    if (enabledEl) enabledEl.checked = !!ar.enabled;
+    const rawSecs = Number(ar.interval_seconds ?? 300);
+    const secs = Number.isFinite(rawSecs) && rawSecs > 0 ? rawSecs : 300;
+    if (secs % 60 === 0) {
+      if (unitEl) unitEl.value = "m";
+      if (intervalEl) intervalEl.value = String(secs / 60);
+    } else {
+      if (unitEl) unitEl.value = "s";
+      if (intervalEl) intervalEl.value = String(secs);
+    }
+    if (strategyEl) strategyEl.value = ar.strategy || "shuffle";
+  };
   // === KURATERT PICSUM GALLERI (modal for picsumCatalogLocal) ==================
   function ensureCuratedPicsumUI() {
-    // 1) Legg til knapp under Picsum-konfig
-    if (!document.getElementById("btn_picsum_curated")) {
-      const host = document.getElementById("bg_picsum_cfg") || document.body;
-      const bar = document.createElement("div");
-      bar.style.margin = "6px 0";
-      const btn = document.createElement("button");
-      btn.id = "btn_picsum_curated";
-      btn.type = "button";
-      btn.textContent = "Åpne kuratert galleri…";
-      btn.addEventListener("click", openCuratedPicsumPicker);
-      bar.appendChild(btn);
-      host.appendChild(bar);
-    }
-    // 2) Lag modal-dialog om den ikke finnes
-    if (!document.getElementById("curated_modal")) {
-      const dlg = document.createElement("dialog");
-      dlg.id = "curated_modal";
-      dlg.style.padding = "0";
-      dlg.style.border = "none";
-      dlg.style.maxWidth = "92vw";
-      dlg.style.width = "min(1200px, 92vw)";
-      dlg.style.maxHeight = "86vh";
-      dlg.innerHTML = `
-  <div style="display:flex; flex-direction:column; height:86vh;">
-    <div style="padding:10px 12px; border-bottom:1px solid #2a2f37; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-      <strong style="font-size:1.05rem;">Kuratert Picsum-liste</strong>
-      <span id="cur_status" style="opacity:.8;"></span>
-      <div style="display:flex; gap:8px; align-items:center; margin-left:auto; flex-wrap:wrap;">
-        <label style="display:flex; gap:6px; align-items:center;">
-          <span style="opacity:.8;">Sorter</span>
-          <select id="cur_sort_by">
-            <option value="id">ID</option>
-            <option value="name">Navn</option>
-          </select>
-          <select id="cur_sort_dir">
-            <option value="asc">Stigende</option>
-            <option value="desc">Synkende</option>
-          </select>
-        </label>
-        <button type="button" id="cur_btn_export">Eksporter JSON</button>
-        <input type="file" id="cur_import_file" accept="application/json" style="display:none;">
-        <button type="button" id="cur_btn_import">Importer JSON…</button>
-        <button type="button" id="cur_close">Lukk</button>
-      </div>
-    </div>
-    <div id="cur_scroll" style="overflow:auto; padding:12px;">
-      <div id="cur_grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap:12px;"></div>
-    </div>
-  </div>
-`;
-      document.body.appendChild(dlg);
-      // Bind lukking
-      dlg.addEventListener("click", (ev) => {
-        if (ev.target === dlg) closeCuratedPicsumPicker(); // klikk utenfor
-      });
-      dlg.addEventListener("cancel", (e) => {
-        e.preventDefault();
-        closeCuratedPicsumPicker();
-      });
-      dlg.addEventListener("close", () => {
-        /* ingen ekstra state nødvendig */
-      });
-      dlg.querySelector("#cur_close")?.addEventListener("click", closeCuratedPicsumPicker);
-      // Sorteringsendringer
-      const sortByEl = dlg.querySelector("#cur_sort_by");
-      const sortDirEl = dlg.querySelector("#cur_sort_dir");
-      if (sortByEl && sortDirEl) {
-        const applySort = () => {
-          sortPicsumCatalog(sortByEl.value || "id", sortDirEl.value || "asc");
-          renderPicsumList();
-          renderCuratedGrid();
-          pushPreviewDebounced?.();
-        };
-        sortByEl.addEventListener("change", applySort);
-        sortDirEl.addEventListener("change", applySort);
-      }
-      // Eksport
-      dlg.querySelector("#cur_btn_export")?.addEventListener("click", exportCuratedPicsumList);
-      // Import
-      const importInput = dlg.querySelector("#cur_import_file");
-      dlg.querySelector("#cur_btn_import")?.addEventListener("click", () => importInput?.click());
-      importInput?.addEventListener("change", async (e) => {
-        const file = e.currentTarget.files?.[0];
-        if (!file) return;
-        // Velg sammenslåing eller erstatting
-        const merge = confirm(
-          "Importer: Vil du slå sammen med eksisterende liste? (OK = slå sammen, Cancel = erstatt)",
-        );
-        if (!merge) picsumCatalogLocal = []; // blank hvis ikke merge
-        await importCuratedPicsumListFromFile(file, { merge });
-        e.currentTarget.value = ""; // reset file input
-      });
-    }
+  // Legg til knapp under Picsum-konfig (om mangler)
+  if (!document.getElementById("btn_picsum_curated")) {
+    const host = document.getElementById("bg_picsum_cfg") || document.body;
+    const bar = document.createElement("div");
+    bar.style.margin = "8px 0 6px 0";
+
+    const btn = document.createElement("button");
+    btn.id = "btn_picsum_curated";
+    btn.type = "button";
+    btn.textContent = "Åpne kuratert liste…";
+    btn.addEventListener("click", openCuratedPicsumPicker);
+
+    bar.appendChild(btn);
+    host.appendChild(bar);
   }
+
+  // Opprett dialog én gang
+  let dlg = document.getElementById("curated_modal");
+  if (dlg) return; // allerede laget
+
+  dlg = document.createElement("dialog");
+  dlg.id = "curated_modal";
+  dlg.style.width = "min(1100px, 96vw)";
+  dlg.style.border = "none";
+  dlg.style.borderRadius = "8px";
+  dlg.style.padding = "0";
+  dlg.style.background = "#0d1117";
+  dlg.style.color = "#e6edf3";
+
+  // Header
+  const header = document.createElement("div");
+  header.style.display = "flex";
+  header.style.justifyContent = "space-between";
+  header.style.alignItems = "center";
+  header.style.padding = "12px 16px";
+  header.style.borderBottom = "1px solid #1f2937";
+
+  const h = document.createElement("h3");
+  h.textContent = "Kuratert Picsum-liste";
+  h.style.margin = "0";
+
+  const btnClose = document.createElement("button");
+  btnClose.id = "cur_close";
+  btnClose.type = "button";
+  btnClose.textContent = "Lukk";
+
+  header.appendChild(h);
+  header.appendChild(btnClose);
+
+  // Toolbar
+  const toolbar = document.createElement("div");
+  toolbar.style.display = "flex";
+  toolbar.style.gap = "12px";
+  toolbar.style.alignItems = "center";
+  toolbar.style.padding = "10px 16px";
+  toolbar.style.borderBottom = "1px solid #1f2937";
+
+  // Sortering
+  const sortBy = document.createElement("select");
+  sortBy.id = "cur_sort_by";
+  ["id", "label"].forEach((v) => {
+    const o = document.createElement("option");
+    o.value = v;
+    o.textContent = `sorter på ${v}`;
+    sortBy.appendChild(o);
+  });
+
+  const sortDir = document.createElement("select");
+  sortDir.id = "cur_sort_dir";
+  [
+    { v: "asc", t: "stigende" },
+    { v: "desc", t: "synkende" },
+  ].forEach(({ v, t }) => {
+    const o = document.createElement("option");
+    o.value = v;
+    o.textContent = t;
+    sortDir.appendChild(o);
+  });
+
+  // Export / import
+  const btnExport = document.createElement("button");
+  btnExport.id = "cur_btn_export";
+  btnExport.type = "button";
+  btnExport.textContent = "Eksporter";
+
+  const btnImport = document.createElement("button");
+  btnImport.id = "cur_btn_import";
+  btnImport.type = "button";
+  btnImport.textContent = "Importer…";
+
+  const inpImport = document.createElement("input");
+  inpImport.type = "file";
+  inpImport.id = "cur_import_file";
+  inpImport.accept = "application/json";
+  inpImport.style.display = "none";
+
+  // Status
+  const status = document.createElement("span");
+  status.id = "cur_status";
+  status.style.marginLeft = "auto";
+  status.style.opacity = ".8";
+  status.textContent = "(tom)";
+
+  toolbar.appendChild(sortBy);
+  toolbar.appendChild(sortDir);
+  toolbar.appendChild(btnExport);
+  toolbar.appendChild(btnImport);
+  toolbar.appendChild(inpImport);
+  toolbar.appendChild(status);
+
+  // Grid
+  const gridWrap = document.createElement("div");
+  gridWrap.style.padding = "12px 16px";
+
+  const grid = document.createElement("div");
+  grid.id = "cur_grid";
+  grid.style.display = "grid";
+  grid.style.gridTemplateColumns = "repeat(auto-fill, minmax(260px, 1fr))";
+  grid.style.gap = "12px";
+
+  gridWrap.appendChild(grid);
+
+  // Sett sammen dialog
+  dlg.appendChild(header);
+  dlg.appendChild(toolbar);
+  dlg.appendChild(gridWrap);
+
+  // Legg i DOM
+  document.body.appendChild(dlg);
+
+  // Bind lukking + interaksjoner
+  dlg.addEventListener("click", (ev) => {
+    if (ev.target === dlg) closeCuratedPicsumPicker();
+  });
+  dlg.addEventListener("cancel", (e) => {
+    e.preventDefault();
+    closeCuratedPicsumPicker();
+  });
+  dlg.addEventListener("close", () => {
+    /* noop, state styres i andre funksjoner */
+  });
+  btnClose.addEventListener("click", closeCuratedPicsumPicker);
+
+  // Sorteringsendringer
+  const applySort = () => {
+    // disse funksjonene eksisterer allerede i din fil:
+    sortPicsumCatalog(sortBy.value || "id", sortDir.value || "asc");
+    renderPicsumList();
+    renderCuratedGrid();
+    pushPreviewDebounced?.();
+  };
+  sortBy.addEventListener("change", applySort);
+  sortDir.addEventListener("change", applySort);
+
+  // Eksport
+  btnExport.addEventListener("click", exportCuratedPicsumList);
+
+  // Import
+  btnImport.addEventListener("click", () => inpImport.click());
+  inpImport.addEventListener("change", async (e) => {
+    const file = e.currentTarget.files?.[0];
+    if (!file) return;
+    const merge = confirm("Importer: Slå sammen med eksisterende liste? (OK = slå sammen, Cancel = erstatt)");
+    if (!merge) picsumCatalogLocal = [];
+    await importCuratedPicsumListFromFile(file, { merge });
+    e.currentTarget.value = "";
+    renderPicsumList();
+    renderCuratedGrid();
+    pushPreviewDebounced?.();
+  });
+}
+
   function openCuratedPicsumPicker() {
     ensureCuratedPicsumUI();
     const dlg = document.getElementById("curated_modal");
@@ -943,22 +1046,81 @@
       tile.style.borderRadius = "6px";
       tile.style.overflow = "hidden";
       tile.style.background = "#0d1117";
-      tile.innerHTML = `
-      <div style="position:relative; aspect-ratio:${W}/${H}; background:#0b0f14;">
-        <img src="${url}" alt="Picsum #${id}" style="width:100%; height:100%; object-fit:cover; display:block;">
-        <div style="position:absolute; left:8px; top:8px; font-size:.8rem; background:#111827cc; color:#e5e7eb; padding:2px 6px; border-radius:4px;">#${id}</div>
-      </div>
-      <div style="padding:8px; display:flex; flex-direction:column; gap:6px;">
-        <label style="display:flex; flex-direction:column; gap:4px;">
-          <span style="opacity:.8; font-size:.85rem;">Navn / label</span>
-          <input type="text" data-role="label" value="${label.replace(/"/g, "&quot;")}" style="padding:6px 8px; border:1px solid #2a2f37; background:#0b0f14; color:#e6edf3; border-radius:4px;">
-        </label>
-        <div style="display:flex; gap:8px; justify-content:flex-end;">
-          <button type="button" data-role="use">Bruk</button>
-          <button type="button" data-role="delete" style="background:#7f1d1d; color:#fff;">Slett</button>
-        </div>
-      </div>
-    `;
+      // Top-bildecontainer
+      const top = document.createElement("div");
+      top.style.position = "relative";
+      top.style.aspectRatio = `${W}/${H}`;
+      top.style.background = "#0b0f14";
+      // Bilde
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = `Picsum #${id}`;
+      img.style.width = "100%";
+      img.style.height = "100%";
+      img.style.objectFit = "cover";
+      img.style.display = "block";
+      // Badge (#id)
+      const badge = document.createElement("div");
+      badge.style.position = "absolute";
+      badge.style.left = "8px";
+      badge.style.top = "8px";
+      badge.style.fontSize = ".8rem";
+      badge.style.background = "#111827cc";
+      badge.style.color = "#e5e7eb";
+      badge.style.padding = "2px 6px";
+      badge.style.borderRadius = "4px";
+      badge.textContent = `#${id}`;
+      top.appendChild(img);
+      top.appendChild(badge);
+      // Bottom-innhold
+      const bottom = document.createElement("div");
+      bottom.style.padding = "8px";
+      bottom.style.display = "flex";
+      bottom.style.flexDirection = "column";
+      bottom.style.gap = "6px";
+      // <label> med span + input[data-role="label"]
+      const labelWrap = document.createElement("label");
+      labelWrap.style.display = "flex";
+      labelWrap.style.flexDirection = "column";
+      labelWrap.style.gap = "4px";
+      const span = document.createElement("span");
+      span.style.opacity = ".8";
+      span.style.fontSize = ".85rem";
+      span.textContent = "Navn / label";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.setAttribute("data-role", "label");
+      input.value = label; // DOM-API håndterer dette – ingen manuell escaping nødvendig
+      input.style.padding = "6px 8px";
+      input.style.border = "1px solid #2a2f37";
+      input.style.background = "#0b0f14";
+      input.style.color = "#e6edf3";
+      input.style.borderRadius = "4px";
+      labelWrap.appendChild(span);
+      labelWrap.appendChild(input);
+      // Knapperekke
+      const actions = document.createElement("div");
+      actions.style.display = "flex";
+      actions.style.gap = "8px";
+      actions.style.justifyContent = "flex-end";
+      const btnUse = document.createElement("button");
+      btnUse.type = "button";
+      btnUse.setAttribute("data-role", "use");
+      btnUse.textContent = "Bruk";
+      const btnDelete = document.createElement("button");
+      btnDelete.type = "button";
+      btnDelete.setAttribute("data-role", "delete");
+      btnDelete.textContent = "Slett";
+      btnDelete.style.background = "#7f1d1d";
+      btnDelete.style.color = "#fff";
+      actions.appendChild(btnUse);
+      actions.appendChild(btnDelete);
+      // Sett sammen
+      bottom.appendChild(labelWrap);
+      bottom.appendChild(actions);
+      tile.appendChild(top);
+      tile.appendChild(bottom);
+      // (Videre eksisterende logikk som legger tile i DOM og binder events fortsetter uendret)
       // Endre navn
       const inp = tile.querySelector('input[data-role="label"]');
       inp?.addEventListener("input", (e) => {
@@ -1185,14 +1347,22 @@
       const id = Number(it.id);
       const author = String(it.author || "").trim();
       const url = `https://picsum.photos/id/${id}/${PICSUM_THUMB_W}/${PICSUM_THUMB_H}`;
-      // static/js/admin.js — REPLACE tile building inside renderPicsumGrid()
       const tile = document.createElement("div");
       tile.className = "tile";
-      tile.innerHTML = `
-  <img src="${url}" alt="Picsum #${id}">
-  <div class="check">#${id}</div>
-  <div class="meta"><strong>${author || "Ukjent"}</strong></div>
-`;
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = `Picsum #${id}`;
+      const divCheck = document.createElement("div");
+      divCheck.className = "check";
+      divCheck.textContent = `#${id}`;
+      const divMeta = document.createElement("div");
+      divMeta.className = "meta";
+      const strong = document.createElement("strong");
+      strong.textContent = author || "Ukjent";
+      divMeta.appendChild(strong);
+      tile.appendChild(img);
+      tile.appendChild(divCheck);
+      tile.appendChild(divMeta);
       const mark = () => {
         if (picsumPicker.selected.has(id)) {
           picsumPicker.selected.delete(id);
@@ -1795,6 +1965,7 @@
     ensurePicsumBrowseButton();
     ensurePicsumModal();
     ensureCuratedPicsumUI();
+    ensurePicsumAutoRotateUI();
     bindPicsumImport();
     await loadAll().catch(console.error);
     await updateSyncPill().catch(() => {});
